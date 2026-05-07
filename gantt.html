@@ -790,14 +790,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 .google-btn:hover{background:var(--s-hover);border-color:var(--border2)}
 
 /* ── USER DISPLAY ── */
-#userDisplay{display:flex;align-items:center;gap:6px;cursor:pointer;padding:2px 6px;border-radius:6px;transition:background .12s;position:relative}
-#userDisplay:hover{background:var(--s-hover)}
-#userMenu{position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);min-width:160px;z-index:200;display:none;overflow:hidden}
-#userMenu.open{display:block}
-.user-menu-item{padding:9px 14px;font-size:13px;color:var(--t2);cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .12s}
-.user-menu-item:hover{background:var(--s-hover)}
-.user-menu-item.danger{color:var(--red)}
-.user-menu-name{font-size:12px;color:var(--t3);padding:10px 14px 4px;font-weight:500;border-bottom:1px solid var(--border)}
+#userDisplay{display:flex;align-items:center;gap:6px;}
 </style>
 </head>
 <body>
@@ -858,12 +851,8 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   <button class="btn btn-owner-only" id="shareBtn" onclick="openShareModal()" title="分享專案（唯讀連結）">🔗 分享</button>
   <button class="btn btn-owner-only" onclick="openVersionPanel()" title="版本紀錄">🕐 版本</button>
   <button class="btn" id="darkBtn" onclick="toggleDark()" title="深色模式">🌙</button>
-  <div id="userDisplay" onclick="toggleUserMenu(event)">
-    <div id="userMenu">
-      <div class="user-menu-name" id="userMenuName"></div>
-      <div class="user-menu-item danger" onclick="signOut()">🚪 登出</div>
-    </div>
-  </div>
+  <div id="userDisplay"></div>
+  <button class="btn" id="signOutBtn" onclick="signOut()" title="登出" style="display:none">登出</button>
   <div class="sync-dot" id="syncDot" title="雲端同步狀態"></div>
 </div>
 
@@ -3316,17 +3305,13 @@ async function signInWithGoogle() {
 
 async function signOut() {
   await sb.auth.signOut();
-  location.reload();
-}
-
-function toggleUserMenu(e) {
-  e.stopPropagation();
-  document.getElementById('userMenu').classList.toggle('open');
-  setTimeout(() => document.addEventListener('click', closeUserMenuOutside, { once: true }), 0);
-}
-
-function closeUserMenuOutside() {
-  document.getElementById('userMenu')?.classList.remove('open');
+  currentUser = null;
+  _appInitialized = false;
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('appToolbar').style.display = 'none';
+  document.getElementById('main').style.display = 'none';
+  document.getElementById('userDisplay').innerHTML = '';
+  document.getElementById('signOutBtn').style.display = 'none';
 }
 
 function showApp() {
@@ -3342,15 +3327,10 @@ function updateUserDisplay() {
   const avatar = meta.avatar_url || meta.picture;
   const el = document.getElementById('userDisplay');
   if (!el) return;
-  document.getElementById('userMenuName').textContent = name;
-  const img = avatar
-    ? `<img src="${avatar}" style="width:26px;height:26px;border-radius:50%;object-fit:cover">`
-    : `<div style="width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700">${(name[0]||'U').toUpperCase()}</div>`;
-  // Replace only the avatar part (not the menu)
-  const menu = document.getElementById('userMenu');
-  el.innerHTML = '';
-  el.insertAdjacentHTML('afterbegin', img);
-  el.appendChild(menu);
+  el.innerHTML = avatar
+    ? `<img src="${avatar}" title="${name}" style="width:26px;height:26px;border-radius:50%;object-fit:cover">`
+    : `<div title="${name}" style="width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700">${(name[0]||'U').toUpperCase()}</div>`;
+  document.getElementById('signOutBtn').style.display = '';
 }
 
 async function initApp() {
