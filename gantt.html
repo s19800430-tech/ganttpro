@@ -3303,8 +3303,8 @@ async function loadAdminUsers() {
   const tbody = document.getElementById('adminUserList');
   tbody.innerHTML = '<tr><td colspan="5" style="color:var(--t3);text-align:center;padding:16px">載入中…</td></tr>';
   const { data, error } = await sb.from('gantt_allowed_users')
-    .select('email, name, is_admin, created_at')
-    .order('created_at', { ascending: true });
+    .select('email, name, is_admin, added_at')
+    .order('added_at', { ascending: true });
   if (error || !data) {
     tbody.innerHTML = '<tr><td colspan="5" style="color:#E53;text-align:center">載入失敗</td></tr>';
     return;
@@ -3315,7 +3315,7 @@ async function loadAdminUsers() {
       <td>${u.name || '—'}</td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${u.email}">${u.email}</td>
       <td>${u.is_admin ? '👑 管理員' : '用戶'}</td>
-      <td style="color:var(--t3)">${u.created_at ? new Date(u.created_at).toLocaleDateString('zh-TW') : '—'}</td>
+      <td style="color:var(--t3)">${u.added_at ? new Date(u.added_at).toLocaleDateString('zh-TW') : '—'}</td>
       <td>${u.is_admin ? '' : `<button class="btn" style="font-size:11px;padding:3px 8px;color:#E53;border-color:#E53" onclick="deleteUser('${u.email}')">刪除</button>`}</td>
     </tr>
   `).join('');
