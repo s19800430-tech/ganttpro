@@ -965,7 +965,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 <div class="overlay" id="shareOverlay" onclick="closeShareModal()">
   <div class="modal share-modal" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeShareModal()">✕</button>
-    <div class="modal-title">🔗 分享專案</div>
+    <div class="modal-title">🔗 分享專案：<span id="shareModalProjName" style="color:var(--accent);font-size:14px"></span></div>
     <p class="share-note">將此連結分享給其他人，對方可以唯讀瀏覽此專案，無法進行任何編輯。</p>
     <div class="share-link-row">
       <input class="share-link-input" id="shareLinkInput" readonly>
@@ -3140,6 +3140,10 @@ async function openShareModal() {
   const token = getOrCreateShareToken(proj);
   const url = location.origin + location.pathname + '?share=' + token;
   document.getElementById('shareLinkInput').value = url;
+  document.getElementById('shareModalProjName').textContent = proj.name;
+  // Reset note text
+  const note = document.querySelector('.share-owner-note');
+  if (note) note.innerHTML = '💡 此連結為唯讀連結。只有您（專案建立者）在一般模式下可以編輯。';
   document.getElementById('shareOverlay').classList.add('open');
   render(); // persist shareToken to user data
   const ok = await saveShareToCloud(token, proj);
