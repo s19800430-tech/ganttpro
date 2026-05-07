@@ -27,6 +27,7 @@
   --rowh:36px;
   --barh:20px;
   --tcol:660px;
+  --cg:28px 1fr 86px 86px 52px 100px 36px 68px;
 }
 
 body{
@@ -161,7 +162,7 @@ body.dark .btn-group .btn.active{background:rgba(94,106,210,.2)}
 .task-thead-r{
   flex:1;
   display:grid;
-  grid-template-columns:28px 1fr 86px 86px 52px 100px 36px 68px;
+  grid-template-columns:var(--cg);
   align-items:center;
   padding:0 8px 0 12px;
   border-bottom:1px solid var(--border);
@@ -169,6 +170,20 @@ body.dark .btn-group .btn.active{background:rgba(94,106,210,.2)}
 }
 .task-thead-r:last-child{border-bottom:none}
 .th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--t4)}
+.th-col{position:relative;display:flex;align-items:center;overflow:hidden}
+.col-rsz{
+  position:absolute;right:-3px;top:15%;width:6px;height:70%;
+  cursor:col-resize;z-index:20;border-radius:3px;
+  display:flex;align-items:center;justify-content:center;
+}
+.col-rsz::after{
+  content:'';display:block;width:1px;height:100%;
+  background:var(--border2);border-radius:1px;
+  transition:width .12s,background .12s;
+}
+.col-rsz:hover::after,.col-rsz.dragging::after{
+  width:3px;background:var(--accent);
+}
 .th-sub{font-size:11px;color:var(--t3)}
 .th-sub b{color:var(--t2);font-weight:600}
 
@@ -179,7 +194,7 @@ body.dark .btn-group .btn.active{background:rgba(94,106,210,.2)}
 .task-row{
   height:var(--rowh);
   display:grid;
-  grid-template-columns:28px 1fr 86px 86px 52px 100px 36px 68px;
+  grid-template-columns:var(--cg);
   align-items:center;
   padding:0 8px 0 0;
   border-bottom:1px solid var(--border);
@@ -195,8 +210,8 @@ body.dark .btn-group .btn.active{background:rgba(94,106,210,.2)}
 .name-cell{display:flex;align-items:center;gap:3px;min-width:0;overflow:hidden}
 .row-num{
   font-size:11px;color:var(--t4);
-  text-align:center;font-variant-numeric:tabular-nums;
-  flex-shrink:0;
+  font-variant-numeric:tabular-nums;
+  flex-shrink:0;min-width:16px;text-align:right;margin-right:2px;
 }
 .drag-handle{
   opacity:0;cursor:grab;flex-shrink:0;
@@ -281,10 +296,10 @@ body.dark .ms-badge{background:#3d2c00;color:#fbbf24;border-color:#593f00}
 }
 .deps-tag-x:hover{opacity:1}
 .deps-menu{
-  position:absolute;top:calc(100% + 4px);left:0;right:0;
+  position:absolute;bottom:calc(100% + 4px);left:0;right:0;
   background:var(--surface);border:1px solid var(--border);
-  border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.13);
-  max-height:180px;overflow-y:auto;z-index:200;
+  border-radius:8px;box-shadow:0 -4px 20px rgba(0,0,0,.13);
+  max-height:200px;overflow-y:auto;z-index:200;
   display:none;padding:4px;
 }
 .deps-menu.open{display:block}
@@ -405,12 +420,12 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
   position:absolute;
   height:var(--barh);top:8px;
   border-radius:4px;cursor:pointer;
-  z-index:2;overflow:hidden;
+  z-index:2;overflow:visible;
   transition:filter .1s,transform .1s;
 }
 .gantt-bar:hover{filter:brightness(1.08);transform:scaleY(1.06)}
 
-.bar-bg{position:absolute;inset:0;opacity:.22;border-radius:4px}
+.bar-bg{position:absolute;inset:0;opacity:.88;border-radius:4px}
 .bar-fill{position:absolute;top:0;left:0;bottom:0;border-radius:4px}
 .bar-lbl{
   position:relative;padding:0 8px;
@@ -418,6 +433,11 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   z-index:1;line-height:20px;
   text-shadow:0 1px 2px rgba(0,0,0,.3);
+}
+.bar-date{
+  position:absolute;top:50%;transform:translateY(-50%);
+  font-size:10px;font-weight:600;color:var(--t1);
+  white-space:nowrap;pointer-events:none;z-index:2;
 }
 
 .group-bar{
@@ -443,12 +463,152 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
 }
 .milestone-d:hover{transform:translateX(-7px) rotate(45deg) scale(1.25)}
 
+/* ── MILESTONE VIEW ── */
+/* ── MILESTONE TIMELINE VIEW ── */
+/* milestone timeline header row */
+body.ms-view .chart-head{height:auto}
+.ms-timeline-row{
+  position:relative;width:100%;height:160px;
+  border-bottom:2px solid var(--border);
+  background:var(--surface);flex-shrink:0;
+}
+/* zoom buttons */
+.zoom-btn{font-size:16px;font-weight:700;width:28px;padding:0;flex-shrink:0}
+.fit-btn{width:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+/* swimlane spine */
+.ms-spine{
+  position:absolute;left:0;right:0;height:6px;
+  border-radius:3px;top:50%;transform:translateY(-50%);
+  z-index:1;pointer-events:none;
+}
+/* diamond on spine */
+.ms-dot{
+  position:absolute;width:14px;height:14px;border-radius:2px;
+  transform:rotate(45deg);z-index:3;cursor:pointer;
+  transition:transform .15s;
+}
+.ms-dot:hover{transform:rotate(45deg) scale(1.3)}
+/* vertical connector */
+.ms-conn{
+  position:absolute;width:1.5px;z-index:2;pointer-events:none;
+  background:var(--border2);
+}
+/* milestone label */
+.ms-lbl{
+  position:absolute;font-size:10px;font-weight:600;
+  white-space:nowrap;pointer-events:none;z-index:4;
+  transform:translateX(-50%);color:var(--t2);
+}
+.ms-lbl-date{
+  position:absolute;font-size:9px;font-weight:400;
+  white-space:nowrap;pointer-events:none;z-index:4;
+  transform:translateX(-50%);color:var(--t3);
+}
+
 .arrows-svg{
   position:absolute;top:0;left:0;
   pointer-events:none;z-index:3;overflow:visible;
 }
 
 /* ── STATUS BAR ── */
+/* ── VERSION PANEL ── */
+.ver-backdrop{position:fixed;inset:0;z-index:1200;display:none}
+.ver-backdrop.open{display:block}
+.ver-panel{
+  position:fixed;right:0;top:0;bottom:0;width:300px;
+  background:var(--surface);border-left:1px solid var(--border);
+  box-shadow:-4px 0 20px rgba(0,0,0,.12);
+  z-index:1201;display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .22s ease;
+}
+.ver-panel.open{transform:translateX(0)}
+.ver-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px;border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.ver-head-title{font-weight:700;font-size:14px;color:var(--t1)}
+.ver-close{
+  width:26px;height:26px;border-radius:6px;border:none;
+  background:transparent;cursor:pointer;font-size:16px;color:var(--t3);
+  display:flex;align-items:center;justify-content:center;
+}
+.ver-close:hover{background:var(--s-hover)}
+.ver-create{
+  padding:12px 16px;border-bottom:1px solid var(--border);
+  display:flex;gap:8px;flex-shrink:0;
+}
+.ver-create input{
+  flex:1;height:32px;border:1px solid var(--border);border-radius:6px;
+  padding:0 10px;font-size:12px;background:var(--surface);color:var(--t1);
+  outline:none;
+}
+.ver-create input:focus{border-color:var(--accent)}
+.ver-create button{
+  height:32px;padding:0 12px;border-radius:6px;border:none;
+  background:var(--accent);color:#fff;font-size:12px;
+  cursor:pointer;white-space:nowrap;font-weight:600;
+}
+.ver-create button:hover{filter:brightness(1.1)}
+.ver-list{flex:1;overflow-y:auto;padding:8px 0}
+.ver-list::-webkit-scrollbar{width:4px}
+.ver-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.ver-item{
+  padding:10px 16px;border-bottom:1px solid var(--border);
+  display:flex;flex-direction:column;gap:4px;
+  cursor:default;position:relative;
+}
+.ver-item:hover{background:var(--s-hover)}
+.ver-item-name{font-size:13px;font-weight:600;color:var(--t1)}
+.ver-item-meta{font-size:11px;color:var(--t4)}
+.ver-item-actions{display:flex;gap:6px;margin-top:4px}
+.ver-btn{
+  font-size:11px;padding:2px 8px;border-radius:4px;border:none;
+  cursor:pointer;font-weight:500;
+}
+.ver-btn-restore{background:var(--accent-bg);color:var(--accent)}
+.ver-btn-restore:hover{background:var(--accent);color:#fff}
+.ver-btn-del{background:transparent;color:var(--t4)}
+.ver-btn-del:hover{color:var(--red);background:#FEF2F2}
+.ver-empty{
+  text-align:center;padding:32px 16px;font-size:12px;color:var(--t4);line-height:1.8;
+}
+
+/* ── READ-ONLY MODE ── */
+body.readonly .btn-primary{display:none!important}
+body.readonly .btn-ver{display:none!important}
+body.readonly .row-action-btn{display:none!important}
+body.readonly .drag-handle{display:none!important}
+body.readonly .resizer{display:none!important}
+body.readonly .col-rsz{display:none!important}
+body.readonly .check-box{pointer-events:none;opacity:.7}
+.readonly-badge{
+  display:none;align-items:center;gap:6px;
+  background:#FEF3C7;color:#92400E;
+  padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;
+}
+body.readonly .readonly-badge{display:flex}
+/* Share Modal */
+.share-modal{width:440px}
+.share-link-row{display:flex;gap:8px;margin-top:10px}
+.share-link-input{
+  flex:1;height:34px;border:1px solid var(--border);border-radius:6px;
+  padding:0 10px;font-size:12px;background:var(--s2);color:var(--t2);outline:none;
+}
+.share-copy-btn{
+  height:34px;padding:0 14px;border:none;border-radius:6px;
+  background:var(--accent);color:#fff;font-size:12px;font-weight:600;
+  cursor:pointer;white-space:nowrap;
+}
+.share-copy-btn:hover{filter:brightness(1.1)}
+.share-note{font-size:12px;color:var(--t3);margin-top:8px;line-height:1.6}
+.share-owner-note{
+  margin-top:12px;padding:10px;border-radius:8px;
+  background:var(--s2);font-size:12px;color:var(--t3);
+}
+body.readonly .btn-owner-only{display:none!important}
+/* in readonly hide new-project option */
+body.readonly .proj-item-new{display:none!important}
+
 .statusbar{
   height:28px;background:var(--surface);
   border-top:1px solid var(--border);
@@ -464,10 +624,9 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
 /* ── MODAL ── */
 .overlay{
   position:fixed;inset:0;
-  background:rgba(17,24,39,.5);
+  background:rgba(17,24,39,.18);
   z-index:1000;display:none;
   align-items:center;justify-content:center;
-  backdrop-filter:blur(2px);
 }
 .overlay.open{display:flex}
 .modal{
@@ -526,12 +685,23 @@ body.dark .form-ctrl{color-scheme:dark}
 
 /* ── RESIZE HANDLE ── */
 .resizer{
-  width:4px;cursor:col-resize;
-  background:transparent;flex-shrink:0;
-  transition:background .15s;
+  width:8px;cursor:col-resize;flex-shrink:0;
+  background:transparent;transition:background .15s;
   z-index:20;position:relative;
+  display:flex;align-items:center;justify-content:center;
 }
-.resizer:hover,.resizer.drag{background:var(--accent)}
+.resizer::before{
+  content:'';position:absolute;left:50%;transform:translateX(-50%);
+  width:2px;height:100%;background:var(--border2);border-radius:1px;
+  transition:width .12s,background .12s;
+}
+.resizer::after{
+  content:'⋮';position:absolute;top:50%;transform:translateY(-50%);
+  font-size:14px;color:var(--t4);letter-spacing:-2px;
+  transition:color .12s;
+}
+.resizer:hover::before,.resizer.drag::before{width:3px;background:var(--accent)}
+.resizer:hover::after,.resizer.drag::after{color:var(--accent)}
 
 /* ── PROJECT SELECTOR ── */
 .proj-selector{
@@ -611,17 +781,58 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   </div>
   <div class="sep"></div>
   <button class="btn btn-primary" onclick="openModal()">＋ 新增任務</button>
+  <button class="btn" id="undoBtn" onclick="undo()" title="復原 (⌘Z)" disabled>↩ 復原</button>
   <button class="btn" onclick="scrollToToday()" title="跳至今日">📍 今日</button>
   <button class="btn" onclick="expandAll()">⊞ 全展開</button>
   <button class="btn" onclick="collapseAll()">⊟ 全收合</button>
   <div class="spacer"></div>
+  <div class="btn-group" id="chartViewBtns">
+    <button class="btn active" data-cv="gantt" onclick="setChartView('gantt')">甘特圖</button>
+    <button class="btn" data-cv="milestone" onclick="setChartView('milestone')">◆ 里程碑</button>
+  </div>
+  <div class="sep"></div>
   <div class="btn-group" id="viewBtns">
     <button class="btn" data-v="day" onclick="setView('day')">日</button>
     <button class="btn active" data-v="week" onclick="setView('week')">週</button>
     <button class="btn" data-v="month" onclick="setView('month')">月</button>
   </div>
+  <button class="btn zoom-btn" onclick="zoomOut()" title="縮小">－</button>
+  <button class="btn zoom-btn" onclick="zoomIn()" title="放大">＋</button>
+  <button class="btn fit-btn" onclick="fitToFrame()" title="縮放至適合視窗"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4.5V1h3.5M8.5 1H12v3.5M12 8.5V12H8.5M4.5 12H1V8.5"/></svg></button>
+  <div class="readonly-badge">👁 唯讀模式</div>
+  <button class="btn btn-owner-only" id="shareBtn" onclick="openShareModal()" title="分享專案（唯讀連結）">🔗 分享</button>
+  <button class="btn btn-owner-only" onclick="openVersionPanel()" title="版本紀錄">🕐 版本</button>
   <button class="btn" id="darkBtn" onclick="toggleDark()" title="深色模式">🌙</button>
   <div class="sync-dot" id="syncDot" title="雲端同步狀態"></div>
+</div>
+
+<!-- VERSION PANEL -->
+<div class="ver-backdrop" id="verBackdrop" onclick="closeVersionPanel()"></div>
+<div class="ver-panel" id="verPanel">
+  <div class="ver-head">
+    <span class="ver-head-title">🕐 版本紀錄</span>
+    <button class="ver-close" onclick="closeVersionPanel()">✕</button>
+  </div>
+  <div class="ver-create">
+    <input id="verNameInput" placeholder="版本名稱，如 v1.0 需求確認" maxlength="60"
+      onkeydown="if(event.key==='Enter')createVersion()">
+    <button onclick="createVersion()">建立版本</button>
+  </div>
+  <div class="ver-list" id="verList"></div>
+</div>
+
+<!-- SHARE MODAL -->
+<div class="overlay" id="shareOverlay" onclick="closeShareModal()">
+  <div class="modal share-modal" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeShareModal()">✕</button>
+    <div class="modal-title">🔗 分享專案</div>
+    <p class="share-note">將此連結分享給其他人，對方可以唯讀瀏覽此專案，無法進行任何編輯。</p>
+    <div class="share-link-row">
+      <input class="share-link-input" id="shareLinkInput" readonly>
+      <button class="share-copy-btn" onclick="copyShareLink()">複製連結</button>
+    </div>
+    <div class="share-owner-note">💡 此連結為唯讀連結。只有您（專案建立者）在一般模式下可以編輯。</div>
+  </div>
 </div>
 
 <!-- MAIN -->
@@ -631,11 +842,11 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
     <div class="task-thead">
       <div class="task-thead-r">
         <span class="th" style="text-align:center">#</span>
-        <span class="th">任務名稱</span>
-        <span class="th">開始日期</span>
-        <span class="th">結束日期</span>
-        <span class="th" style="text-align:center">工作日</span>
-        <span class="th">前置任務</span>
+        <div class="th th-col">任務名稱<div class="col-rsz" data-ci="1"></div></div>
+        <div class="th th-col">開始日期<div class="col-rsz" data-ci="2"></div></div>
+        <div class="th th-col">結束日期<div class="col-rsz" data-ci="3"></div></div>
+        <div class="th th-col" style="justify-content:center">工作日<div class="col-rsz" data-ci="4"></div></div>
+        <div class="th th-col">前置任務<div class="col-rsz" data-ci="5"></div></div>
         <span class="th" style="text-align:center">完成</span>
         <span></span>
       </div>
@@ -684,29 +895,24 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
       <label class="form-lbl">任務名稱</label>
       <input class="form-ctrl" id="fName" placeholder="輸入任務名稱...">
     </div>
-    <div class="form-row-2">
-      <div>
-        <label class="form-lbl">所屬階段</label>
-        <select class="form-ctrl" id="fParent"></select>
-      </div>
-      <div>
-        <label class="form-lbl">類型</label>
-        <select class="form-ctrl" id="fType">
-          <option value="task">一般任務</option>
-          <option value="milestone">里程碑</option>
-        </select>
-      </div>
+    <select style="display:none" id="fParent"></select>
+    <div class="form-row">
+      <label class="form-lbl">類型</label>
+      <select class="form-ctrl" id="fType" onchange="updateModalForType()">
+        <option value="task">一般任務</option>
+        <option value="milestone">里程碑</option>
+      </select>
     </div>
-    <div class="form-row-2" style="grid-template-columns:1fr 1fr 80px">
+    <div class="form-row-2" id="rowDates" style="grid-template-columns:1fr 1fr 80px">
       <div>
-        <label class="form-lbl">開始日期</label>
+        <label class="form-lbl" id="lblStart">開始日期</label>
         <input class="form-ctrl" type="date" id="fStart" value="2026-05-07">
       </div>
-      <div>
+      <div id="colEnd">
         <label class="form-lbl">結束日期</label>
         <input class="form-ctrl" type="date" id="fEnd" value="2026-05-14">
       </div>
-      <div>
+      <div id="colWday">
         <label class="form-lbl">工作日</label>
         <input class="form-ctrl" type="number" id="fWday" min="1" value="6" style="text-align:center">
       </div>
@@ -720,7 +926,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
         <div class="deps-menu" id="depsMenu"></div>
       </div>
     </div>
-    <div class="form-row" style="display:flex;align-items:center;gap:10px;margin-bottom:0">
+    <div class="form-row" id="rowDone" style="display:flex;align-items:center;gap:10px;margin-bottom:0">
       <label class="form-lbl" style="margin-bottom:0">已完成</label>
       <div class="check-box" id="fDone" onclick="this.classList.toggle('done');this.textContent=this.classList.contains('done')?'✓':''"></div>
     </div>
@@ -775,6 +981,8 @@ const BAR_H       = 20;
 const PPDS = { day: 36, week: 20, month: 8 };
 let PPD = PPDS.week;
 let viewMode = 'week';
+let milestoneView = false;
+const MS_ROW_H = 160;
 
 const AV_COLORS = {
   'Paul':     '#5E6AD2',
@@ -859,10 +1067,64 @@ let projects = [
       { id:25, name:'資安掃描確認',        type:'task',      parent:23, color:'#10B981', assignee:'Paul',     start:'2026-06-22', end:'2026-06-27', done:false, deps:[20] },
       { id:26, name:'Spaces V2.0 正式上線', type:'milestone', parent:23, color:'#EF4444', assignee:'Paul',   date:'2026-06-30',                   deps:[24,25] },
     ]
+  },
+  {
+    id: 2,
+    name: '硬體產品開發計畫',
+    color: '#0EA5E9',
+    startDate: '2026-05-04',
+    endDate: '2027-03-31',
+    nextId: 38,
+    tasks: [
+      { id:1,  name:'硬體產品開發',      type:'group',     parent:null, color:'#0EA5E9' },
+
+      { id:2,  name:'需求定義',           type:'group',     parent:1,  color:'#818CF8' },
+      { id:3,  name:'市場需求調研',       type:'task',      parent:2,  color:'#818CF8', wday:10, deps:[],    done:false, start:'', end:'' },
+      { id:4,  name:'產品規格制定',       type:'task',      parent:2,  color:'#818CF8', wday:8,  deps:[3],   done:false, start:'', end:'' },
+      { id:5,  name:'競品分析',           type:'task',      parent:2,  color:'#818CF8', wday:5,  deps:[],    done:false, start:'', end:'' },
+      { id:6,  name:'規格凍結',           type:'milestone', parent:2,  color:'#5E6AD2',          deps:[4],   date:'' },
+
+      { id:7,  name:'概念設計',           type:'group',     parent:1,  color:'#60A5FA' },
+      { id:8,  name:'系統架構設計',       type:'task',      parent:7,  color:'#60A5FA', wday:10, deps:[6],   done:false, start:'', end:'' },
+      { id:9,  name:'硬體概念設計',       type:'task',      parent:7,  color:'#60A5FA', wday:8,  deps:[8],   done:false, start:'', end:'' },
+      { id:10, name:'外觀設計',           type:'task',      parent:7,  color:'#60A5FA', wday:8,  deps:[8],   done:false, start:'', end:'' },
+      { id:11, name:'CDR 概念設計審查',   type:'milestone', parent:7,  color:'#3B82F6',          deps:[9,10],date:'' },
+
+      { id:12, name:'詳細設計',           type:'group',     parent:1,  color:'#34D399' },
+      { id:13, name:'電路圖設計',         type:'task',      parent:12, color:'#34D399', wday:15, deps:[11],  done:false, start:'', end:'' },
+      { id:14, name:'PCB Layout',         type:'task',      parent:12, color:'#34D399', wday:12, deps:[13],  done:false, start:'', end:'' },
+      { id:15, name:'結構件設計',         type:'task',      parent:12, color:'#34D399', wday:12, deps:[11],  done:false, start:'', end:'' },
+      { id:16, name:'韌體開發',           type:'task',      parent:12, color:'#34D399', wday:20, deps:[13],  done:false, start:'', end:'' },
+      { id:17, name:'PDR 詳細設計審查',   type:'milestone', parent:12, color:'#10B981',          deps:[14,15],date:'' },
+
+      { id:18, name:'EVT 原型製作',       type:'group',     parent:1,  color:'#FBBF24' },
+      { id:19, name:'PCB 打樣',           type:'task',      parent:18, color:'#FBBF24', wday:10, deps:[17],  done:false, start:'', end:'' },
+      { id:20, name:'結構件打樣',         type:'task',      parent:18, color:'#FBBF24', wday:10, deps:[17],  done:false, start:'', end:'' },
+      { id:21, name:'原型組裝與調試',     type:'task',      parent:18, color:'#FBBF24', wday:5,  deps:[19,20],done:false,start:'', end:'' },
+      { id:22, name:'EVT 原型完成',       type:'milestone', parent:18, color:'#F59E0B',          deps:[21],  date:'' },
+
+      { id:23, name:'DVT 驗證測試',       type:'group',     parent:1,  color:'#F87171' },
+      { id:24, name:'功能測試',           type:'task',      parent:23, color:'#F87171', wday:10, deps:[22],  done:false, start:'', end:'' },
+      { id:25, name:'環境壓力測試',       type:'task',      parent:23, color:'#F87171', wday:10, deps:[22],  done:false, start:'', end:'' },
+      { id:26, name:'安規認證',           type:'task',      parent:23, color:'#F87171', wday:15, deps:[24],  done:false, start:'', end:'' },
+      { id:27, name:'問題修改改版',       type:'task',      parent:23, color:'#F87171', wday:10, deps:[24,25],done:false,start:'', end:'' },
+      { id:28, name:'DVT 驗證完成',       type:'milestone', parent:23, color:'#EF4444',          deps:[26,27],date:'' },
+
+      { id:29, name:'PVT 量產準備',       type:'group',     parent:1,  color:'#A78BFA' },
+      { id:30, name:'供應商確認',         type:'task',      parent:29, color:'#A78BFA', wday:10, deps:[28],  done:false, start:'', end:'' },
+      { id:31, name:'生產工程設計',       type:'task',      parent:29, color:'#A78BFA', wday:10, deps:[28],  done:false, start:'', end:'' },
+      { id:32, name:'試量產',             type:'task',      parent:29, color:'#A78BFA', wday:15, deps:[30,31],done:false,start:'', end:'' },
+      { id:33, name:'PVT 量產準備完成',   type:'milestone', parent:29, color:'#8B5CF6',          deps:[32],  date:'' },
+
+      { id:34, name:'MP 量產導入',        type:'group',     parent:1,  color:'#10B981' },
+      { id:35, name:'正式量產',           type:'task',      parent:34, color:'#10B981', wday:20, deps:[33],  done:false, start:'', end:'' },
+      { id:36, name:'品質監控',           type:'task',      parent:34, color:'#10B981', wday:15, deps:[35],  done:false, start:'', end:'' },
+      { id:37, name:'MP 正式出貨',        type:'milestone', parent:34, color:'#059669',          deps:[35],  date:'' },
+    ]
   }
 ];
 let currentProjId = 1;
-let nextProjId    = 2;
+let nextProjId    = 3;
 
 // These always point to the current project (reassigned on switch)
 let tasks  = projects[0].tasks;
@@ -879,6 +1141,31 @@ let editingTaskId = null;
 let dragSrcId = null;
 let selectedDeps = new Set();
 let depsExcludeId = null;
+
+/* ─── UNDO HISTORY ─── */
+const MAX_HISTORY = 50;
+let _history = [];
+
+function pushHistory() {
+  _history.push({ tasks: JSON.parse(JSON.stringify(tasks)), nextId });
+  if (_history.length > MAX_HISTORY) _history.shift();
+  const btn = document.getElementById('undoBtn');
+  if (btn) btn.disabled = false;
+}
+
+function undo() {
+  if (!_history.length) return;
+  const snap = _history.pop();
+  tasks = snap.tasks;
+  nextId = snap.nextId;
+  curProj().tasks = tasks;
+  curProj().nextId = nextId;
+  scheduleTasks();
+  recalcProjEnd();
+  render();
+  const btn = document.getElementById('undoBtn');
+  if (btn) btn.disabled = _history.length === 0;
+}
 
 /* ═══════════════════════════════════════════
    UTILS
@@ -910,12 +1197,63 @@ function taskById(id) {
   return tasks.find(t => t.id === id);
 }
 
+function getTreeLines(rows, idx) {
+  const d = rows[idx].depth;
+  if (d === 0) return [];
+  const types = [];
+  for (let col = 0; col < d - 1; col++) {
+    let hasPipe = false;
+    for (let j = idx + 1; j < rows.length; j++) {
+      if (rows[j].depth <= col) break;
+      if (rows[j].depth === col + 1) { hasPipe = true; break; }
+    }
+    types.push(hasPipe ? 'pipe' : 'space');
+  }
+  let isLast = true;
+  for (let j = idx + 1; j < rows.length; j++) {
+    if (rows[j].depth < d) break;
+    if (rows[j].depth === d) { isLast = false; break; }
+  }
+  types.push(isLast ? 'last' : 'fork');
+  return types;
+}
+
+function darkenColor(hex, amount = 0.35) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgb(${Math.round(r*(1-amount))},${Math.round(g*(1-amount))},${Math.round(b*(1-amount))})`;
+}
+
+function hasMilestoneDescendant(id) {
+  for (const t of tasks.filter(t => t.parent === id)) {
+    if (t.type === 'milestone') return true;
+    if (t.type === 'group' && hasMilestoneDescendant(t.id)) return true;
+  }
+  return false;
+}
+
+function hexToRgba(hex, alpha) {
+  if (!hex || hex.length < 7) return `rgba(94,106,210,${alpha})`;
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 function getVisibleRows() {
+  if (milestoneView) {
+    return tasks
+      .filter(t => t.type === 'milestone' && !t.done)
+      .sort((a, b) => (a.date || '') < (b.date || '') ? -1 : 1)
+      .map(t => ({ task: t, depth: 0 }));
+  }
   const rows = [];
   function addChildren(parentId, depth) {
     tasks.filter(t => t.parent === parentId).forEach(t => {
       rows.push({ task: t, depth });
-      if (t.type === 'group' && !collapsed.has(t.id)) {
+      if (!collapsed.has(t.id) && tasks.some(c => c.parent === t.id)) {
         addChildren(t.id, depth + 1);
       }
     });
@@ -990,7 +1328,7 @@ function renderTaskPanel() {
       reorderTask(dragSrcId, task.id, e.clientY < rect.top + rect.height / 2);
     });
 
-    // Empty spacer for 28px number column (column 1 occupied by overlay)
+    // Empty spacer for 28px number column
     row.appendChild(document.createElement('div'));
 
     // Name cell
@@ -1005,10 +1343,11 @@ function renderTaskPanel() {
 
     const ind = document.createElement('span');
     ind.className = 'indent';
-    ind.style.width = (depth * 14) + 'px';
+    ind.style.width = (depth * 18) + 'px';
     nc.appendChild(ind);
 
-    if (task.type === 'group') {
+    const hasChildren = tasks.some(c => c.parent === task.id);
+    if (hasChildren) {
       const tog = document.createElement('span');
       tog.className = 'toggle' + (collapsed.has(task.id) ? ' coll' : '');
       tog.innerHTML = '▼';
@@ -1022,12 +1361,24 @@ function renderTaskPanel() {
 
     const dot = document.createElement('span');
     dot.className = 'cdot';
-    dot.style.background = task.color;
+    if (task.type === 'milestone') {
+      const parentTask = tasks.find(t => t.id === task.parent);
+      dot.style.background = parentTask ? darkenColor(parentTask.color) : darkenColor(task.color);
+    } else {
+      dot.style.background = task.color;
+    }
     nc.appendChild(dot);
+
+    const numSpan = document.createElement('span');
+    numSpan.className = 'row-num';
+    numSpan.textContent = task.id;
+    nc.appendChild(numSpan);
 
     const nm = document.createElement('span');
     nm.className = 'tname' + (task.type === 'group' ? ' bold' : '');
     nm.textContent = task.name;
+    nm.style.cursor = 'text';
+    nm.addEventListener('click', e => { e.stopPropagation(); if (!isReadOnly) openNameEditor(task, nm); });
     nc.appendChild(nm);
 
     if (task.type === 'milestone') {
@@ -1041,24 +1392,16 @@ function renderTaskPanel() {
     if (task.done) row.classList.add('completed');
     row.appendChild(nc);
 
-    // Start date cell
+    // Start date cell (read-only, calculated by scheduler)
     const sc = document.createElement('div');
     sc.className = 'date-cell';
     sc.textContent = task.start || task.date || '';
-    if (task.type === 'task') {
-      sc.style.cursor = 'text';
-      sc.addEventListener('click', e => { e.stopPropagation(); openDateEditor(task, 'start', sc); });
-    }
     row.appendChild(sc);
 
     // End date cell
     const ec = document.createElement('div');
     ec.className = 'date-cell';
     ec.textContent = task.end || task.date || '';
-    if (task.type === 'task') {
-      ec.style.cursor = 'text';
-      ec.addEventListener('click', e => { e.stopPropagation(); openDateEditor(task, 'end', ec); });
-    }
     row.appendChild(ec);
 
     // Working days cell
@@ -1067,7 +1410,7 @@ function renderTaskPanel() {
     if (task.type === 'task' && task.start && task.end) {
       wc.textContent = countWorkingDays(task.start, task.end);
       wc.style.cursor = 'text';
-      wc.addEventListener('click', e => { e.stopPropagation(); openWdayEditor(task, wc); });
+      wc.addEventListener('click', e => { e.stopPropagation(); if (!isReadOnly) openWdayEditor(task, wc); });
     } else {
       wc.textContent = '—';
     }
@@ -1097,6 +1440,7 @@ function renderTaskPanel() {
       cb.textContent = task.done ? '✓' : '';
       cb.onclick = e => {
         e.stopPropagation();
+        pushHistory();
         task.done = !task.done;
         render();
       };
@@ -1110,36 +1454,43 @@ function renderTaskPanel() {
     const ac = document.createElement('div');
     ac.className = 'add-cell';
 
+    const _parent = taskById(task.parent);
+    const canOutdent = task.parent !== null && _parent && _parent.parent !== null;
+    const _myIdx = tasks.indexOf(task);
+    let _prevSib = null;
+    for (let i = _myIdx - 1; i >= 0; i--) {
+      if (tasks[i].parent === task.parent) { _prevSib = tasks[i]; break; }
+    }
+    const canIndent = _prevSib !== null && getTaskDepth(_prevSib.id) + 1 < 5;
+
     const outBtn = document.createElement('div');
     outBtn.className = 'row-action-btn';
     outBtn.textContent = '←';
     outBtn.title = '升階（移到上一層）';
-    outBtn.onclick = e => { e.stopPropagation(); outdentTask(task.id); };
+    if (canOutdent) outBtn.onclick = e => { e.stopPropagation(); outdentTask(task.id); };
+    else outBtn.style.visibility = 'hidden';
     ac.appendChild(outBtn);
 
     const inBtn = document.createElement('div');
     inBtn.className = 'row-action-btn';
     inBtn.textContent = '→';
     inBtn.title = '降階（縮入前一個兄弟）';
-    inBtn.onclick = e => { e.stopPropagation(); indentTask(task.id); };
+    if (canIndent) inBtn.onclick = e => { e.stopPropagation(); indentTask(task.id); };
+    else inBtn.style.visibility = 'hidden';
     ac.appendChild(inBtn);
 
     const addBtn = document.createElement('div');
     addBtn.className = 'row-action-btn add';
     addBtn.textContent = '+';
     addBtn.title = '在此節點下新增任務';
-    addBtn.onclick = e => { e.stopPropagation(); openModalUnder(task.id); };
+    addBtn.onclick = e => { e.stopPropagation(); addTaskInline(task.id); };
     ac.appendChild(addBtn);
 
     row.appendChild(ac);
 
     // Click to edit (task/milestone only, skip toggle & checkbox)
     if (task.type !== 'group') {
-      row.addEventListener('click', e => {
-        if (e.target.closest('.toggle') || e.target.closest('.check-cell') || e.target.closest('.row-add-btn')) return;
-        openEditModal(task.id);
-      });
-      row.style.cursor = 'pointer';
+      row.style.cursor = 'default';
     }
 
     // Hover sync
@@ -1149,16 +1500,6 @@ function renderTaskPanel() {
     body.appendChild(row);
   });
 
-  // Fixed number overlay — sits on top, not part of draggable rows
-  const numOverlay = document.createElement('div');
-  numOverlay.style.cssText = 'position:absolute;top:0;left:0;width:28px;pointer-events:none;z-index:3';
-  rows.forEach(({ task }) => {
-    const n = document.createElement('div');
-    n.style.cssText = 'height:36px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--t4);font-variant-numeric:tabular-nums';
-    n.textContent = task.id;
-    numOverlay.appendChild(n);
-  });
-  body.appendChild(numOverlay);
 }
 
 function toggleCollapse(id) {
@@ -1173,7 +1514,7 @@ function expandAll() {
 }
 
 function collapseAll() {
-  tasks.filter(t => t.type === 'group').forEach(t => collapsed.add(t.id));
+  tasks.filter(t => tasks.some(c => c.parent === t.id)).forEach(t => collapsed.add(t.id));
   render();
 }
 
@@ -1261,6 +1602,18 @@ function renderChartHeader() {
 
   head.appendChild(mRow);
   head.appendChild(wRow);
+
+  // In milestone view, append the single timeline row to the sticky header
+  if (milestoneView) {
+    const tlRow = document.createElement('div');
+    tlRow.className = 'ms-timeline-row';
+    tlRow.style.width = tw + 'px';
+    const allMs = tasks.filter(t => t.type === 'milestone' && !t.done)
+      .sort((a, b) => (a.date || '') < (b.date || '') ? -1 : 1);
+    const root = tasks.find(t => t.parent === null);
+    if (root) renderMilestoneTimeline(tlRow, root, allMs);
+    head.appendChild(tlRow);
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -1269,15 +1622,21 @@ function renderChartHeader() {
 function renderChartBody() {
   const canvas = document.getElementById('chartCanvas');
   canvas.innerHTML = '';
-  const rows = getVisibleRows();
   const tw = totalW();
+
+  // Milestone view: canvas is empty (timeline lives in the sticky header)
+  if (milestoneView) {
+    canvas.style.cssText = `width:${tw}px;height:0px`;
+    updateStats();
+    return;
+  }
+
+  const rows = getVisibleRows();
   const th = rows.length * ROW_H;
   canvas.style.cssText = `width:${tw}px;height:${th}px`;
 
-  // Grid lines
   renderGrid(canvas, tw, th);
 
-  // Today line
   const tx = dateToX(TODAY_STR);
   if (tx >= 0 && tx <= tw) {
     const line = document.createElement('div');
@@ -1290,7 +1649,6 @@ function renderChartBody() {
     canvas.appendChild(line);
   }
 
-  // Rows
   rows.forEach(({ task }, i) => {
     const row = document.createElement('div');
     row.className = 'chart-row' + (task.type === 'group' ? ' group-bg' : '');
@@ -1308,14 +1666,10 @@ function renderChartBody() {
 
     row.addEventListener('mouseenter', () => highlightRow(task.id, true));
     row.addEventListener('mouseleave', () => highlightRow(task.id, false));
-
     canvas.appendChild(row);
   });
 
-  // Dependency arrows
-  renderArrows(canvas, rows, tw, th);
-
-  // Stats
+  if (!milestoneView) renderArrows(canvas, rows, tw, th);
   updateStats();
 }
 
@@ -1372,28 +1726,44 @@ function renderBar(row, task) {
   bar.dataset.id = task.id;
   bar.style.cssText = `left:${x1}px;width:${w}px`;
 
+  if (task.done) bar.style.opacity = '0.32';
+
+  // Inner clip container (clips bg + label, leaves room for date labels outside)
+  const inner = document.createElement('div');
+  inner.style.cssText = 'position:absolute;inset:0;overflow:hidden;border-radius:4px';
+
   const bg = document.createElement('div');
   bg.className = 'bar-bg';
   bg.style.background = task.color;
-  bar.appendChild(bg);
-
-  const fill = document.createElement('div');
-  fill.className = 'bar-fill';
-  fill.style.cssText = `background:${task.color};width:${task.done ? 100 : 0}%`;
-  bar.appendChild(fill);
+  inner.appendChild(bg);
 
   if (w > 36) {
     const lbl = document.createElement('div');
     lbl.className = 'bar-lbl';
     lbl.textContent = task.name;
-    bar.appendChild(lbl);
+    inner.appendChild(lbl);
   }
+  bar.appendChild(inner);
 
   bar.addEventListener('mouseenter', e => showTT(e, task));
   bar.addEventListener('mousemove', moveTT);
   bar.addEventListener('mouseleave', hideTT);
 
   row.appendChild(bar);
+
+  // Date labels outside the bar
+  const fmt = s => { const [y,m,d] = s.split('-'); return `${y}/${+m}/${+d}`; };
+  const sd = document.createElement('div');
+  sd.className = 'bar-date';
+  sd.style.cssText = `right:${w+4}px;text-align:right`;
+  sd.textContent = fmt(task.start);
+  bar.appendChild(sd);
+
+  const ed2 = document.createElement('div');
+  ed2.className = 'bar-date';
+  ed2.style.cssText = `left:${w+4}px`;
+  ed2.textContent = fmt(task.end);
+  bar.appendChild(ed2);
 }
 
 function renderGroupBar(row, task, bounds) {
@@ -1415,12 +1785,87 @@ function renderGroupBar(row, task, bounds) {
   row.appendChild(bar);
 }
 
+/* Single horizontal milestone timeline — all milestones on one spine */
+function renderMilestoneTimeline(row, groupTask, msList) {
+  const center  = MS_ROW_H / 2;   // 80px (spine Y)
+  const halfD   = 8;               // diamond half-size
+  const connH   = 28;              // connector height
+  const rowW    = parseInt(row.style.width) || 9999;
+
+  // Single spine — use accent color
+  const spine = document.createElement('div');
+  spine.className = 'ms-spine';
+  spine.style.cssText = `background:var(--accent);opacity:0.35`;
+  row.appendChild(spine);
+
+  // Today line on the timeline
+  const tx = dateToX(TODAY_STR);
+  if (tx >= 0 && tx <= rowW) {
+    const tl = document.createElement('div');
+    tl.className = 'today-line';
+    tl.style.left = tx + 'px';
+    const tlbl = document.createElement('div');
+    tlbl.className = 'today-lbl';
+    tlbl.textContent = '今日';
+    tl.appendChild(tlbl);
+    row.appendChild(tl);
+  }
+
+  if (!msList.length) return;
+
+  // Milestones already sorted by date (from getVisibleRows)
+  msList.forEach((ms, idx) => {
+    const x = dateToX(ms.date);
+    if (x < -60 || x > rowW + 60) return;
+    const above   = idx % 2 === 0;
+    const msColor = ms.color || groupTask.color || '#5E6AD2';
+
+    // Connector line
+    const conn = document.createElement('div');
+    conn.className = 'ms-conn';
+    conn.style.cssText = above
+      ? `left:${x - 0.75}px;top:${center - halfD - connH}px;height:${connH}px`
+      : `left:${x - 0.75}px;top:${center + halfD}px;height:${connH}px`;
+    row.appendChild(conn);
+
+    // Diamond
+    const d = document.createElement('div');
+    d.className = 'ms-dot';
+    d.style.cssText = `left:${x - halfD}px;top:${center - halfD}px;` +
+      `width:${halfD*2}px;height:${halfD*2}px;` +
+      `background:${msColor};box-shadow:0 2px 10px ${msColor}70`;
+    d.addEventListener('mouseenter', e => showTT(e, ms));
+    d.addEventListener('mousemove', moveTT);
+    d.addEventListener('mouseleave', hideTT);
+    row.appendChild(d);
+
+    // Name label
+    const nameTop = above
+      ? center - halfD - connH - 14
+      : center + halfD + connH + 2;
+    const lbl = document.createElement('div');
+    lbl.className = 'ms-lbl';
+    lbl.style.cssText = `left:${x}px;top:${nameTop}px;color:${msColor};font-size:11px`;
+    lbl.textContent = ms.name;
+    row.appendChild(lbl);
+
+    // Date label
+    const dateTop = above ? nameTop - 12 : nameTop + 14;
+    const dlbl = document.createElement('div');
+    dlbl.className = 'ms-lbl-date';
+    dlbl.style.cssText = `left:${x}px;top:${dateTop}px;font-size:10px`;
+    dlbl.textContent = ms.date || '';
+    row.appendChild(dlbl);
+  });
+}
+
 function renderMilestone(row, task) {
   const x = dateToX(task.date);
   const d = document.createElement('div');
   d.className = 'milestone-d';
   d.dataset.id = task.id;
-  d.style.cssText = `left:${x}px;background:${task.color};box-shadow:0 2px 8px ${task.color}55`;
+  const col = task.color || '#5E6AD2';
+  d.style.cssText = `left:${x}px;background:${col};box-shadow:0 2px 8px ${col}55`;
   d.addEventListener('mouseenter', e => showTT(e, task));
   d.addEventListener('mousemove', moveTT);
   d.addEventListener('mouseleave', hideTT);
@@ -1557,6 +2002,42 @@ function setView(v) {
   render();
 }
 
+function setChartView(v) {
+  milestoneView = v === 'milestone';
+  document.querySelectorAll('#chartViewBtns .btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.cv === v);
+  });
+  document.body.classList.toggle('ms-view', milestoneView);
+  render();
+}
+
+function applyZoom(factor) {
+  const cs = document.getElementById('chartScroll');
+  const centerDays = (cs.scrollLeft + cs.clientWidth / 2) / PPD;
+  PPD = Math.max(2, Math.min(80, Math.round(PPD * factor)));
+  // Deactivate all preset view buttons since PPD is now custom
+  document.querySelectorAll('#viewBtns .btn').forEach(b => {
+    b.classList.toggle('active', PPDS[b.dataset.v] === PPD);
+  });
+  render();
+  requestAnimationFrame(() => {
+    cs.scrollLeft = Math.max(0, centerDays * PPD - cs.clientWidth / 2);
+  });
+}
+function zoomIn()  { applyZoom(1.4); }
+function zoomOut() { applyZoom(1 / 1.4); }
+function fitToFrame() {
+  const cs = document.getElementById('chartScroll');
+  const viewW = cs.clientWidth - 4;
+  const totalDays = (CHART_END - CHART_START) / 86400000 + 1;
+  PPD = Math.max(2, Math.min(80, viewW / totalDays));
+  document.querySelectorAll('#viewBtns .btn').forEach(b => {
+    b.classList.toggle('active', PPDS[b.dataset.v] === PPD);
+  });
+  render();
+  requestAnimationFrame(() => { cs.scrollLeft = 0; });
+}
+
 /* ═══════════════════════════════════════════
    SCROLL TO TODAY
 ═══════════════════════════════════════════ */
@@ -1631,7 +2112,14 @@ function syncEndFromWday() {
   document.getElementById('fWday').addEventListener('keyup', syncEndFromWday);
 })();
 
+function updateModalForType() {
+  const isMs = document.getElementById('fType').value === 'milestone';
+  document.getElementById('rowDates').style.display = isMs ? 'none' : '';
+  document.getElementById('rowDone').style.display  = isMs ? 'none' : '';
+}
+
 function openModal() {
+  if (isReadOnly) return;
   editingTaskId = null;
   document.getElementById('modal-title').textContent = '＋ 新增任務';
   document.getElementById('modal-submit').textContent = '新增任務';
@@ -1641,16 +2129,70 @@ function openModal() {
   document.getElementById('fWday').value = 1;
   document.getElementById('fType').value = 'task';
   populateModal();
+  updateModalForType();
   document.getElementById('overlay').classList.add('open');
   setTimeout(() => document.getElementById('fName').focus(), 50);
 }
 
+function openNameEditor(task, cell, isNew = false) {
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'inline-input';
+  inp.value = task.name;
+  inp.placeholder = '輸入任務名稱…';
+  inp.style.cssText = 'width:100%;min-width:80px';
+  cell.innerHTML = '';
+  cell.style.overflow = 'visible';
+  cell.appendChild(inp);
+  inp.focus(); inp.select();
+  let committed = false;
+  function commit() {
+    if (committed) return; committed = true;
+    const name = inp.value.trim();
+    if (!name) { tasks = tasks.filter(t => t.id !== task.id); render(); return; }
+    if (!isNew) pushHistory();
+    task.name = name;
+    recalcProjEnd(); render();
+  }
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+    if (e.key === 'Escape') { committed = true; tasks = tasks.filter(t => t.id !== task.id); render(); }
+  });
+}
+
+function addTaskInline(refTaskId) {
+  if (isReadOnly) return;
+  const ref = taskById(refTaskId);
+  if (!ref) return;
+  const parentId = ref.parent;
+  const parent = taskById(parentId);
+  const newTask = {
+    id: nextId++,
+    name: '',
+    type: 'task',
+    parent: parentId,
+    color: parent ? parent.color : '#5E6AD2',
+    start: TODAY_STR,
+    end: TODAY_STR,
+    done: false,
+    deps: []
+  };
+  const idx = tasks.indexOf(ref);
+  pushHistory();
+  tasks.splice(idx + 1, 0, newTask);
+  render();
+  requestAnimationFrame(() => {
+    const row = document.querySelector(`.task-row[data-id="${newTask.id}"]`);
+    if (row) openNameEditor(newTask, row.querySelector('.tname'), true);
+  });
+}
+
 function openModalUnder(taskId) {
+  if (isReadOnly) return;
   const task = taskById(taskId);
   if (!task) return;
-  // Groups: add child under this group
-  // Tasks/milestones: add sibling under same parent
-  const parentId = task.type === 'group' ? task.id : task.parent;
+  const parentId = task.parent;
   editingTaskId = null;
   document.getElementById('modal-title').textContent = '＋ 新增任務';
   document.getElementById('modal-submit').textContent = '新增任務';
@@ -1659,11 +2201,13 @@ function openModalUnder(taskId) {
   document.getElementById('fEnd').value = TODAY_STR;
   document.getElementById('fType').value = 'task';
   populateModal(null, [], parentId);
+  updateModalForType();
   document.getElementById('overlay').classList.add('open');
   setTimeout(() => document.getElementById('fName').focus(), 50);
 }
 
 function openEditModal(taskId) {
+  if (isReadOnly) return;
   const task = taskById(taskId);
   if (!task) return;
   editingTaskId = taskId;
@@ -1675,6 +2219,7 @@ function openEditModal(taskId) {
   document.getElementById('fEnd').value = task.end || task.date || TODAY_STR;
   document.getElementById('fWday').value = (task.start && task.end) ? countWorkingDays(task.start, task.end) : 1;
   populateModal(taskId, task.deps || [], task.parent, task.done || false);
+  updateModalForType();
   document.getElementById('overlay').classList.add('open');
   setTimeout(() => document.getElementById('fName').focus(), 50);
 }
@@ -1697,6 +2242,7 @@ function submitTask() {
   const done = document.getElementById('fDone').classList.contains('done');
   const deps = [...selectedDeps];
 
+  pushHistory();
   if (editingTaskId !== null) {
     // Update existing task
     const t = taskById(editingTaskId);
@@ -1786,8 +2332,10 @@ function openWdayEditor(task, cell) {
   inp.focus(); inp.select();
   function commit() {
     const days = parseInt(inp.value);
-    if (!isNaN(days) && days >= 1 && task.start) {
-      task.end = addWorkingDays(task.start, days);
+    if (!isNaN(days) && days >= 1) {
+      pushHistory();
+      task.wday = days;
+      scheduleTasks();
       recalcProjEnd(); render();
     } else { render(); }
   }
@@ -1850,7 +2398,13 @@ function updateDepsTags() {
 function renderDepsMenu() {
   const menu = document.getElementById('depsMenu');
   menu.innerHTML = '';
-  const list = tasks.filter(t => t.type !== 'group' && t.parent !== null && t.id !== depsExcludeId);
+  const editingTask = taskById(depsExcludeId);
+  const editingParent = editingTask ? editingTask.parent : null;
+  const list = tasks.filter(t =>
+    t.type !== 'milestone' &&
+    t.parent !== null &&
+    t.id !== depsExcludeId
+  );
   if (list.length === 0) {
     menu.innerHTML = '<div style="padding:10px;text-align:center;font-size:12px;color:var(--t4)">目前無可選前置任務</div>';
     return;
@@ -1880,15 +2434,92 @@ function openDepsEditor(task, cell) {
   inp.select();
 
   function commit() {
-    const raw = inp.value.split(/[,\s]+/).map(s => parseInt(s)).filter(n => !isNaN(n) && n !== task.id);
+    const raw = inp.value.split(/[,\s]+/)
+      .map(s => parseInt(s))
+      .filter(n => !isNaN(n) && n !== task.id);
+    pushHistory();
     task.deps = [...new Set(raw)];
-    render();
+    scheduleTasks();
+    recalcProjEnd(); render();
   }
   inp.addEventListener('blur', commit);
   inp.addEventListener('keydown', e => {
     if (e.key === 'Enter') { inp.blur(); }
     if (e.key === 'Escape') { task.deps = task.deps || []; render(); }
   });
+}
+
+function scheduleTasks() {
+  const projStart = curProj().startDate;
+  if (!projStart) return;
+  // Ensure all tasks have wday
+  tasks.forEach(t => {
+    if (t.type === 'task' && !t.wday)
+      t.wday = (t.start && t.end) ? countWorkingDays(t.start, t.end) : 1;
+  });
+  const candidates = tasks.filter(t => t.type === 'task' || t.type === 'milestone');
+  const scheduled = new Set();
+  const MAX = candidates.length * 3;
+  let iter = 0, progress = true;
+  while (progress && iter++ < MAX) {
+    progress = false;
+    candidates.forEach(task => {
+      if (scheduled.has(task.id)) return;
+      const deps = (task.deps || []).map(id => taskById(id)).filter(Boolean);
+      const unresolved = deps.filter(d => d.type !== 'group' && !scheduled.has(d.id));
+      if (unresolved.length) return;
+      // Latest end among deps
+      let latestEnd = null;
+      deps.forEach(dep => {
+        const e = dep.type === 'task' ? dep.end
+                : dep.type === 'milestone' ? dep.date
+                : dep.type === 'group' ? groupBounds(dep.id).e : null;
+        if (e && (!latestEnd || e > latestEnd)) latestEnd = e;
+      });
+      if (task.type === 'task') {
+        const rawStart = latestEnd ? addWorkingDays(latestEnd, 1) : projStart;
+        let s = new Date(rawStart);
+        while (isWeekend(s)) s.setDate(s.getDate() + 1);
+        task.start = s.toISOString().slice(0, 10);
+        task.end   = addWorkingDays(task.start, task.wday || 1);
+      } else { // milestone
+        if (latestEnd) {
+          let d = new Date(latestEnd); d.setDate(d.getDate() + 1);
+          while (isWeekend(d)) d.setDate(d.getDate() + 1);
+          task.date = d.toISOString().slice(0, 10);
+        } else {
+          let d = new Date(projStart);
+          while (isWeekend(d)) d.setDate(d.getDate() + 1);
+          task.date = d.toISOString().slice(0, 10);
+        }
+      }
+      scheduled.add(task.id);
+      progress = true;
+    });
+  }
+}
+
+function autoScheduleFromDeps(task) {
+  if (task.type !== 'task') return;
+  const deps = task.deps || [];
+  if (!deps.length) return;
+  let latestEnd = null;
+  deps.forEach(depId => {
+    const dep = taskById(depId);
+    if (!dep) return;
+    let depEnd = dep.type === 'task' ? dep.end
+                : dep.type === 'milestone' ? dep.date
+                : dep.type === 'group' ? groupBounds(dep.id).e
+                : null;
+    if (depEnd && (!latestEnd || depEnd > latestEnd)) latestEnd = depEnd;
+  });
+  if (!latestEnd) return;
+  const wdays = (task.start && task.end) ? countWorkingDays(task.start, task.end) : 1;
+  const newStart = addWorkingDays(latestEnd, 1);
+  if (newStart > (task.start || '')) {
+    task.start = newStart;
+    task.end = addWorkingDays(task.start, wdays);
+  }
 }
 
 function isDescendant(ancestorId, checkId) {
@@ -1903,6 +2534,8 @@ function reorderTask(srcId, targetId, insertBefore) {
   const target = taskById(targetId);
   if (!src || !target) return;
   if (isDescendant(srcId, targetId)) return; // prevent cycle
+
+  pushHistory();
 
   // New parent: dropping on a group row → child of that group
   //             dropping on task/milestone → sibling of target
@@ -1922,31 +2555,91 @@ function reorderTask(srcId, targetId, insertBefore) {
 
 function outdentTask(id) {
   const task = taskById(id);
-  if (!task || task.parent === null) return; // already root
+  if (!task || task.parent === null) return;
   const parent = taskById(task.parent);
-  if (!parent) return;
-  // Move task to be a sibling of its current parent
-  task.parent = parent.parent; // grandparent (may be null → root level)
+  if (!parent || parent.parent === null) return;
+
+  pushHistory();
+
+  // Collect task + all its descendants (preserve order)
+  const subtreeIds = new Set();
+  function collectSubtree(tid) {
+    subtreeIds.add(tid);
+    tasks.filter(c => c.parent === tid).forEach(c => collectSubtree(c.id));
+  }
+  collectSubtree(id);
+  const subtree = tasks.filter(t => subtreeIds.has(t.id));
+
+  // Remove subtree from main array
+  tasks = tasks.filter(t => !subtreeIds.has(t.id));
+
+  // Find insertion point: after last descendant of parent in remaining tasks
+  function isDescOf(checkId, ancestorId) {
+    let cur = taskById(checkId);
+    const seen = new Set();
+    while (cur && cur.parent !== null) {
+      if (seen.has(cur.id)) break;
+      seen.add(cur.id);
+      if (cur.parent === ancestorId) return true;
+      cur = taskById(cur.parent);
+    }
+    return false;
+  }
+  const parentIdx = tasks.findIndex(t => t.id === parent.id);
+  let insertIdx = parentIdx;
+  for (let i = parentIdx + 1; i < tasks.length; i++) {
+    if (isDescOf(tasks[i].id, parent.id)) insertIdx = i;
+  }
+
+  // Update parent and reinsert after parent's subtree
+  task.parent = parent.parent;
+  tasks.splice(insertIdx + 1, 0, ...subtree);
+
+  scheduleTasks();
   recalcProjEnd();
   render();
 }
 
-function indentTask(id) {
-  const task = taskById(id);
-  if (!task) return;
-  // Find the previous sibling (same parent, just before this task in array)
-  const siblings = tasks.filter(t => t.parent === task.parent && t.id !== id);
-  const myIndex = tasks.indexOf(task);
-  // Find the nearest sibling that appears before this task
-  let prevSibling = null;
-  for (let i = myIndex - 1; i >= 0; i--) {
-    if (tasks[i].parent === task.parent && tasks[i].id !== id) {
-      prevSibling = tasks[i];
-      break;
-    }
+function showStatus(msg) {
+  let el = document.getElementById('statusToast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'statusToast';
+    el.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--t1);color:var(--surface);padding:6px 16px;border-radius:8px;font-size:12px;z-index:9999;opacity:0;transition:opacity .25s;pointer-events:none';
+    document.body.appendChild(el);
   }
-  if (!prevSibling) return; // no previous sibling to indent into
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.style.opacity = '0', 2000);
+}
+
+function getTaskDepth(id) {
+  let depth = 0, cur = taskById(id), seen = new Set();
+  while (cur && cur.parent !== null) {
+    if (seen.has(cur.id)) break; // circular reference guard
+    seen.add(cur.id);
+    depth++;
+    cur = taskById(cur.parent);
+  }
+  return depth;
+}
+
+function indentTask(id) {
+  const task = tasks.find(t => t.id === id);
+  if (!task) return;
+  const myIdx = tasks.findIndex(t => t.id === id);
+  let prevSibling = null;
+  for (let i = myIdx - 1; i >= 0; i--) {
+    if (tasks[i].parent === task.parent) { prevSibling = tasks[i]; break; }
+  }
+  if (!prevSibling) return;
+  if (getTaskDepth(prevSibling.id) + 1 >= 5) {
+    showStatus('已達最大層數 5 層'); return;
+  }
+  pushHistory();
   task.parent = prevSibling.id;
+  scheduleTasks();
   recalcProjEnd();
   render();
 }
@@ -1981,8 +2674,10 @@ function switchProject(id) {
   CHART_START = new Date(curProj().startDate);
   CHART_END   = new Date(curProj().endDate);
   collapsed.clear();
+  _history = [];
   closeProjMenuOnly();
   updateProjUI();
+  scheduleTasks();
   render();
   setTimeout(scrollToToday, 80);
 }
@@ -2053,6 +2748,7 @@ function deleteProject(id, e) {
 }
 
 function openProjModal() {
+  if (isReadOnly) return;
   document.getElementById('pName').value = '';
   document.getElementById('pStart').value = TODAY_STR;
   // Preview the color that will be auto-assigned
@@ -2089,6 +2785,7 @@ function submitProject() {
     startDate: start,
     endDate: end,
     nextId: 2,
+    ownerId: getOwnerId(),
     tasks: [
       { id:1, name, type:'group', parent:null, color, assignee:'' }
     ]
@@ -2131,6 +2828,47 @@ function setupSync() {
 }
 
 /* ═══════════════════════════════════════════
+   COLUMN RESIZER
+═══════════════════════════════════════════ */
+const COL_WIDTHS = [28, null, 86, 86, 52, 100, 36, 68]; // null = 1fr
+
+function applyColGrid() {
+  const tpl = COL_WIDTHS.map(w => w === null ? '1fr' : w + 'px').join(' ');
+  document.documentElement.style.setProperty('--cg', tpl);
+}
+
+function setupColResizers() {
+  applyColGrid();
+  document.querySelectorAll('.col-rsz').forEach(handle => {
+    const ci = +handle.dataset.ci;
+    handle.addEventListener('mousedown', e => {
+      e.stopPropagation();
+      e.preventDefault();
+      const headerCell = handle.parentElement;
+      const startX = e.clientX;
+      const startW = headerCell.getBoundingClientRect().width;
+      if (COL_WIDTHS[ci] === null) {
+        COL_WIDTHS[ci] = Math.round(startW);
+        applyColGrid();
+      }
+      handle.classList.add('dragging');
+      const minW = ci === 1 ? 120 : 48;
+      const onMove = ev => {
+        COL_WIDTHS[ci] = Math.max(minW, Math.round(startW + (ev.clientX - startX)));
+        applyColGrid();
+      };
+      const onUp = () => {
+        handle.classList.remove('dragging');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
+}
+
+/* ═══════════════════════════════════════════
    RESIZER
 ═══════════════════════════════════════════ */
 function setupResizer() {
@@ -2148,7 +2886,8 @@ function setupResizer() {
   });
 
   function onMove(e) {
-    const w = Math.max(260, Math.min(600, startW + (e.clientX - startX)));
+    const maxW = window.innerWidth - 300;
+    const w = Math.max(260, Math.min(maxW, startW + (e.clientX - startX)));
     tp.style.width = w + 'px';
     tp.style.minWidth = w + 'px';
   }
@@ -2160,9 +2899,142 @@ function setupResizer() {
 }
 
 /* ═══════════════════════════════════════════
+   OWNER & SHARE SYSTEM
+═══════════════════════════════════════════ */
+let isReadOnly = false;
+
+function getOwnerId() {
+  let id = localStorage.getItem('ganttpro_owner_id');
+  if (!id) {
+    id = 'own_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+    localStorage.setItem('ganttpro_owner_id', id);
+  }
+  return id;
+}
+
+function getOrCreateShareToken(proj) {
+  if (!proj.shareToken) {
+    proj.shareToken = 'shr_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  }
+  return proj.shareToken;
+}
+
+function openShareModal() {
+  if (isReadOnly) return;
+  const proj = curProj();
+  const token = getOrCreateShareToken(proj);
+  const url = location.origin + location.pathname + '?share=' + token;
+  document.getElementById('shareLinkInput').value = url;
+  document.getElementById('shareOverlay').classList.add('open');
+  render(); // persist shareToken to cloud
+}
+
+function closeShareModal() {
+  document.getElementById('shareOverlay').classList.remove('open');
+}
+
+function copyShareLink() {
+  const val = document.getElementById('shareLinkInput').value;
+  navigator.clipboard.writeText(val)
+    .then(() => { showStatus('✓ 分享連結已複製到剪貼簿'); closeShareModal(); })
+    .catch(() => {
+      const inp = document.getElementById('shareLinkInput');
+      inp.select(); document.execCommand('copy');
+      showStatus('✓ 分享連結已複製'); closeShareModal();
+    });
+}
+
+/* ═══════════════════════════════════════════
+   VERSION MANAGEMENT
+═══════════════════════════════════════════ */
+function curVersions() {
+  const p = curProj();
+  if (!p.versions) p.versions = [];
+  return p.versions;
+}
+
+function openVersionPanel() {
+  document.getElementById('verPanel').classList.add('open');
+  document.getElementById('verBackdrop').classList.add('open');
+  renderVersionList();
+  setTimeout(() => document.getElementById('verNameInput').focus(), 200);
+}
+
+function closeVersionPanel() {
+  document.getElementById('verPanel').classList.remove('open');
+  document.getElementById('verBackdrop').classList.remove('open');
+}
+
+function createVersion() {
+  const inp = document.getElementById('verNameInput');
+  const name = inp.value.trim();
+  if (!name) { inp.focus(); return; }
+  const v = {
+    id: Date.now(),
+    name,
+    createdAt: new Date().toISOString(),
+    taskCount: tasks.filter(t => t.type === 'task').length,
+    snapshot: JSON.parse(JSON.stringify(tasks))
+  };
+  curVersions().unshift(v);
+  inp.value = '';
+  renderVersionList();
+  render(); // triggers save
+  showStatus('✓ 版本「' + name + '」已建立');
+}
+
+function restoreVersion(vId) {
+  const v = curVersions().find(v => v.id === vId);
+  if (!v) return;
+  if (!confirm(`還原至版本「${v.name}」？\n目前變更將被覆蓋，此操作無法復原。`)) return;
+  curProj().tasks = JSON.parse(JSON.stringify(v.snapshot));
+  tasks = curProj().tasks;
+  collapsed.clear();
+  render();
+  closeVersionPanel();
+  showStatus('✓ 已還原至「' + v.name + '」');
+}
+
+function deleteVersion(vId) {
+  const vs = curVersions();
+  const v = vs.find(v => v.id === vId);
+  if (!v) return;
+  if (!confirm(`刪除版本「${v.name}」？`)) return;
+  curProj().versions = vs.filter(v => v.id !== vId);
+  renderVersionList();
+  render();
+}
+
+function renderVersionList() {
+  const el = document.getElementById('verList');
+  const vs = curVersions();
+  if (vs.length === 0) {
+    el.innerHTML = '<div class="ver-empty">尚無版本紀錄<br>編輯完成後輸入版本名稱<br>點擊「建立版本」儲存快照</div>';
+    return;
+  }
+  el.innerHTML = '';
+  vs.forEach(v => {
+    const d = new Date(v.createdAt);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const item = document.createElement('div');
+    item.className = 'ver-item';
+    item.innerHTML = `
+      <div class="ver-item-name">${v.name}</div>
+      <div class="ver-item-meta">${dateStr} · ${v.taskCount} 個任務</div>
+      <div class="ver-item-actions">
+        <button class="ver-btn ver-btn-restore" onclick="restoreVersion(${v.id})">還原此版本</button>
+        <button class="ver-btn ver-btn-del" onclick="deleteVersion(${v.id})">刪除</button>
+      </div>
+    `;
+    el.appendChild(item);
+  });
+}
+
+/* ═══════════════════════════════════════════
    KEYBOARD SHORTCUTS
 ═══════════════════════════════════════════ */
 document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); return; }
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
   if (e.key === 't' || e.key === 'T') scrollToToday();
   if (e.key === 'd') setView('day');
@@ -2180,6 +3052,9 @@ function render() {
   renderTaskPanel();
   renderChartHeader();
   renderChartBody();
+  const undoBtn = document.getElementById('undoBtn');
+  if (undoBtn) undoBtn.disabled = _history.length === 0;
+  if (isReadOnly) return;
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(() => { saveToLS(); saveToCloud(); }, 600);
 }
@@ -2197,7 +3072,7 @@ function setSyncDot(state) {
   const dot = document.getElementById('syncDot');
   if (!dot) return;
   dot.className = 'sync-dot' + (state ? ' ' + state : '');
-  dot.title = { saving:'儲存中...', ok:'已同步', err:'同步失敗' }[state] || '雲端同步';
+  dot.title = { saving:'儲存中...', ok:'已同步', err:'同步失敗', off:'唯讀模式' }[state] || '雲端同步';
 }
 
 async function saveToCloud() {
@@ -2286,20 +3161,114 @@ function loadFromLS() {
   } catch(e) { return false; }
 }
 
+function mergeDefaultProjects() {
+  // Add any built-in projects not yet in the loaded state (identified by name)
+  const DEFAULTS = [
+    { name: '硬體產品開發計畫', startDate: '2026-05-04' }
+  ];
+  DEFAULTS.forEach(def => {
+    if (!projects.find(p => p.name === def.name)) {
+      const maxId = Math.max(...projects.map(p => p.id), 0);
+      const template = [
+        { id:2, name:'硬體產品開發計畫', color:'#0EA5E9', startDate:'2026-05-04', endDate:'2027-03-31', nextId:38,
+          tasks: [
+            { id:1,  name:'硬體產品開發',      type:'group',     parent:null, color:'#0EA5E9' },
+            { id:2,  name:'需求定義',           type:'group',     parent:1,  color:'#818CF8' },
+            { id:3,  name:'市場需求調研',       type:'task',      parent:2,  color:'#818CF8', wday:10, deps:[],    done:false, start:'', end:'' },
+            { id:4,  name:'產品規格制定',       type:'task',      parent:2,  color:'#818CF8', wday:8,  deps:[3],   done:false, start:'', end:'' },
+            { id:5,  name:'競品分析',           type:'task',      parent:2,  color:'#818CF8', wday:5,  deps:[],    done:false, start:'', end:'' },
+            { id:6,  name:'規格凍結',           type:'milestone', parent:2,  color:'#5E6AD2',          deps:[4],   date:'' },
+            { id:7,  name:'概念設計',           type:'group',     parent:1,  color:'#60A5FA' },
+            { id:8,  name:'系統架構設計',       type:'task',      parent:7,  color:'#60A5FA', wday:10, deps:[6],   done:false, start:'', end:'' },
+            { id:9,  name:'硬體概念設計',       type:'task',      parent:7,  color:'#60A5FA', wday:8,  deps:[8],   done:false, start:'', end:'' },
+            { id:10, name:'外觀設計',           type:'task',      parent:7,  color:'#60A5FA', wday:8,  deps:[8],   done:false, start:'', end:'' },
+            { id:11, name:'CDR 概念設計審查',   type:'milestone', parent:7,  color:'#3B82F6',          deps:[9,10],date:'' },
+            { id:12, name:'詳細設計',           type:'group',     parent:1,  color:'#34D399' },
+            { id:13, name:'電路圖設計',         type:'task',      parent:12, color:'#34D399', wday:15, deps:[11],  done:false, start:'', end:'' },
+            { id:14, name:'PCB Layout',         type:'task',      parent:12, color:'#34D399', wday:12, deps:[13],  done:false, start:'', end:'' },
+            { id:15, name:'結構件設計',         type:'task',      parent:12, color:'#34D399', wday:12, deps:[11],  done:false, start:'', end:'' },
+            { id:16, name:'韌體開發',           type:'task',      parent:12, color:'#34D399', wday:20, deps:[13],  done:false, start:'', end:'' },
+            { id:17, name:'PDR 詳細設計審查',   type:'milestone', parent:12, color:'#10B981',          deps:[14,15],date:'' },
+            { id:18, name:'EVT 原型製作',       type:'group',     parent:1,  color:'#FBBF24' },
+            { id:19, name:'PCB 打樣',           type:'task',      parent:18, color:'#FBBF24', wday:10, deps:[17],  done:false, start:'', end:'' },
+            { id:20, name:'結構件打樣',         type:'task',      parent:18, color:'#FBBF24', wday:10, deps:[17],  done:false, start:'', end:'' },
+            { id:21, name:'原型組裝與調試',     type:'task',      parent:18, color:'#FBBF24', wday:5,  deps:[19,20],done:false,start:'', end:'' },
+            { id:22, name:'EVT 原型完成',       type:'milestone', parent:18, color:'#F59E0B',          deps:[21],  date:'' },
+            { id:23, name:'DVT 驗證測試',       type:'group',     parent:1,  color:'#F87171' },
+            { id:24, name:'功能測試',           type:'task',      parent:23, color:'#F87171', wday:10, deps:[22],  done:false, start:'', end:'' },
+            { id:25, name:'環境壓力測試',       type:'task',      parent:23, color:'#F87171', wday:10, deps:[22],  done:false, start:'', end:'' },
+            { id:26, name:'安規認證',           type:'task',      parent:23, color:'#F87171', wday:15, deps:[24],  done:false, start:'', end:'' },
+            { id:27, name:'問題修改改版',       type:'task',      parent:23, color:'#F87171', wday:10, deps:[24,25],done:false,start:'', end:'' },
+            { id:28, name:'DVT 驗證完成',       type:'milestone', parent:23, color:'#EF4444',          deps:[26,27],date:'' },
+            { id:29, name:'PVT 量產準備',       type:'group',     parent:1,  color:'#A78BFA' },
+            { id:30, name:'供應商確認',         type:'task',      parent:29, color:'#A78BFA', wday:10, deps:[28],  done:false, start:'', end:'' },
+            { id:31, name:'生產工程設計',       type:'task',      parent:29, color:'#A78BFA', wday:10, deps:[28],  done:false, start:'', end:'' },
+            { id:32, name:'試量產',             type:'task',      parent:29, color:'#A78BFA', wday:15, deps:[30,31],done:false,start:'', end:'' },
+            { id:33, name:'PVT 量產準備完成',   type:'milestone', parent:29, color:'#8B5CF6',          deps:[32],  date:'' },
+            { id:34, name:'MP 量產導入',        type:'group',     parent:1,  color:'#10B981' },
+            { id:35, name:'正式量產',           type:'task',      parent:34, color:'#10B981', wday:20, deps:[33],  done:false, start:'', end:'' },
+            { id:36, name:'品質監控',           type:'task',      parent:34, color:'#10B981', wday:15, deps:[35],  done:false, start:'', end:'' },
+            { id:37, name:'MP 正式出貨',        type:'milestone', parent:34, color:'#059669',          deps:[35],  date:'' },
+          ]
+        }
+      ].find(t => t.name === def.name);
+      if (template) {
+        template.id = maxId + 1;
+        nextProjId = Math.max(nextProjId, template.id + 1);
+        projects.push(template);
+      }
+    }
+  });
+}
+
 /* ═══════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async () => {
-  // 優先載入雲端，失敗退回 localStorage
-  const cloudOk = await loadFromCloud();
-  if (!cloudOk) loadFromLS();
-  setupSync();
-  setupResizer();
-  setupRealtime();
-  updateProjUI();
-  render();
-  setSyncDot(cloudOk ? 'ok' : 'err');
-  setTimeout(scrollToToday, 120);
+  // Check for share token in URL
+  const urlParams = new URLSearchParams(location.search);
+  const shareToken = urlParams.get('share');
+
+  if (shareToken) {
+    // Read-only shared view: load from cloud, find matching project
+    const cloudOk = await loadFromCloud();
+    if (cloudOk) {
+      const sharedProj = projects.find(p => p.shareToken === shareToken);
+      if (sharedProj) {
+        currentProjId = sharedProj.id;
+        tasks  = curProj().tasks;
+        nextId = curProj().nextId;
+        CHART_START = new Date(curProj().startDate);
+        CHART_END   = new Date(curProj().endDate);
+      }
+    }
+    isReadOnly = true;
+    document.body.classList.add('readonly');
+    setupColResizers();
+    setupResizer();
+    updateProjUI();
+    render();
+    setSyncDot('off');
+    setTimeout(scrollToToday, 120);
+  } else {
+    // Normal edit mode
+    getOwnerId(); // ensure owner ID exists
+    const cloudOk = await loadFromCloud();
+    if (!cloudOk) loadFromLS();
+    mergeDefaultProjects();
+    // Assign ownerId to any project that doesn't have one
+    const ownerId = getOwnerId();
+    projects.forEach(p => { if (!p.ownerId) p.ownerId = ownerId; });
+    setupSync();
+    setupColResizers();
+    setupResizer();
+    setupRealtime();
+    updateProjUI();
+    scheduleTasks();
+    render();
+    setSyncDot(cloudOk ? 'ok' : 'err');
+    setTimeout(scrollToToday, 120);
+  }
 });
 </script>
 </body>
