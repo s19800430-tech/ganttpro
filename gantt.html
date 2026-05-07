@@ -3601,7 +3601,7 @@ async function loadFromCloud() {
 async function loadShareFromCloud(token) {
   try {
     const { data, error } = await sb.from('gantt_shares')
-      .select('project_data').eq('token', token).order('created_at', { ascending: false }).limit(1).maybeSingle();
+      .select('project_data').eq('token', token).limit(1).maybeSingle();
     return (error || !data?.project_data) ? null : data.project_data;
   } catch(e) { return null; }
 }
