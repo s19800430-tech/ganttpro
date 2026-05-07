@@ -353,7 +353,7 @@ body.dark .ms-badge{background:#3d2c00;color:#fbbf24;border-color:#593f00}
 
 /* ── CHART PANEL ── */
 .chart-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
-.chart-scroll{flex:1;overflow:auto;position:relative}
+.chart-scroll{flex:1;overflow-x:auto;overflow-y:hidden;position:relative}
 .chart-scroll::-webkit-scrollbar{width:6px;height:6px}
 .chart-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
@@ -1900,10 +1900,11 @@ function renderGrid(canvas, tw, th) {
 }
 
 function renderBar(row, task) {
+  if (!task.start || !task.end) return;
   const x1 = dateToX(task.start);
   const x2 = dateToX(task.end) + PPD;
-  const w = Math.max(x2 - x1, 8);
-  if (w <= 0) return;
+  const w = x2 - x1;
+  if (!isFinite(w) || w <= 0) return;
 
   const bar = document.createElement('div');
   bar.className = 'gantt-bar';
@@ -2863,6 +2864,7 @@ function switchProject(id) {
   updateReadOnly();
   updateProjUI();
   scheduleTasks();
+  recalcProjEnd();
   render();
   setTimeout(scrollToToday, 80);
 }
@@ -3815,6 +3817,7 @@ async function initApp() {
   setupRealtime();
   updateProjUI();
   scheduleTasks();
+  recalcProjEnd();
   render();
   setSyncDot(cloudOk ? 'ok' : 'err');
   setTimeout(scrollToToday, 120);
@@ -3849,6 +3852,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupResizer();
     updateProjUI();
     scheduleTasks();
+    recalcProjEnd();
     render();
     setSyncDot('off');
     setTimeout(scrollToToday, 120);
