@@ -812,6 +812,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
       </svg>
       使用 Google 帳號登入
     </button>
+    <p id="loginError" style="color:#e53;font-size:13px;text-align:center;margin:0;display:none"></p>
   </div>
 </div>
 
@@ -3296,11 +3297,36 @@ function mergeDefaultProjects() {
    AUTH
 ═══════════════════════════════════════════ */
 async function signInWithGoogle() {
+  document.getElementById('loginError').style.display = 'none';
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: location.origin + location.pathname }
   });
   if (error) alert('登入失敗：' + error.message);
+}
+
+async function checkAuthorized() {
+  if (!currentUser) return false;
+  const { data, error } = await sb
+    .from('gantt_allowed_users')
+    .select('email')
+    .eq('email', currentUser.email)
+    .single();
+  if (error || !data) {
+    await sb.auth.signOut();
+    currentUser = null;
+    _appInitialized = false;
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('appToolbar').style.display = 'none';
+    document.getElementById('main').style.display = 'none';
+    document.getElementById('userDisplay').innerHTML = '';
+    document.getElementById('signOutBtn').style.display = 'none';
+    const errEl = document.getElementById('loginError');
+    errEl.textContent = '此帳號未獲授權，請聯絡管理員';
+    errEl.style.display = '';
+    return false;
+  }
+  return true;
 }
 
 async function signOut() {
@@ -3387,13 +3413,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     currentUser = session.user;
-    await initApp();
+    const authorized = await checkAuthorized();
+    if (authorized) await initApp();
   }
 
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session) {
       currentUser = session.user;
-      await initApp();
+      const authorized = await checkAuthorized();
+      if (authorized) await initApp();
     }
   });
 });
