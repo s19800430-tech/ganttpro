@@ -3310,15 +3310,22 @@ async function loadAdminUsers() {
     return;
   }
   document.getElementById('adminUserCount').textContent = `（${data.length} 人）`;
-  tbody.innerHTML = data.map(u => `
-    <tr>
-      <td>${u.name || '—'}</td>
-      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${u.email}">${u.email}</td>
-      <td>${u.is_admin ? '👑 管理員' : '用戶'}</td>
-      <td style="color:var(--t3)">${u.added_at ? new Date(u.added_at).toLocaleDateString('zh-TW') : '—'}</td>
-      <td>${u.is_admin ? '' : `<button class="btn" style="font-size:11px;padding:3px 8px;color:#E53;border-color:#E53" onclick="deleteUser('${u.email}')">刪除</button>`}</td>
-    </tr>
-  `).join('');
+  try {
+    const rows = data.map(u => {
+      const delBtn = u.is_admin ? '' : `<button class="btn" style="font-size:11px;padding:3px 8px;color:#E53;border-color:#E53" onclick="deleteUser('${u.email}')">刪除</button>`;
+      const dateStr = u.added_at ? new Date(u.added_at).toLocaleDateString('zh-TW') : '—';
+      return `<tr>
+        <td>${u.name || '—'}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${u.email}">${u.email}</td>
+        <td>${u.is_admin ? '管理員' : '用戶'}</td>
+        <td style="color:var(--t3)">${dateStr}</td>
+        <td>${delBtn}</td>
+      </tr>`;
+    });
+    tbody.innerHTML = rows.join('');
+  } catch(err) {
+    tbody.innerHTML = `<tr><td colspan="5" style="color:#E53;text-align:center">渲染失敗：${err.message}</td></tr>`;
+  }
 }
 
 async function deleteUser(email) {
