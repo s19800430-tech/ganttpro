@@ -3067,12 +3067,13 @@ function isAdmin() { return currentUser?.email === ADMIN_EMAIL; }
 
 function updateReadOnly() {
   const cp = curProj();
-  isReadOnly = _isShareLinkMode || (cp?._isShared && cp?._permission === 'read');
+  // Use !! to ensure boolean (avoid undefined causing toggle() to act as actual toggle)
+  isReadOnly = !!(_isShareLinkMode || (cp && cp._isShared && cp._permission === 'read'));
   document.body.classList.toggle('readonly', isReadOnly);
   const badge = document.querySelector('.readonly-badge');
   if (badge) badge.style.display = isReadOnly ? 'flex' : 'none';
-  // shareBtn and collabBtn only for own projects (not share-link mode, not received-share)
-  const isOwnProj = !_isShareLinkMode && !cp?._isShared;
+  // shareBtn and collabBtn only for own projects
+  const isOwnProj = !_isShareLinkMode && !(cp && cp._isShared);
   ['shareBtn','collabBtn'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = isOwnProj ? '' : 'none';
@@ -3138,7 +3139,8 @@ async function loadSharedProjects() {
       if (!ownerRow?.data?.projects) continue;
 
       ownerShares.forEach(share => {
-        const proj = ownerRow.data.projects.find(p => p.id === share.project_id);
+        // project_id stored as text in DB; proj.id is number — compare with ==
+        const proj = ownerRow.data.projects.find(p => p.id == share.project_id);
         if (!proj) return;
         // Avoid duplicates
         if (projects.find(p => p.id === proj.id && p._isShared)) return;
