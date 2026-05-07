@@ -581,6 +581,8 @@ body.readonly .drag-handle{display:none!important}
 body.readonly .resizer{display:none!important}
 body.readonly .col-rsz{display:none!important}
 body.readonly .check-box{pointer-events:none;opacity:.7}
+body.readonly .deps-cell{pointer-events:none;cursor:default!important}
+body.readonly .deps-tags{pointer-events:none;cursor:default!important;border-color:transparent}
 .readonly-badge{
   display:none;align-items:center;gap:6px;
   background:#FEF3C7;color:#92400E;
@@ -1610,9 +1612,10 @@ function renderTaskPanel() {
     // Click on deps cell → open inline editor
     dc.addEventListener('click', e => {
       e.stopPropagation();
+      if (isReadOnly) return;
       openDepsEditor(task, dc);
     });
-    dc.style.cursor = 'text';
+    dc.style.cursor = isReadOnly ? 'default' : 'text';
     row.appendChild(dc);
 
     // Checkbox cell
@@ -2530,6 +2533,7 @@ function openWdayEditor(task, cell) {
 
 /* ── DEPS PICKER LOGIC ── */
 function toggleDepsMenu(e) {
+  if (isReadOnly) return;
   if (e && e.target.closest('.deps-tag-x')) return;
   const menu = document.getElementById('depsMenu');
   if (menu.classList.contains('open')) {
