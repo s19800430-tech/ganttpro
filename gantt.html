@@ -837,6 +837,27 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 .admin-del-btn{padding:3px 10px;border-radius:6px;background:transparent;border:1px solid #E53;color:#E53;font-size:11px;cursor:pointer;font-family:inherit}
 .admin-del-btn:hover{background:#FEF2F2}
 .dark .admin-del-btn:hover{background:#450A0A}
+
+/* ── PRINT / PDF EXPORT ── */
+#printHeader{display:none}
+@media print{
+  @page{size:A4 landscape;margin:1.2cm 1cm}
+  body{background:#fff!important;color:#000!important}
+  #printHeader{display:block!important;padding:0 0 10px;border-bottom:2px solid #333;margin-bottom:12px;font-family:inherit}
+  #printHeader h2{font-size:16px;font-weight:700;margin:0 0 3px}
+  #printHeader p{font-size:11px;color:#555;margin:0}
+  .toolbar{display:none!important}
+  #loginScreen{display:none!important}
+  .collab-overlay,.admin-overlay,.ver-backdrop,.ver-panel,
+  #shareOverlay,#projOverlay,.proj-menu{display:none!important}
+  .main{display:flex!important;height:auto!important;overflow:visible!important}
+  .task-panel{overflow:visible!important;height:auto!important;flex-shrink:0}
+  .task-body{overflow:visible!important;max-height:none!important;height:auto!important}
+  .chart-area{overflow:visible!important;height:auto!important}
+  #chartScroll{overflow:visible!important;height:auto!important}
+  canvas{max-width:100%!important}
+  .sync-dot,.readonly-badge{display:none!important}
+}
 </style>
 </head>
 <body>
@@ -914,6 +935,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   <button class="btn btn-owner-only" id="shareBtn" onclick="openShareModal()" title="分享專案（唯讀連結）">🔗 分享</button>
   <button class="btn btn-owner-only" id="collabBtn" onclick="openCollabModal()" title="協作管理">👥 協作</button>
   <button class="btn btn-owner-only" onclick="openVersionPanel()" title="版本紀錄">🕐 版本</button>
+  <button class="btn" onclick="exportPDF()" title="匯出 PDF">⬇ PDF</button>
   <button class="btn" id="darkBtn" onclick="toggleDark()" title="深色模式">🌙</button>
   <button class="btn" id="adminBtn" onclick="openAdminPanel()" title="管理員面板" style="display:none">👑 Admin</button>
   <div id="userDisplay"></div>
@@ -989,6 +1011,12 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
       <button class="btn" onclick="closeAdminPanel()">關閉</button>
     </div>
   </div>
+</div>
+
+<!-- PRINT HEADER (visible only when printing) -->
+<div id="printHeader">
+  <h2 id="printProjName"></h2>
+  <p id="printMeta"></p>
 </div>
 
 <!-- MAIN -->
@@ -3109,6 +3137,25 @@ function openShareModal() {
 
 function closeShareModal() {
   document.getElementById('shareOverlay').classList.remove('open');
+}
+
+/* ═══════════════════════════════════════════
+   PDF EXPORT
+═══════════════════════════════════════════ */
+function exportPDF() {
+  const proj = curProj();
+  const now = new Date().toLocaleDateString('zh-TW');
+  document.getElementById('printProjName').textContent = proj.name;
+  document.getElementById('printMeta').textContent =
+    `列印日期：${now}　｜　期間：${proj.startDate} ~ ${proj.endDate}　｜　共 ${tasks.length} 項任務`;
+
+  // Temporarily remove dark mode for print (white background)
+  const wasDark = document.body.classList.contains('dark');
+  if (wasDark) document.body.classList.remove('dark');
+
+  window.print();
+
+  if (wasDark) document.body.classList.add('dark');
 }
 
 /* ═══════════════════════════════════════════
