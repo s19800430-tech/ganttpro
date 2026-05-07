@@ -722,6 +722,7 @@ body.dark .form-ctrl{color-scheme:dark}
 }
 .proj-sel-arrow{font-size:9px;color:var(--t4);transition:transform .15s;flex-shrink:0}
 .proj-selector.open .proj-sel-arrow{transform:rotate(180deg)}
+.proj-share-btn{padding:4px 8px;font-size:15px;border-radius:6px;line-height:1;min-width:0}
 
 .proj-menu{
   position:absolute;top:calc(100% + 6px);left:0;
@@ -913,6 +914,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
     <span class="proj-sel-arrow">▾</span>
     <div class="proj-menu" id="projMenu" onclick="event.stopPropagation()"></div>
   </div>
+  <button class="btn btn-owner-only proj-share-btn" onclick="openShareModal()" title="分享此專案（唯讀連結）">🔗</button>
   <div class="sep"></div>
   <button class="btn btn-primary" onclick="openModal()">＋ 新增任務</button>
   <button class="btn" id="undoBtn" onclick="undo()" title="復原 (⌘Z)" disabled>↩ 復原</button>
@@ -934,7 +936,6 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   <button class="btn zoom-btn" onclick="zoomIn()" title="放大">＋</button>
   <button class="btn fit-btn" onclick="fitToFrame()" title="縮放至適合視窗"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4.5V1h3.5M8.5 1H12v3.5M12 8.5V12H8.5M4.5 12H1V8.5"/></svg></button>
   <div class="readonly-badge">👁 唯讀模式</div>
-  <button class="btn btn-owner-only" id="shareBtn" onclick="openShareModal()" title="分享專案（唯讀連結）">🔗 分享</button>
   <button class="btn btn-owner-only" id="collabBtn" onclick="openCollabModal()" title="協作管理">👥 協作</button>
   <button class="btn btn-owner-only" onclick="openVersionPanel()" title="版本紀錄">🕐 版本</button>
   <button class="btn" onclick="exportPDF()" title="匯出 PDF">⬇ PDF</button>
