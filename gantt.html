@@ -3328,8 +3328,8 @@ async function checkAuthorized() {
     .from('gantt_allowed_users')
     .select('email')
     .eq('email', currentUser.email)
-    .single();
-  if (error || !data) {
+    .maybeSingle();
+  if (!data) {
     // 新用戶 → 顯示註冊面板
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('loginPanel').style.display = 'none';
