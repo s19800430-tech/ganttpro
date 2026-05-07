@@ -791,6 +791,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 
 /* ── USER DISPLAY ── */
 #userDisplay{display:flex;align-items:center;gap:6px;}
+#registerNickname:focus{border-color:var(--accent);}
 </style>
 </head>
 <body>
@@ -803,16 +804,32 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
       GanttPro
     </div>
     <p class="login-subtitle">專案甘特圖管理工具</p>
-    <button class="google-btn" onclick="signInWithGoogle()">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908C16.658 14.083 17.64 11.775 17.64 9.2z" fill="#4285F4"/>
-        <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/>
-        <path d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.039l3.007-2.332z" fill="#FBBC05"/>
-        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
-      </svg>
-      使用 Google 帳號登入
-    </button>
-    <p id="loginError" style="color:#e53;font-size:13px;text-align:center;margin:0;display:none"></p>
+
+    <!-- 登入面板 -->
+    <div id="loginPanel" style="display:flex;flex-direction:column;align-items:center;gap:16px;width:100%">
+      <button class="google-btn" onclick="signInWithGoogle()">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908C16.658 14.083 17.64 11.775 17.64 9.2z" fill="#4285F4"/>
+          <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/>
+          <path d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.039l3.007-2.332z" fill="#FBBC05"/>
+          <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+        </svg>
+        使用 Google 帳號登入
+      </button>
+      <p id="loginError" style="color:#e53;font-size:13px;text-align:center;margin:0;display:none"></p>
+    </div>
+
+    <!-- 註冊面板（新用戶 Google 登入後顯示） -->
+    <div id="registerPanel" style="display:none;flex-direction:column;align-items:center;gap:16px;width:100%">
+      <p style="color:var(--t2);font-size:13px;text-align:center;margin:0">歡迎使用 GanttPro！請填寫暱稱完成註冊</p>
+      <input id="registerNickname" type="text" placeholder="請輸入暱稱（最多 20 字）" maxlength="20"
+        onkeydown="if(event.key==='Enter')submitRegister()"
+        style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;
+               background:var(--bg);color:var(--t1);font-size:13px;font-family:inherit;
+               box-sizing:border-box;outline:none">
+      <button class="google-btn" style="width:100%;justify-content:center" onclick="submitRegister()">完成註冊</button>
+      <p id="registerError" style="color:#e53;font-size:13px;text-align:center;margin:0;display:none"></p>
+    </div>
   </div>
 </div>
 
@@ -3313,20 +3330,36 @@ async function checkAuthorized() {
     .eq('email', currentUser.email)
     .single();
   if (error || !data) {
-    await sb.auth.signOut();
-    currentUser = null;
-    _appInitialized = false;
+    // 新用戶 → 顯示註冊面板
     document.getElementById('loginScreen').style.display = 'flex';
-    document.getElementById('appToolbar').style.display = 'none';
-    document.getElementById('main').style.display = 'none';
-    document.getElementById('userDisplay').innerHTML = '';
-    document.getElementById('signOutBtn').style.display = 'none';
-    const errEl = document.getElementById('loginError');
-    errEl.textContent = '此帳號未獲授權，請聯絡管理員';
-    errEl.style.display = '';
+    document.getElementById('loginPanel').style.display = 'none';
+    document.getElementById('registerPanel').style.display = 'flex';
+    document.getElementById('registerNickname').focus();
     return false;
   }
   return true;
+}
+
+async function submitRegister() {
+  const nickname = document.getElementById('registerNickname').value.trim();
+  const errEl = document.getElementById('registerError');
+  if (!nickname) {
+    errEl.textContent = '請填寫暱稱';
+    errEl.style.display = '';
+    return;
+  }
+  errEl.style.display = 'none';
+  const { error } = await sb
+    .from('gantt_allowed_users')
+    .insert({ email: currentUser.email, name: nickname });
+  if (error) {
+    errEl.textContent = '註冊失敗：' + error.message;
+    errEl.style.display = '';
+    return;
+  }
+  document.getElementById('registerPanel').style.display = 'none';
+  document.getElementById('loginPanel').style.display = 'flex';
+  await initApp();
 }
 
 async function signOut() {
@@ -3334,6 +3367,11 @@ async function signOut() {
   currentUser = null;
   _appInitialized = false;
   document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginPanel').style.display = 'flex';
+  document.getElementById('registerPanel').style.display = 'none';
+  document.getElementById('registerNickname').value = '';
+  document.getElementById('registerError').style.display = 'none';
+  document.getElementById('loginError').style.display = 'none';
   document.getElementById('appToolbar').style.display = 'none';
   document.getElementById('main').style.display = 'none';
   document.getElementById('userDisplay').innerHTML = '';
