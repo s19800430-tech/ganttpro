@@ -763,12 +763,67 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 }
 .color-opt:hover{transform:scale(1.15)}
 .color-opt.active{border-color:var(--t1);transform:scale(1.1)}
+
+/* ── LOGIN SCREEN ── */
+#loginScreen{
+  position:fixed;inset:0;z-index:9999;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;flex-direction:column;
+  gap:32px;
+}
+.login-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;padding:40px;
+  display:flex;flex-direction:column;align-items:center;gap:24px;
+  box-shadow:0 4px 24px rgba(0,0,0,.08);min-width:320px;
+}
+.login-logo{font-size:22px;font-weight:800;color:var(--accent);display:flex;align-items:center;gap:8px}
+.login-logo-icon{width:40px;height:40px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:800}
+.login-subtitle{color:var(--t3);font-size:13px;text-align:center;margin-top:-16px}
+.google-btn{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 20px;border:1px solid var(--border);border-radius:8px;
+  background:var(--surface);color:var(--t1);font-size:13px;font-weight:500;
+  cursor:pointer;transition:background .12s,border-color .12s;white-space:nowrap;
+  font-family:inherit;
+}
+.google-btn:hover{background:var(--s-hover);border-color:var(--border2)}
+
+/* ── USER DISPLAY ── */
+#userDisplay{display:flex;align-items:center;gap:6px;cursor:pointer;padding:2px 6px;border-radius:6px;transition:background .12s;position:relative}
+#userDisplay:hover{background:var(--s-hover)}
+#userMenu{position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);min-width:160px;z-index:200;display:none;overflow:hidden}
+#userMenu.open{display:block}
+.user-menu-item{padding:9px 14px;font-size:13px;color:var(--t2);cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .12s}
+.user-menu-item:hover{background:var(--s-hover)}
+.user-menu-item.danger{color:var(--red)}
+.user-menu-name{font-size:12px;color:var(--t3);padding:10px 14px 4px;font-weight:500;border-bottom:1px solid var(--border)}
 </style>
 </head>
 <body>
 
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">G</div>
+      GanttPro
+    </div>
+    <p class="login-subtitle">專案甘特圖管理工具</p>
+    <button class="google-btn" onclick="signInWithGoogle()">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908C16.658 14.083 17.64 11.775 17.64 9.2z" fill="#4285F4"/>
+        <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/>
+        <path d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.039l3.007-2.332z" fill="#FBBC05"/>
+        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+      </svg>
+      使用 Google 帳號登入
+    </button>
+  </div>
+</div>
+
 <!-- TOOLBAR -->
-<div class="toolbar">
+<div class="toolbar" id="appToolbar" style="display:none">
   <div class="logo">
     <div class="logo-icon">G</div>
     GanttPro
@@ -803,6 +858,12 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   <button class="btn btn-owner-only" id="shareBtn" onclick="openShareModal()" title="分享專案（唯讀連結）">🔗 分享</button>
   <button class="btn btn-owner-only" onclick="openVersionPanel()" title="版本紀錄">🕐 版本</button>
   <button class="btn" id="darkBtn" onclick="toggleDark()" title="深色模式">🌙</button>
+  <div id="userDisplay" onclick="toggleUserMenu(event)">
+    <div id="userMenu">
+      <div class="user-menu-name" id="userMenuName"></div>
+      <div class="user-menu-item danger" onclick="signOut()">🚪 登出</div>
+    </div>
+  </div>
   <div class="sync-dot" id="syncDot" title="雲端同步狀態"></div>
 </div>
 
@@ -836,7 +897,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 </div>
 
 <!-- MAIN -->
-<div class="main" id="main">
+<div class="main" id="main" style="display:none">
   <!-- Left: Task Panel -->
   <div class="task-panel" id="taskPanel">
     <div class="task-thead">
@@ -2926,7 +2987,8 @@ function openShareModal() {
   const url = location.origin + location.pathname + '?share=' + token;
   document.getElementById('shareLinkInput').value = url;
   document.getElementById('shareOverlay').classList.add('open');
-  render(); // persist shareToken to cloud
+  saveShareToCloud(token, proj); // save snapshot for share link
+  render(); // persist shareToken to user data
 }
 
 function closeShareModal() {
@@ -3065,8 +3127,9 @@ function render() {
 const SB_URL = 'https://necdjebhfpgbqtkyrika.supabase.co';
 const SB_KEY = 'sb_publishable_zeaL_JAroucbVAvjdilmGQ_H_-cmvKO';
 const sb = supabase.createClient(SB_URL, SB_KEY);
-const SB_ROW_ID = 1;
 let _myUpdate = false;
+let currentUser = null;
+let _appInitialized = false;
 
 function setSyncDot(state) {
   const dot = document.getElementById('syncDot');
@@ -3076,13 +3139,14 @@ function setSyncDot(state) {
 }
 
 async function saveToCloud() {
+  if (!currentUser) return;
   setSyncDot('saving');
   try {
     curProj().nextId = nextId;
     const state = { projects, currentProjId, nextProjId };
     _myUpdate = true;
-    const { error } = await sb.from('projects')
-      .upsert({ id: SB_ROW_ID, data: state, updated_at: new Date().toISOString() });
+    const { error } = await sb.from('gantt_user_data')
+      .upsert({ user_id: currentUser.id, data: state, updated_at: new Date().toISOString() });
     setTimeout(() => _myUpdate = false, 1000);
     setSyncDot(error ? 'err' : 'ok');
   } catch(e) {
@@ -3091,9 +3155,10 @@ async function saveToCloud() {
 }
 
 async function loadFromCloud() {
+  if (!currentUser) return false;
   try {
-    const { data, error } = await sb.from('projects')
-      .select('data').eq('id', SB_ROW_ID).single();
+    const { data, error } = await sb.from('gantt_user_data')
+      .select('data').eq('user_id', currentUser.id).single();
     if (error || !data?.data?.projects?.length) return false;
     const s = data.data;
     projects     = s.projects;
@@ -3107,10 +3172,27 @@ async function loadFromCloud() {
   } catch(e) { return false; }
 }
 
+async function loadShareFromCloud(token) {
+  try {
+    const { data, error } = await sb.from('gantt_shares')
+      .select('project_data').eq('token', token).single();
+    return (error || !data?.project_data) ? null : data.project_data;
+  } catch(e) { return null; }
+}
+
+async function saveShareToCloud(token, project) {
+  if (!currentUser) return;
+  try {
+    await sb.from('gantt_shares')
+      .upsert({ token, owner_id: currentUser.id, project_data: JSON.parse(JSON.stringify(project)) });
+  } catch(e) {}
+}
+
 function setupRealtime() {
-  sb.channel('gantt-sync')
+  if (!currentUser) return;
+  sb.channel('gantt-user-' + currentUser.id)
     .on('postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'projects', filter: `id=eq.${SB_ROW_ID}` },
+      { event: 'UPDATE', schema: 'public', table: 'gantt_user_data', filter: `user_id=eq.${currentUser.id}` },
       async () => {
         if (_myUpdate) return;
         const ok = await loadFromCloud();
@@ -3222,53 +3304,118 @@ function mergeDefaultProjects() {
 }
 
 /* ═══════════════════════════════════════════
+   AUTH
+═══════════════════════════════════════════ */
+async function signInWithGoogle() {
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: location.origin + location.pathname }
+  });
+  if (error) showStatus('登入失敗：' + error.message);
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+function toggleUserMenu(e) {
+  e.stopPropagation();
+  document.getElementById('userMenu').classList.toggle('open');
+  setTimeout(() => document.addEventListener('click', closeUserMenuOutside, { once: true }), 0);
+}
+
+function closeUserMenuOutside() {
+  document.getElementById('userMenu')?.classList.remove('open');
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appToolbar').style.display = 'flex';
+  document.getElementById('main').style.display = 'flex';
+}
+
+function updateUserDisplay() {
+  if (!currentUser) return;
+  const meta = currentUser.user_metadata || {};
+  const name = meta.full_name || meta.name || currentUser.email || '';
+  const avatar = meta.avatar_url || meta.picture;
+  const el = document.getElementById('userDisplay');
+  if (!el) return;
+  document.getElementById('userMenuName').textContent = name;
+  const img = avatar
+    ? `<img src="${avatar}" style="width:26px;height:26px;border-radius:50%;object-fit:cover">`
+    : `<div style="width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700">${(name[0]||'U').toUpperCase()}</div>`;
+  // Replace only the avatar part (not the menu)
+  const menu = document.getElementById('userMenu');
+  el.innerHTML = '';
+  el.insertAdjacentHTML('afterbegin', img);
+  el.appendChild(menu);
+}
+
+async function initApp() {
+  if (_appInitialized) return;
+  _appInitialized = true;
+  showApp();
+  updateUserDisplay();
+  const cloudOk = await loadFromCloud();
+  if (!cloudOk) loadFromLS();
+  mergeDefaultProjects();
+  setupSync();
+  setupColResizers();
+  setupResizer();
+  setupRealtime();
+  updateProjUI();
+  scheduleTasks();
+  render();
+  setSyncDot(cloudOk ? 'ok' : 'err');
+  setTimeout(scrollToToday, 120);
+}
+
+/* ═══════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async () => {
-  // Check for share token in URL
   const urlParams = new URLSearchParams(location.search);
   const shareToken = urlParams.get('share');
 
   if (shareToken) {
-    // Read-only shared view: load from cloud, find matching project
-    const cloudOk = await loadFromCloud();
-    if (cloudOk) {
-      const sharedProj = projects.find(p => p.shareToken === shareToken);
-      if (sharedProj) {
-        currentProjId = sharedProj.id;
-        tasks  = curProj().tasks;
-        nextId = curProj().nextId;
-        CHART_START = new Date(curProj().startDate);
-        CHART_END   = new Date(curProj().endDate);
-      }
+    // Read-only share mode: load from gantt_shares table (no auth needed)
+    showApp();
+    const projData = await loadShareFromCloud(shareToken);
+    if (projData) {
+      projects = [projData];
+      currentProjId = projData.id;
+      tasks  = curProj().tasks;
+      nextId = curProj().nextId || 100;
+      CHART_START = new Date(curProj().startDate);
+      CHART_END   = new Date(curProj().endDate);
     }
     isReadOnly = true;
     document.body.classList.add('readonly');
     setupColResizers();
     setupResizer();
     updateProjUI();
+    scheduleTasks();
     render();
     setSyncDot('off');
     setTimeout(scrollToToday, 120);
-  } else {
-    // Normal edit mode
-    getOwnerId(); // ensure owner ID exists
-    const cloudOk = await loadFromCloud();
-    if (!cloudOk) loadFromLS();
-    mergeDefaultProjects();
-    // Assign ownerId to any project that doesn't have one
-    const ownerId = getOwnerId();
-    projects.forEach(p => { if (!p.ownerId) p.ownerId = ownerId; });
-    setupSync();
-    setupColResizers();
-    setupResizer();
-    setupRealtime();
-    updateProjUI();
-    scheduleTasks();
-    render();
-    setSyncDot(cloudOk ? 'ok' : 'err');
-    setTimeout(scrollToToday, 120);
+    return;
   }
+
+  // Auth-required mode
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    await initApp();
+  }
+
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      currentUser = session.user;
+      await initApp();
+    }
+  });
 });
 </script>
 </body>
