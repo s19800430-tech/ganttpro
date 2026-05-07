@@ -3134,15 +3134,19 @@ function getOrCreateShareToken(proj) {
   return proj.shareToken;
 }
 
-function openShareModal() {
+async function openShareModal() {
   if (isReadOnly) return;
   const proj = curProj();
   const token = getOrCreateShareToken(proj);
   const url = location.origin + location.pathname + '?share=' + token;
   document.getElementById('shareLinkInput').value = url;
   document.getElementById('shareOverlay').classList.add('open');
-  saveShareToCloud(token, proj); // save snapshot for share link
   render(); // persist shareToken to user data
+  const ok = await saveShareToCloud(token, proj);
+  if (!ok) {
+    const note = document.querySelector('.share-owner-note');
+    if (note) note.innerHTML = '⚠️ 儲存分享連結失敗，請確認網路連線後再試。連結目前可能無法使用。';
+  }
 }
 
 function closeShareModal() {
@@ -3599,11 +3603,13 @@ async function loadShareFromCloud(token) {
 }
 
 async function saveShareToCloud(token, project) {
-  if (!currentUser) return;
+  if (!currentUser) return false;
   try {
-    await sb.from('gantt_shares')
+    const { error } = await sb.from('gantt_shares')
       .upsert({ token, owner_id: currentUser.id, project_data: JSON.parse(JSON.stringify(project)) });
-  } catch(e) {}
+    if (error) { console.error('saveShareToCloud error:', error); return false; }
+    return true;
+  } catch(e) { console.error('saveShareToCloud exception:', e); return false; }
 }
 
 function setupRealtime() {
@@ -3846,14 +3852,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     _isShareLinkMode = true;
     showApp();
     const projData = await loadShareFromCloud(shareToken);
-    if (projData) {
-      projects = [projData];
-      currentProjId = projData.id;
-      tasks  = curProj().tasks;
-      nextId = curProj().nextId || 100;
-      CHART_START = new Date(curProj().startDate);
-      CHART_END   = new Date(curProj().endDate);
+    if (!projData) {
+      document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;flex-direction:column;gap:12px;color:#555">
+        <div style="font-size:48px">🔗</div>
+        <div style="font-size:18px;font-weight:600">連結無效或已失效</div>
+        <div style="font-size:14px;color:#888">此分享連結不存在或已被移除</div>
+      </div>`;
+      return;
     }
+    projects = [projData];
+    currentProjId = projData.id;
+    tasks  = curProj().tasks;
+    nextId = curProj().nextId || 100;
+    CHART_START = new Date(curProj().startDate);
+    CHART_END   = new Date(curProj().endDate);
     isReadOnly = true;
     document.body.classList.add('readonly');
     setupColResizers();
