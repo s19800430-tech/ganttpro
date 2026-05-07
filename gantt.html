@@ -3601,7 +3601,7 @@ async function loadFromCloud() {
 async function loadShareFromCloud(token) {
   try {
     const { data, error } = await sb.from('gantt_shares')
-      .select('project_data').eq('token', token).single();
+      .select('project_data').eq('token', token).order('created_at', { ascending: false }).limit(1).maybeSingle();
     return (error || !data?.project_data) ? null : data.project_data;
   } catch(e) { return null; }
 }
@@ -3610,7 +3610,8 @@ async function saveShareToCloud(token, project) {
   if (!currentUser) return false;
   try {
     const { error } = await sb.from('gantt_shares')
-      .upsert({ token, owner_id: currentUser.id, project_data: JSON.parse(JSON.stringify(project)) });
+      .upsert({ token, owner_id: currentUser.id, project_data: JSON.parse(JSON.stringify(project)) },
+              { onConflict: 'token' });
     if (error) { console.error('saveShareToCloud error:', error); return false; }
     return true;
   } catch(e) { console.error('saveShareToCloud exception:', e); return false; }
