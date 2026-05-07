@@ -3306,7 +3306,7 @@ async function loadAdminUsers() {
     .select('email, name, is_admin, added_at')
     .order('added_at', { ascending: true });
   if (error || !data) {
-    tbody.innerHTML = '<tr><td colspan="5" style="color:#E53;text-align:center">載入失敗</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="5" style="color:#E53;text-align:center">載入失敗：${error?.message || error?.code || JSON.stringify(error)}</td></tr>`;
     return;
   }
   document.getElementById('adminUserCount').textContent = `（${data.length} 人）`;
