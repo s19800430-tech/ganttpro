@@ -792,6 +792,51 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 /* ── USER DISPLAY ── */
 #userDisplay{display:flex;align-items:center;gap:6px;}
 #registerNickname:focus{border-color:var(--accent);}
+
+/* ── COLLAB MODAL ── */
+.collab-overlay{position:fixed;inset:0;z-index:3000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.45)}
+.collab-overlay.open{display:flex}
+.collab-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;min-width:420px;max-width:520px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.18)}
+.collab-title{font-size:16px;font-weight:700;color:var(--t1);margin-bottom:4px}
+.collab-sub{font-size:12px;color:var(--t3);margin-bottom:20px}
+.collab-share-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:200px;overflow-y:auto}
+.collab-share-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg);border-radius:8px;font-size:13px}
+.collab-share-email{flex:1;color:var(--t1);font-size:12px;word-break:break-all}
+.collab-share-perm{font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600}
+.collab-share-perm.read{background:#E0F2FE;color:#0369A1}
+.collab-share-perm.edit{background:#D1FAE5;color:#065F46}
+.dark .collab-share-perm.read{background:#0C3A5A;color:#7DD3FC}
+.dark .collab-share-perm.edit{background:#064E3B;color:#6EE7B7}
+.collab-add-row{display:flex;gap:8px;margin-top:4px}
+.collab-add-row input{flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--t1);font-size:12px;font-family:inherit;outline:none}
+.collab-add-row input:focus{border-color:var(--accent)}
+.collab-add-row select{padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--t1);font-size:12px;font-family:inherit;outline:none}
+.collab-footer{display:flex;justify-content:flex-end;margin-top:20px}
+.collab-share-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:8px}
+.collab-share-item .ci-email{flex:1;font-size:12px;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.collab-share-item .ci-perm{font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600}
+.collab-share-item .ci-perm.read{background:#DBEAFE;color:#1E40AF}
+.dark .collab-share-item .ci-perm.read{background:#1E3A5F;color:#93C5FD}
+.collab-share-item .ci-perm.edit{background:#D1FAE5;color:#065F46}
+.dark .collab-share-item .ci-perm.edit{background:#064E3B;color:#6EE7B7}
+.collab-share-item .ci-del{font-size:12px;color:var(--t3);cursor:pointer;padding:2px 4px;border-radius:4px}
+.collab-share-item .ci-del:hover{color:#E53}
+.collab-shared-badge{font-size:10px;padding:1px 6px;border-radius:8px;background:#FEF3C7;color:#92400E;font-weight:600;margin-left:4px}
+.dark .collab-shared-badge{background:#451A03;color:#FCD34D}
+
+/* ── ADMIN PANEL ── */
+.admin-overlay{position:fixed;inset:0;z-index:3000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.45)}
+.admin-overlay.open{display:flex}
+.admin-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;min-width:560px;max-width:700px;width:92%;box-shadow:0 8px 40px rgba(0,0,0,.18);max-height:80vh;display:flex;flex-direction:column}
+.admin-title{font-size:16px;font-weight:700;color:var(--t1);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.admin-table{width:100%;border-collapse:collapse;font-size:12px;overflow-y:auto;flex:1}
+.admin-table th{text-align:left;padding:6px 10px;color:var(--t3);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface)}
+.admin-table td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--t1);vertical-align:middle}
+.admin-table tr:last-child td{border-bottom:none}
+.admin-badge{font-size:10px;padding:2px 7px;border-radius:8px;background:#FEF3C7;color:#92400E;font-weight:700}
+.admin-del-btn{padding:3px 10px;border-radius:6px;background:transparent;border:1px solid #E53;color:#E53;font-size:11px;cursor:pointer;font-family:inherit}
+.admin-del-btn:hover{background:#FEF2F2}
+.dark .admin-del-btn:hover{background:#450A0A}
 </style>
 </head>
 <body>
@@ -867,8 +912,10 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   <button class="btn fit-btn" onclick="fitToFrame()" title="縮放至適合視窗"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4.5V1h3.5M8.5 1H12v3.5M12 8.5V12H8.5M4.5 12H1V8.5"/></svg></button>
   <div class="readonly-badge">👁 唯讀模式</div>
   <button class="btn btn-owner-only" id="shareBtn" onclick="openShareModal()" title="分享專案（唯讀連結）">🔗 分享</button>
+  <button class="btn btn-owner-only" id="collabBtn" onclick="openCollabModal()" title="協作管理">👥 協作</button>
   <button class="btn btn-owner-only" onclick="openVersionPanel()" title="版本紀錄">🕐 版本</button>
   <button class="btn" id="darkBtn" onclick="toggleDark()" title="深色模式">🌙</button>
+  <button class="btn" id="adminBtn" onclick="openAdminPanel()" title="管理員面板" style="display:none">👑 Admin</button>
   <div id="userDisplay"></div>
   <button class="btn" id="signOutBtn" onclick="signOut()" title="登出" style="display:none">登出</button>
   <div class="sync-dot" id="syncDot" title="雲端同步狀態"></div>
@@ -900,6 +947,47 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
       <button class="share-copy-btn" onclick="copyShareLink()">複製連結</button>
     </div>
     <div class="share-owner-note">💡 此連結為唯讀連結。只有您（專案建立者）在一般模式下可以編輯。</div>
+  </div>
+</div>
+
+<!-- COLLAB MODAL -->
+<div class="collab-overlay" id="collabOverlay" onclick="closeCollabModal()">
+  <div class="collab-box" onclick="event.stopPropagation()">
+    <div class="collab-title">👥 協作管理</div>
+    <div class="collab-sub" id="collabSub">管理可存取此專案的用戶</div>
+    <div class="collab-share-list" id="collabShareList"></div>
+    <div class="collab-add-row">
+      <input id="collabEmailInput" type="email" placeholder="輸入對方的 Gmail 帳號" onkeydown="if(event.key==='Enter')addShare()">
+      <select id="collabPermSelect">
+        <option value="read">唯讀</option>
+        <option value="edit">共同編輯</option>
+      </select>
+      <button class="btn btn-primary" onclick="addShare()">加入</button>
+    </div>
+    <p id="collabMsg" style="font-size:12px;color:#E53;margin:8px 0 0;display:none"></p>
+    <div class="collab-footer">
+      <button class="btn" onclick="closeCollabModal()">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div class="admin-overlay" id="adminOverlay" onclick="closeAdminPanel()">
+  <div class="admin-box" onclick="event.stopPropagation()">
+    <div class="admin-title">👑 用戶管理
+      <span style="font-size:12px;font-weight:400;color:var(--t3)" id="adminUserCount"></span>
+    </div>
+    <div style="overflow-y:auto;flex:1">
+      <table class="admin-table">
+        <thead><tr>
+          <th>暱稱</th><th>Email</th><th>身份</th><th>加入時間</th><th></th>
+        </tr></thead>
+        <tbody id="adminUserList"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:16px">
+      <button class="btn" onclick="closeAdminPanel()">關閉</button>
+    </div>
   </div>
 </div>
 
@@ -2744,6 +2832,7 @@ function switchProject(id) {
   collapsed.clear();
   _history = [];
   closeProjMenuOnly();
+  updateReadOnly();
   updateProjUI();
   scheduleTasks();
   render();
@@ -2755,6 +2844,7 @@ function updateProjUI() {
   document.getElementById('projSelectorName').textContent = p.name;
   document.getElementById('projDot').style.background = p.color;
   document.getElementById('sPeriod').textContent = `${p.startDate} — ${p.endDate}`;
+  updateReadOnly();
 }
 
 function toggleProjMenu(e) {
@@ -2787,8 +2877,8 @@ function renderProjMenu() {
     item.className = 'proj-item' + (p.id === currentProjId ? ' active' : '');
     item.innerHTML = `
       <div class="proj-item-dot" style="background:${p.color}"></div>
-      <span class="proj-item-name">${p.name}</span>
-      ${projects.length > 1 && p.id !== currentProjId
+      <span class="proj-item-name">${p.name}${p._isShared ? ' <span class="collab-shared-badge">共享</span>' : ''}</span>
+      ${projects.length > 1 && p.id !== currentProjId && !p._isShared
         ? `<span class="proj-item-del" onclick="deleteProject(${p.id},event)" title="刪除">✕</span>`
         : ''}
     `;
@@ -2807,7 +2897,7 @@ function renderProjMenu() {
 function deleteProject(id, e) {
   e.stopPropagation();
   const p = projects.find(x => x.id === id);
-  if (!p) return;
+  if (!p || p._isShared) return;
   if (!confirm(`確定要刪除「${p.name}」嗎？此操作無法復原。`)) return;
   projects = projects.filter(x => x.id !== id);
   closeProjMenuOnly();
@@ -2970,6 +3060,24 @@ function setupResizer() {
    OWNER & SHARE SYSTEM
 ═══════════════════════════════════════════ */
 let isReadOnly = false;
+let _isShareLinkMode = false;
+
+const ADMIN_EMAIL = 's19800430@gmail.com';
+function isAdmin() { return currentUser?.email === ADMIN_EMAIL; }
+
+function updateReadOnly() {
+  const cp = curProj();
+  isReadOnly = _isShareLinkMode || (cp?._isShared && cp?._permission === 'read');
+  document.body.classList.toggle('readonly', isReadOnly);
+  const badge = document.querySelector('.readonly-badge');
+  if (badge) badge.style.display = isReadOnly ? 'flex' : 'none';
+  // shareBtn and collabBtn only for own projects (not share-link mode, not received-share)
+  const isOwnProj = !_isShareLinkMode && !cp?._isShared;
+  ['shareBtn','collabBtn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isOwnProj ? '' : 'none';
+  });
+}
 
 function getOwnerId() {
   let id = localStorage.getItem('ganttpro_owner_id');
@@ -3000,6 +3108,225 @@ function openShareModal() {
 
 function closeShareModal() {
   document.getElementById('shareOverlay').classList.remove('open');
+}
+
+/* ═══════════════════════════════════════════
+   COLLABORATION — SHARED PROJECTS
+═══════════════════════════════════════════ */
+let _sharedChannels = [];
+
+async function loadSharedProjects() {
+  if (!currentUser) return;
+  try {
+    // Find all shares where current user is the recipient
+    const { data: shares, error } = await sb.from('gantt_project_shares')
+      .select('project_id, owner_id, permission')
+      .eq('shared_with_email', currentUser.email);
+    if (error || !shares?.length) return;
+
+    // Group by owner_id
+    const byOwner = {};
+    shares.forEach(s => {
+      if (!byOwner[s.owner_id]) byOwner[s.owner_id] = [];
+      byOwner[s.owner_id].push(s);
+    });
+
+    for (const [ownerId, ownerShares] of Object.entries(byOwner)) {
+      // Load owner's data
+      const { data: ownerRow } = await sb.from('gantt_user_data')
+        .select('data').eq('user_id', ownerId).maybeSingle();
+      if (!ownerRow?.data?.projects) continue;
+
+      ownerShares.forEach(share => {
+        const proj = ownerRow.data.projects.find(p => p.id === share.project_id);
+        if (!proj) return;
+        // Avoid duplicates
+        if (projects.find(p => p.id === proj.id && p._isShared)) return;
+        const sharedProj = {
+          ...JSON.parse(JSON.stringify(proj)),
+          _isShared: true,
+          _ownerId: ownerId,
+          _permission: share.permission
+        };
+        projects.push(sharedProj);
+      });
+    }
+
+    // Setup realtime for owner rows
+    const ownerIds = Object.keys(byOwner);
+    setupSharedRealtime(ownerIds);
+  } catch(e) { console.error('loadSharedProjects:', e); }
+}
+
+function setupSharedRealtime(ownerIds) {
+  // Unsubscribe old channels
+  _sharedChannels.forEach(ch => ch.unsubscribe());
+  _sharedChannels = [];
+
+  ownerIds.forEach(ownerId => {
+    const ch = sb.channel('gantt-shared-' + ownerId)
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'gantt_user_data', filter: `user_id=eq.${ownerId}` },
+        async () => {
+          const { data: ownerRow } = await sb.from('gantt_user_data')
+            .select('data').eq('user_id', ownerId).maybeSingle();
+          if (!ownerRow?.data?.projects) return;
+          // Update shared projects from this owner
+          projects = projects.map(p => {
+            if (p._isShared && p._ownerId === ownerId) {
+              const fresh = ownerRow.data.projects.find(op => op.id === p.id);
+              if (fresh) return { ...fresh, _isShared: true, _ownerId: ownerId, _permission: p._permission };
+            }
+            return p;
+          });
+          if (curProj()?._ownerId === ownerId) {
+            tasks = curProj().tasks;
+            nextId = curProj().nextId;
+            CHART_START = new Date(curProj().startDate);
+            CHART_END   = new Date(curProj().endDate);
+          }
+          saveToLS();
+          updateProjUI();
+          render();
+          showSyncToast();
+        })
+      .subscribe();
+    _sharedChannels.push(ch);
+  });
+}
+
+/* ═══════════════════════════════════════════
+   COLLABORATION — COLLAB MODAL
+═══════════════════════════════════════════ */
+let _collabShares = [];
+
+async function openCollabModal() {
+  if (isReadOnly || curProj()?._isShared) return;
+  const overlay = document.getElementById('collabOverlay');
+  overlay.classList.add('open');
+  document.getElementById('collabMsg').style.display = 'none';
+  document.getElementById('collabEmailInput').value = '';
+  document.getElementById('collabSub').textContent = '專案：' + curProj().name;
+  await refreshCollabList();
+}
+
+function closeCollabModal() {
+  document.getElementById('collabOverlay').classList.remove('open');
+}
+
+async function refreshCollabList() {
+  const proj = curProj();
+  const { data, error } = await sb.from('gantt_project_shares')
+    .select('id, shared_with_email, permission, created_at')
+    .eq('project_id', proj.id)
+    .eq('owner_id', currentUser.id);
+  _collabShares = error ? [] : (data || []);
+  renderCollabModal();
+}
+
+function renderCollabModal() {
+  const list = document.getElementById('collabShareList');
+  if (!_collabShares.length) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--t3);text-align:center;padding:12px 0">尚未分享給任何人</div>';
+    return;
+  }
+  list.innerHTML = _collabShares.map(s => `
+    <div class="collab-share-item">
+      <span class="ci-email" title="${s.shared_with_email}">${s.shared_with_email}</span>
+      <span class="ci-perm ${s.permission}">${s.permission === 'read' ? '唯讀' : '共同編輯'}</span>
+      <span class="ci-del" onclick="removeShare('${s.id}','${s.shared_with_email}')" title="移除">✕</span>
+    </div>
+  `).join('');
+}
+
+async function addShare() {
+  const email = document.getElementById('collabEmailInput').value.trim().toLowerCase();
+  const perm  = document.getElementById('collabPermSelect').value;
+  const msgEl = document.getElementById('collabMsg');
+  msgEl.style.display = 'none';
+
+  if (!email || !email.includes('@')) {
+    msgEl.textContent = '請輸入有效的 Gmail 帳號';
+    msgEl.style.display = '';
+    return;
+  }
+  if (email === currentUser.email) {
+    msgEl.textContent = '不能分享給自己';
+    msgEl.style.display = '';
+    return;
+  }
+  // Check if the email is a registered user
+  const { data: userCheck } = await sb.from('gantt_allowed_users')
+    .select('email').eq('email', email).maybeSingle();
+  if (!userCheck) {
+    msgEl.textContent = '該帳號尚未在 GanttPro 註冊';
+    msgEl.style.display = '';
+    return;
+  }
+
+  const proj = curProj();
+  const { error } = await sb.from('gantt_project_shares').insert({
+    project_id: String(proj.id),
+    owner_id: currentUser.id,
+    shared_with_email: email,
+    permission: perm
+  });
+  if (error) {
+    msgEl.textContent = error.code === '23505' ? '已分享給此用戶' : ('分享失敗：' + error.message);
+    msgEl.style.display = '';
+    return;
+  }
+  document.getElementById('collabEmailInput').value = '';
+  await refreshCollabList();
+}
+
+async function removeShare(shareId, email) {
+  if (!confirm(`確定要移除 ${email} 的存取權限嗎？`)) return;
+  const { error } = await sb.from('gantt_project_shares').delete().eq('id', shareId);
+  if (!error) await refreshCollabList();
+}
+
+/* ═══════════════════════════════════════════
+   ADMIN PANEL
+═══════════════════════════════════════════ */
+async function openAdminPanel() {
+  if (!isAdmin()) return;
+  document.getElementById('adminOverlay').classList.add('open');
+  await loadAdminUsers();
+}
+
+function closeAdminPanel() {
+  document.getElementById('adminOverlay').classList.remove('open');
+}
+
+async function loadAdminUsers() {
+  const tbody = document.getElementById('adminUserList');
+  tbody.innerHTML = '<tr><td colspan="5" style="color:var(--t3);text-align:center;padding:16px">載入中…</td></tr>';
+  const { data, error } = await sb.from('gantt_allowed_users')
+    .select('email, name, is_admin, created_at')
+    .order('created_at', { ascending: true });
+  if (error || !data) {
+    tbody.innerHTML = '<tr><td colspan="5" style="color:#E53;text-align:center">載入失敗</td></tr>';
+    return;
+  }
+  document.getElementById('adminUserCount').textContent = `（${data.length} 人）`;
+  tbody.innerHTML = data.map(u => `
+    <tr>
+      <td>${u.name || '—'}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${u.email}">${u.email}</td>
+      <td>${u.is_admin ? '👑 管理員' : '用戶'}</td>
+      <td style="color:var(--t3)">${u.created_at ? new Date(u.created_at).toLocaleDateString('zh-TW') : '—'}</td>
+      <td>${u.is_admin ? '' : `<button class="btn" style="font-size:11px;padding:3px 8px;color:#E53;border-color:#E53" onclick="deleteUser('${u.email}')">刪除</button>`}</td>
+    </tr>
+  `).join('');
+}
+
+async function deleteUser(email) {
+  if (!isAdmin()) return;
+  if (!confirm(`確定要刪除用戶 ${email}？此操作無法復原。`)) return;
+  const { error } = await sb.from('gantt_allowed_users').delete().eq('email', email);
+  if (error) { alert('刪除失敗：' + error.message); return; }
+  await loadAdminUsers();
 }
 
 function copyShareLink() {
@@ -3150,12 +3477,30 @@ async function saveToCloud() {
   setSyncDot('saving');
   try {
     curProj().nextId = nextId;
-    const state = { projects, currentProjId, nextProjId };
-    _myUpdate = true;
-    const { error } = await sb.from('gantt_user_data')
-      .upsert({ user_id: currentUser.id, data: state, updated_at: new Date().toISOString() });
-    setTimeout(() => _myUpdate = false, 1000);
-    setSyncDot(error ? 'err' : 'ok');
+    const cp = curProj();
+
+    if (cp._isShared && cp._permission === 'edit') {
+      // Co-editor: read owner's full data, replace only this project, write back
+      const { data: ownerRow } = await sb.from('gantt_user_data')
+        .select('data').eq('user_id', cp._ownerId).maybeSingle();
+      if (!ownerRow?.data?.projects) { setSyncDot('err'); return; }
+      const ownerProjects = ownerRow.data.projects.map(p =>
+        p.id === cp.id ? { ...cp, _isShared: undefined, _ownerId: undefined, _permission: undefined } : p
+      );
+      const { error } = await sb.from('gantt_user_data')
+        .update({ data: { ...ownerRow.data, projects: ownerProjects }, updated_at: new Date().toISOString() })
+        .eq('user_id', cp._ownerId);
+      setSyncDot(error ? 'err' : 'ok');
+    } else if (!cp._isShared) {
+      // Own projects only — strip any shared metadata before saving
+      const ownProjects = projects.filter(p => !p._isShared);
+      const state = { projects: ownProjects, currentProjId, nextProjId };
+      _myUpdate = true;
+      const { error } = await sb.from('gantt_user_data')
+        .upsert({ user_id: currentUser.id, data: state, updated_at: new Date().toISOString() });
+      setTimeout(() => _myUpdate = false, 1000);
+      setSyncDot(error ? 'err' : 'ok');
+    }
   } catch(e) {
     setSyncDot('err');
   }
@@ -3229,7 +3574,9 @@ const LS_KEY = 'ganttpro_v1';
 function saveToLS() {
   try {
     curProj().nextId = nextId;
-    localStorage.setItem(LS_KEY, JSON.stringify({ projects, currentProjId, nextProjId }));
+    // Only persist own projects; shared projects are re-loaded from cloud each session
+    const ownProjects = projects.filter(p => !p._isShared);
+    localStorage.setItem(LS_KEY, JSON.stringify({ projects: ownProjects, currentProjId, nextProjId }));
   } catch(e) {}
 }
 
@@ -3405,6 +3752,7 @@ async function initApp() {
   const cloudOk = await loadFromCloud();
   if (!cloudOk) loadFromLS();
   mergeDefaultProjects();
+  await loadSharedProjects();
   setupSync();
   setupColResizers();
   setupResizer();
@@ -3414,6 +3762,9 @@ async function initApp() {
   render();
   setSyncDot(cloudOk ? 'ok' : 'err');
   setTimeout(scrollToToday, 120);
+  // Show admin button for admin user
+  const adminBtn = document.getElementById('adminBtn');
+  if (adminBtn) adminBtn.style.display = isAdmin() ? '' : 'none';
 }
 
 /* ═══════════════════════════════════════════
@@ -3425,6 +3776,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (shareToken) {
     // Read-only share mode: load from gantt_shares table (no auth needed)
+    _isShareLinkMode = true;
     showApp();
     const projData = await loadShareFromCloud(shareToken);
     if (projData) {
