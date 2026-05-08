@@ -387,7 +387,7 @@ body.dark .ms-badge{background:#3d2c00;color:#fbbf24;border-color:#593f00}
 }
 .week-cell.today-wk{color:var(--red)!important;font-weight:600}
 .week-cell.day-cell{font-size:9.5px;padding:0 2px;justify-content:center}
-.week-cell.wknd-cell{color:var(--t4);background:rgba(0,0,0,0.025)}
+.week-cell.wknd-cell{color:var(--t3)}
 
 /* ── CHART CANVAS ── */
 .chart-canvas{position:relative;min-width:max-content}
@@ -436,10 +436,10 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
   z-index:1;line-height:20px;
   text-shadow:0 1px 2px rgba(0,0,0,.3);
 }
-.bar-date{
-  position:absolute;top:50%;transform:translateY(-50%);
-  font-size:10px;font-weight:600;color:var(--t1);
-  white-space:nowrap;pointer-events:none;z-index:2;
+.bar-date-top{
+  position:absolute;top:-14px;left:0;
+  font-size:9px;font-weight:500;color:var(--t2);
+  white-space:nowrap;pointer-events:none;z-index:3;
 }
 
 .group-bar{
@@ -1983,20 +1983,16 @@ function renderBar(row, task) {
 
   row.appendChild(bar);
 
-  // Date labels outside the bar (only when showBarDates is enabled)
+  // Date label above the bar (only when showBarDates is enabled)
   if (showBarDates) {
-    const fmt = s => { const [y,m,d] = s.split('-'); return `${+m}/${+d}`; };
-    const sd = document.createElement('div');
-    sd.className = 'bar-date';
-    sd.style.cssText = `right:${w+4}px;text-align:right`;
-    sd.textContent = fmt(task.start);
-    bar.appendChild(sd);
-
-    const ed2 = document.createElement('div');
-    ed2.className = 'bar-date';
-    ed2.style.cssText = `left:${w+4}px`;
-    ed2.textContent = `${fmt(task.end)} (${task.wday||1}d)`;
-    bar.appendChild(ed2);
+    const fmt = s => { const [,m,d] = s.split('-'); return `${+m}/${+d}`; };
+    const lbl = document.createElement('div');
+    lbl.className = 'bar-date-top';
+    const wday = task.wday || 1;
+    lbl.textContent = task.start === task.end
+      ? `${fmt(task.start)} (${wday}d)`
+      : `${fmt(task.start)}–${fmt(task.end)} (${wday}d)`;
+    bar.appendChild(lbl);
   }
 }
 
