@@ -920,7 +920,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   </div>
   <button class="btn btn-owner-only proj-share-btn" onclick="openCollabModal()" title="共享此專案">🔗</button>
   <div class="sep"></div>
-  <button class="btn btn-primary" onclick="openModal()">＋ 新增任務</button>
+  <button class="btn btn-primary" onclick="openModal()" style="display:none">＋ 新增任務</button>
   <button class="btn" id="undoBtn" onclick="undo()" title="復原 (⌘Z)" disabled>↩ 復原</button>
   <button class="btn" onclick="scrollToToday()" title="跳至今日">📍 今日</button>
   <button class="btn" onclick="expandAll()">⊞ 全展開</button>
@@ -2386,22 +2386,36 @@ function addTaskInline(refTaskId) {
   if (isReadOnly) return;
   const ref = taskById(refTaskId);
   if (!ref) return;
-  const parentId = ref.parent;
+  // Group: new task goes inside (as child); leaf task: new task goes after (as sibling)
+  const parentId = ref.type === 'group' ? ref.id : ref.parent;
   const parent = taskById(parentId);
   const newTask = {
     id: nextId++,
     name: '',
     type: 'task',
     parent: parentId,
-    color: parent ? parent.color : '#5E6AD2',
+    color: parent ? parent.color : ref.color || '#5E6AD2',
+    wday: 1,
     start: TODAY_STR,
     end: TODAY_STR,
     done: false,
     deps: []
   };
-  const idx = tasks.indexOf(ref);
+  // Insert: after last child of group, or after ref for leaf
+  let insertIdx = tasks.indexOf(ref);
+  if (ref.type === 'group') {
+    // Find last descendant of this group
+    for (let i = insertIdx + 1; i < tasks.length; i++) {
+      const anc = tasks[i];
+      let p = anc.parent;
+      while (p !== null && p !== undefined) {
+        if (p === ref.id) { insertIdx = i; break; }
+        p = taskById(p)?.parent;
+      }
+    }
+  }
   pushHistory();
-  tasks.splice(idx + 1, 0, newTask);
+  tasks.splice(insertIdx + 1, 0, newTask);
   render();
   requestAnimationFrame(() => {
     const row = document.querySelector(`.task-row[data-id="${newTask.id}"]`);
