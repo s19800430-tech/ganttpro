@@ -2948,7 +2948,18 @@ function switchProject(id) {
 
 function updateProjUI() {
   let p = curProj();
-  if (!p) { p = projects.find(x => !x._isShared) || projects[0]; currentProjId = p.id; }
+  if (!p) {
+    const fallback = projects.find(x => !x._isShared) || projects[0];
+    if (!fallback) {
+      // No projects at all — clear header and show create modal
+      document.getElementById('projSelectorName').textContent = '— 無專案 —';
+      document.getElementById('projDot').style.background = '#999';
+      renderProjMenu();
+      return;
+    }
+    p = fallback;
+    currentProjId = p.id;
+  }
   document.getElementById('projSelectorName').textContent = p.name;
   document.getElementById('projDot').style.background = p.color;
   document.getElementById('sPeriod').textContent = `${p.startDate} — ${p.endDate}`;
@@ -3011,13 +3022,15 @@ function deleteProject(id, e) {
   closeProjMenuOnly();
   const ownedLeft = projects.filter(x => !x._isShared);
   if (ownedLeft.length === 0) {
-    // 全部刪完：重置狀態並開啟新建專案
+    // 全部刪完：重置狀態，更新 header，開啟新建專案
     currentProjId = null;
     tasks = [];
     nextId = 1;
     saveToCloud();
+    updateProjUI();
+    renderProjMenu();
     render();
-    openProjModal();
+    setTimeout(openProjModal, 150);
   } else if (id === currentProjId) {
     switchProject((ownedLeft[0] || projects[0]).id);
     saveToCloud();
@@ -4026,7 +4039,6 @@ async function initApp() {
   updateUserDisplay();
   const cloudOk = await loadFromCloud();
   if (!cloudOk) loadFromLS();
-  mergeDefaultProjects();
   await loadSharedProjects();
   setupSync();
   setupColResizers();
