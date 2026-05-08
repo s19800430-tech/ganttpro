@@ -438,14 +438,14 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
   text-shadow:0 1px 2px rgba(0,0,0,.3);
 }
 .bar-date-start{
-  position:absolute;bottom:-14px;left:0;
-  font-size:9px;font-weight:500;color:var(--t2);
-  white-space:nowrap;pointer-events:none;z-index:3;
-}
-.bar-date-end{
-  position:absolute;bottom:-14px;right:0;
+  position:absolute;right:calc(100% + 4px);top:50%;transform:translateY(-50%);
   font-size:9px;font-weight:500;color:var(--t2);
   white-space:nowrap;pointer-events:none;z-index:3;text-align:right;
+}
+.bar-date-end{
+  position:absolute;left:calc(100% + 4px);top:50%;transform:translateY(-50%);
+  font-size:9px;font-weight:500;color:var(--t2);
+  white-space:nowrap;pointer-events:none;z-index:3;
 }
 .wday-tag{
   font-size:10px;color:var(--t4);flex-shrink:0;
