@@ -914,7 +914,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
     <span class="proj-sel-arrow">▾</span>
     <div class="proj-menu" id="projMenu" onclick="event.stopPropagation()"></div>
   </div>
-  <button class="btn btn-owner-only proj-share-btn" onclick="openShareModal()" title="分享此專案（唯讀連結）">🔗</button>
+  <button class="btn btn-owner-only proj-share-btn" onclick="openCollabModal()" title="共享此專案">🔗</button>
   <div class="sep"></div>
   <button class="btn btn-primary" onclick="openModal()">＋ 新增任務</button>
   <button class="btn" id="undoBtn" onclick="undo()" title="復原 (⌘Z)" disabled>↩ 復原</button>
@@ -978,8 +978,8 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 <!-- COLLAB MODAL -->
 <div class="collab-overlay" id="collabOverlay" onclick="closeCollabModal()">
   <div class="collab-box" onclick="event.stopPropagation()">
-    <div class="collab-title">👥 協作管理</div>
-    <div class="collab-sub" id="collabSub">管理可存取此專案的用戶</div>
+    <div class="collab-title">🔗 共享專案</div>
+    <div class="collab-sub" id="collabSub">輸入對象的 Gmail，選擇權限後加入</div>
     <div class="collab-share-list" id="collabShareList"></div>
     <div class="collab-add-row">
       <input id="collabEmailInput" type="email" placeholder="輸入對方的 Gmail 帳號" onkeydown="if(event.key==='Enter')addShare()">
@@ -3270,7 +3270,7 @@ async function openCollabModal() {
   overlay.classList.add('open');
   document.getElementById('collabMsg').style.display = 'none';
   document.getElementById('collabEmailInput').value = '';
-  document.getElementById('collabSub').textContent = '專案：' + curProj().name;
+  document.getElementById('collabSub').textContent = '專案：' + curProj().name + '　｜　輸入 Gmail 加入共享';
   await refreshCollabList();
 }
 
