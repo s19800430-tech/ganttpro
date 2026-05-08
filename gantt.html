@@ -3767,11 +3767,17 @@ async function loadFromCloud() {
   try {
     const { data, error } = await sb.from('gantt_user_data')
       .select('data').eq('user_id', currentUser.id).single();
-    if (error || !data?.data?.projects?.length) return false;
+    if (error || !data?.data) return false;  // No row at all → fall back to demo
     const s = data.data;
-    projects      = s.projects;
-    nextProjId    = s.nextProjId ?? projects.length + 1;
-    // Validate currentProjId — fall back to first project if the saved ID no longer exists
+    projects   = s.projects || [];
+    nextProjId = s.nextProjId ?? 1;
+    if (!projects.length) {
+      // User intentionally cleared all projects
+      currentProjId = null;
+      tasks = [];
+      nextId = 1;
+      return true;
+    }
     currentProjId = (s.currentProjId && projects.find(p => p.id === s.currentProjId))
       ? s.currentProjId : projects[0].id;
     tasks  = curProj().tasks;
@@ -4042,6 +4048,10 @@ async function initApp() {
   _appInitialized = true;
   showApp();
   updateUserDisplay();
+  // Clear hardcoded demo data before cloud load to prevent flash
+  projects = [];
+  currentProjId = null;
+  tasks = [];
   const cloudOk = await loadFromCloud();
   if (!cloudOk) loadFromLS();
   await loadSharedProjects();
@@ -4050,12 +4060,13 @@ async function initApp() {
   setupResizer();
   setupRealtime();
   updateProjUI();
-  scheduleTasks();
-  recalcProjEnd();
+  if (projects.length) {
+    scheduleTasks();
+    recalcProjEnd();
+  }
   render();
   setSyncDot(cloudOk ? 'ok' : 'err');
   setTimeout(scrollToToday, 120);
-  // Show admin button for admin user
   const adminBtn = document.getElementById('adminBtn');
   if (adminBtn) adminBtn.style.display = isAdmin() ? '' : 'none';
 }
