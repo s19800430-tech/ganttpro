@@ -438,8 +438,8 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
   text-shadow:0 1px 2px rgba(0,0,0,.3);
 }
 .bar-sd{
-  position:absolute;left:3px;top:50%;transform:translateY(-50%);
-  font-size:9px;font-weight:500;color:rgba(255,255,255,.85);
+  position:absolute;right:calc(100% + 4px);top:50%;transform:translateY(-50%);
+  font-size:9px;font-weight:500;color:var(--t2);
   white-space:nowrap;pointer-events:none;z-index:3;
 }
 .bar-ed{
@@ -2001,14 +2001,6 @@ function renderBar(row, task) {
   const fmt = s => { const [,m,d] = s.split('-'); return `${+m}/${+d}`; };
   const wday = task.wday || 1;
 
-  if (showBarDates) {
-    // Start date: inside bar, left edge, white text (never clipped)
-    const sd = document.createElement('div');
-    sd.className = 'bar-sd';
-    sd.textContent = fmt(task.start);
-    inner.appendChild(sd);
-  }
-
   // Task name: inside bar center when wide enough
   if (w > 70) {
     const lbl = document.createElement('div');
@@ -2020,7 +2012,12 @@ function renderBar(row, task) {
   bar.appendChild(inner);
 
   if (showBarDates) {
-    // End date: outside bar to the right (safe direction, no clipping)
+    // Start date: outside bar to the left
+    const sd = document.createElement('div');
+    sd.className = 'bar-sd';
+    sd.textContent = fmt(task.start);
+    bar.appendChild(sd);
+    // End date: outside bar to the right
     const ed = document.createElement('div');
     ed.className = 'bar-ed';
     ed.textContent = fmt(task.end);
@@ -2950,11 +2947,23 @@ function indentTask(id) {
 }
 
 function recalcProjEnd() {
-  let maxDate = null;
+  let minDate = null, maxDate = null;
   tasks.forEach(t => {
-    const d = t.end || t.date;
-    if (d && (!maxDate || d > maxDate)) maxDate = d;
+    const s = t.start || t.date;
+    const e = t.end || t.date;
+    if (s && (!minDate || s < minDate)) minDate = s;
+    if (e && (!maxDate || e > maxDate)) maxDate = e;
   });
+
+  // CHART_START: 7 days before earliest task, for start-date label space
+  const projStart = curProj()?.startDate;
+  const baseStart = minDate || projStart;
+  if (baseStart) {
+    const cs = new Date(baseStart);
+    cs.setDate(cs.getDate() - 7);
+    CHART_START = cs;
+  }
+
   if (!maxDate) return;
   // Pad at least 3 months beyond last task
   const padded = new Date(maxDate);
@@ -3451,8 +3460,8 @@ function setupSharedRealtime(ownerIds) {
           if (curProj()?._ownerId === ownerId) {
             tasks = curProj().tasks;
             nextId = curProj().nextId;
-            CHART_START = new Date(curProj().startDate);
-            CHART_END   = new Date(curProj().endDate);
+            scheduleTasks();
+            recalcProjEnd();
           }
           saveToLS();
           updateProjUI();
