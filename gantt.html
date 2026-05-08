@@ -437,10 +437,15 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
   z-index:1;line-height:20px;
   text-shadow:0 1px 2px rgba(0,0,0,.3);
 }
-.bar-info-label{
-  position:absolute;top:2px;
-  font-size:9px;font-weight:500;color:var(--t1);
-  white-space:nowrap;pointer-events:none;z-index:5;
+.bar-sd{
+  position:absolute;left:3px;top:50%;transform:translateY(-50%);
+  font-size:9px;font-weight:500;color:rgba(255,255,255,.85);
+  white-space:nowrap;pointer-events:none;z-index:3;
+}
+.bar-ed{
+  position:absolute;left:calc(100% + 4px);top:50%;transform:translateY(-50%);
+  font-size:9px;font-weight:500;color:var(--t2);
+  white-space:nowrap;pointer-events:none;z-index:3;
 }
 .wday-tag{
   font-size:10px;color:var(--t4);flex-shrink:0;
@@ -1993,30 +1998,40 @@ function renderBar(row, task) {
   bg.style.background = task.color;
   inner.appendChild(bg);
 
-  if (w > 50) {
+  const fmt = s => { const [,m,d] = s.split('-'); return `${+m}/${+d}`; };
+  const wday = task.wday || 1;
+
+  if (showBarDates) {
+    // Start date: inside bar, left edge, white text (never clipped)
+    const sd = document.createElement('div');
+    sd.className = 'bar-sd';
+    sd.textContent = fmt(task.start);
+    inner.appendChild(sd);
+  }
+
+  // Task name: inside bar center when wide enough
+  if (w > 70) {
     const lbl = document.createElement('div');
     lbl.className = 'bar-lbl';
     lbl.textContent = task.name || '';
     inner.appendChild(lbl);
   }
+
   bar.appendChild(inner);
+
+  if (showBarDates) {
+    // End date: outside bar to the right (safe direction, no clipping)
+    const ed = document.createElement('div');
+    ed.className = 'bar-ed';
+    ed.textContent = fmt(task.end);
+    bar.appendChild(ed);
+  }
 
   bar.addEventListener('mouseenter', e => showTT(e, task));
   bar.addEventListener('mousemove', moveTT);
   bar.addEventListener('mouseleave', hideTT);
 
   row.appendChild(bar);
-
-  // Info label: starts at bar's x, extends right — always visible regardless of bar width
-  if (showBarDates) {
-    const fmt = s => { const [,m,d] = s.split('-'); return `${+m}/${+d}`; };
-    const info = document.createElement('div');
-    info.className = 'bar-info-label';
-    info.style.left = `${x1}px`;
-    const wday = task.wday || 1;
-    info.textContent = `${fmt(task.start)} ${task.name} ${wday}d ${fmt(task.end)}`;
-    row.appendChild(info);
-  }
 }
 
 function renderGroupBar(row, task, bounds) {
