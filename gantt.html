@@ -3741,9 +3741,11 @@ async function loadFromCloud() {
       .select('data').eq('user_id', currentUser.id).single();
     if (error || !data?.data?.projects?.length) return false;
     const s = data.data;
-    projects     = s.projects;
-    currentProjId = s.currentProjId ?? projects[0].id;
-    nextProjId   = s.nextProjId   ?? projects.length + 1;
+    projects      = s.projects;
+    nextProjId    = s.nextProjId ?? projects.length + 1;
+    // Validate currentProjId — fall back to first project if the saved ID no longer exists
+    currentProjId = (s.currentProjId && projects.find(p => p.id === s.currentProjId))
+      ? s.currentProjId : projects[0].id;
     tasks  = curProj().tasks;
     nextId = curProj().nextId;
     CHART_START = new Date(curProj().startDate);
@@ -3848,9 +3850,10 @@ function loadFromLS() {
     if (!raw) return false;
     const d = JSON.parse(raw);
     if (!d.projects?.length) return false;
-    projects     = d.projects;
-    currentProjId = d.currentProjId ?? projects[0].id;
-    nextProjId   = d.nextProjId   ?? projects.length + 1;
+    projects   = d.projects;
+    nextProjId = d.nextProjId ?? projects.length + 1;
+    currentProjId = (d.currentProjId && projects.find(p => p.id === d.currentProjId))
+      ? d.currentProjId : projects[0].id;
     tasks  = curProj().tasks;
     nextId = curProj().nextId;
     CHART_START = new Date(curProj().startDate);
