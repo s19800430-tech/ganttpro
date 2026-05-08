@@ -2986,7 +2986,7 @@ function renderProjMenu() {
     item.innerHTML = `
       <div class="proj-item-dot" style="background:${p.color}"></div>
       <span class="proj-item-name">${p.name}${p._isShared ? ' <span class="collab-shared-badge">共享</span>' : ''}</span>
-      ${projects.filter(x=>!x._isShared).length > 1 && !p._isShared
+      ${!p._isShared
         ? `<span class="proj-item-del" onclick="deleteProject(${p.id},event)" title="刪除此專案">✕</span>`
         : ''}
     `;
@@ -3009,13 +3009,22 @@ function deleteProject(id, e) {
   if (!confirm(`確定要刪除「${p.name}」嗎？此操作無法復原。`)) return;
   projects = projects.filter(x => x.id !== id);
   closeProjMenuOnly();
-  if (id === currentProjId) {
-    const next = projects.find(x => !x._isShared) || projects[0];
-    switchProject(next.id);
+  const ownedLeft = projects.filter(x => !x._isShared);
+  if (ownedLeft.length === 0) {
+    // 全部刪完：重置狀態並開啟新建專案
+    currentProjId = null;
+    tasks = [];
+    nextId = 1;
+    saveToCloud();
+    render();
+    openProjModal();
+  } else if (id === currentProjId) {
+    switchProject((ownedLeft[0] || projects[0]).id);
+    saveToCloud();
   } else {
     renderProjMenu();
+    saveToCloud();
   }
-  saveToCloud();
 }
 
 function openProjModal() {
