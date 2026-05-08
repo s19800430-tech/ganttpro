@@ -1589,7 +1589,7 @@ function renderTaskPanel() {
 
     const numSpan = document.createElement('span');
     numSpan.className = 'row-num';
-    numSpan.textContent = task.id;
+    numSpan.textContent = rowIndex + 1;
     nc.appendChild(numSpan);
 
     const nm = document.createElement('span');
