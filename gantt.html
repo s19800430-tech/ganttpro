@@ -1460,6 +1460,17 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+function getRowNum(taskId) {
+  const rows = getVisibleRows();
+  const idx = rows.findIndex(r => r.task.id === taskId);
+  return idx >= 0 ? idx + 1 : null;
+}
+
+function getTaskByRowNum(num) {
+  const rows = getVisibleRows();
+  return rows[num - 1]?.task ?? null;
+}
+
 function getVisibleRows() {
   if (milestoneView) {
     return tasks
@@ -1634,12 +1645,13 @@ function renderTaskPanel() {
     }
     row.appendChild(wc);
 
-    // Deps cell — show task IDs, click to edit inline
+    // Deps cell — show row numbers, click to edit inline
     const dc = document.createElement('div');
     dc.className = 'deps-cell';
     const deps = task.deps || [];
-    dc.innerHTML = deps.length > 0
-      ? `<span class="deps-nums">${deps.join(', ')}</span>`
+    const depNums = deps.map(id => getRowNum(id)).filter(Boolean);
+    dc.innerHTML = depNums.length > 0
+      ? `<span class="deps-nums">${depNums.join(', ')}</span>`
       : `<span style="font-size:11px;color:var(--t4)">—</span>`;
     // Click on deps cell → open inline editor
     dc.addEventListener('click', e => {
@@ -2662,26 +2674,32 @@ function renderDepsMenu() {
 function openDepsEditor(task, cell) {
   const inp = document.createElement('input');
   inp.className = 'deps-input';
-  inp.placeholder = '如：3, 5';
-  inp.value = (task.deps || []).join(', ');
+  inp.placeholder = '如：2, 3（列號）';
+  // Display current deps as row numbers
+  inp.value = (task.deps || []).map(id => getRowNum(id)).filter(Boolean).join(', ');
   cell.innerHTML = '';
   cell.appendChild(inp);
   inp.focus();
   inp.select();
 
+  let committed = false;
   function commit() {
-    const raw = inp.value.split(/[,\s]+/)
-      .map(s => parseInt(s))
-      .filter(n => !isNaN(n) && n !== task.id);
+    if (committed) return; committed = true;
+    // Parse as row numbers, convert to task IDs
+    const rowNums = inp.value.split(/[,\s]+/).map(s => parseInt(s)).filter(n => !isNaN(n));
+    const newDeps = rowNums
+      .map(n => getTaskByRowNum(n))
+      .filter(t => t && t.id !== task.id && t.type !== 'group')
+      .map(t => t.id);
     pushHistory();
-    task.deps = [...new Set(raw)];
+    task.deps = [...new Set(newDeps)];
     scheduleTasks();
     recalcProjEnd(); render();
   }
   inp.addEventListener('blur', commit);
   inp.addEventListener('keydown', e => {
     if (e.key === 'Enter') { inp.blur(); }
-    if (e.key === 'Escape') { task.deps = task.deps || []; render(); }
+    if (e.key === 'Escape') { committed = true; render(); }
   });
 }
 
