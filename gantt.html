@@ -2689,7 +2689,7 @@ function openDepsEditor(task, cell) {
     const rowNums = inp.value.split(/[,\s]+/).map(s => parseInt(s)).filter(n => !isNaN(n));
     const newDeps = rowNums
       .map(n => getTaskByRowNum(n))
-      .filter(t => t && t.id !== task.id && t.type !== 'group')
+      .filter(t => t && t.id !== task.id)
       .map(t => t.id);
     pushHistory();
     task.deps = [...new Set(newDeps)];
@@ -2700,6 +2700,13 @@ function openDepsEditor(task, cell) {
   inp.addEventListener('keydown', e => {
     if (e.key === 'Enter') { inp.blur(); }
     if (e.key === 'Escape') { committed = true; render(); }
+  });
+}
+
+function allGroupMembersScheduled(groupId, scheduled) {
+  return tasks.filter(t => t.parent === groupId).every(child => {
+    if (child.type === 'group') return allGroupMembersScheduled(child.id, scheduled);
+    return scheduled.has(child.id);
   });
 }
 
@@ -2720,7 +2727,10 @@ function scheduleTasks() {
     candidates.forEach(task => {
       if (scheduled.has(task.id)) return;
       const deps = (task.deps || []).map(id => taskById(id)).filter(Boolean);
-      const unresolved = deps.filter(d => d.type !== 'group' && !scheduled.has(d.id));
+      const unresolved = deps.filter(d => {
+        if (d.type === 'group') return !allGroupMembersScheduled(d.id, scheduled);
+        return !scheduled.has(d.id);
+      });
       if (unresolved.length) return;
       // Latest end among deps
       let latestEnd = null;
