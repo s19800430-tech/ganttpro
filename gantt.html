@@ -3727,10 +3727,16 @@ async function saveToCloud() {
   if (!currentUser) return;
   setSyncDot('saving');
   try {
-    curProj().nextId = nextId;
+    if (curProj()) curProj().nextId = nextId;
     const cp = curProj();
 
-    if (cp._isShared && cp._permission === 'edit') {
+    if (!cp) {
+      // No current project (all deleted) — save empty state
+      const state = { projects: [], currentProjId: null, nextProjId };
+      const { error } = await sb.from('gantt_user_data')
+        .upsert({ user_id: currentUser.id, data: state, updated_at: new Date().toISOString() });
+      setSyncDot(error ? 'err' : 'ok');
+    } else if (cp._isShared && cp._permission === 'edit') {
       // Co-editor: read owner's full data, replace only this project, write back
       const { data: ownerRow } = await sb.from('gantt_user_data')
         .select('data').eq('user_id', cp._ownerId).maybeSingle();
