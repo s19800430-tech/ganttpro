@@ -2001,7 +2001,8 @@ function renderBar(row, task) {
   if (w > 36) {
     const lbl = document.createElement('div');
     lbl.className = 'bar-lbl';
-    lbl.textContent = task.name;
+    const wday = task.wday || 1;
+    lbl.textContent = task.name ? `${task.name}  ${wday}d` : `${wday}d`;
     inner.appendChild(lbl);
   }
   bar.appendChild(inner);
