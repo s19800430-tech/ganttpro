@@ -2955,12 +2955,12 @@ function recalcProjEnd() {
     if (e && (!maxDate || e > maxDate)) maxDate = e;
   });
 
-  // CHART_START: 7 days before earliest task, for start-date label space
+  // CHART_START: 1 day before earliest task, for start-date label space
   const projStart = curProj()?.startDate;
   const baseStart = minDate || projStart;
   if (baseStart) {
     const cs = new Date(baseStart);
-    cs.setDate(cs.getDate() - 7);
+    cs.setDate(cs.getDate() - 1);
     CHART_START = cs;
   }
 
