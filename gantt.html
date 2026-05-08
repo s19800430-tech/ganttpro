@@ -437,10 +437,18 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
   z-index:1;line-height:20px;
   text-shadow:0 1px 2px rgba(0,0,0,.3);
 }
-.bar-date-top{
-  position:absolute;top:-14px;left:0;
+.bar-date-start{
+  position:absolute;bottom:-14px;left:0;
   font-size:9px;font-weight:500;color:var(--t2);
   white-space:nowrap;pointer-events:none;z-index:3;
+}
+.bar-date-end{
+  position:absolute;bottom:-14px;right:0;
+  font-size:9px;font-weight:500;color:var(--t2);
+  white-space:nowrap;pointer-events:none;z-index:3;text-align:right;
+}
+.wday-tag{
+  font-size:10px;color:var(--t4);flex-shrink:0;
 }
 
 .group-bar{
@@ -1615,6 +1623,13 @@ function renderTaskPanel() {
     nm.addEventListener('click', e => { e.stopPropagation(); if (!isReadOnly) openNameEditor(task, nm); });
     nc.appendChild(nm);
 
+    if (task.type === 'task' && task.wday) {
+      const wd = document.createElement('span');
+      wd.className = 'wday-tag';
+      wd.textContent = `${task.wday}d`;
+      nc.appendChild(wd);
+    }
+
     if (task.type === 'milestone') {
       const badge = document.createElement('span');
       badge.className = 'ms-badge';
@@ -1997,16 +2012,18 @@ function renderBar(row, task) {
 
   row.appendChild(bar);
 
-  // Date label above the bar (only when showBarDates is enabled)
+  // Date labels at bar head/tail (only when showBarDates is enabled)
   if (showBarDates) {
     const fmt = s => { const [,m,d] = s.split('-'); return `${+m}/${+d}`; };
-    const lbl = document.createElement('div');
-    lbl.className = 'bar-date-top';
-    const wday = task.wday || 1;
-    lbl.textContent = task.start === task.end
-      ? `${fmt(task.start)} (${wday}d)`
-      : `${fmt(task.start)}–${fmt(task.end)} (${wday}d)`;
-    bar.appendChild(lbl);
+    const sd = document.createElement('div');
+    sd.className = 'bar-date-start';
+    sd.textContent = fmt(task.start);
+    bar.appendChild(sd);
+
+    const ed = document.createElement('div');
+    ed.className = 'bar-date-end';
+    ed.textContent = fmt(task.end);
+    bar.appendChild(ed);
   }
 }
 
