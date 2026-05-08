@@ -941,7 +941,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   <button class="btn zoom-btn" onclick="zoomOut()" title="縮小">－</button>
   <button class="btn zoom-btn" onclick="zoomIn()" title="放大">＋</button>
   <button class="btn fit-btn" onclick="fitToFrame()" title="縮放至適合視窗"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4.5V1h3.5M8.5 1H12v3.5M12 8.5V12H8.5M4.5 12H1V8.5"/></svg></button>
-  <button class="btn" id="barDatesBtn" onclick="toggleBarDates()" title="顯示任務日期與工作日">日期</button>
+  <button class="btn active" id="barDatesBtn" onclick="toggleBarDates()" title="顯示任務日期與工作日">日期</button>
   <div class="readonly-badge">👁 唯讀模式</div>
   <button class="btn btn-owner-only" id="collabBtn" onclick="openCollabModal()" title="協作管理">👥 協作</button>
   <button class="btn btn-owner-only" onclick="openVersionPanel()" title="版本紀錄">🕐 版本</button>
@@ -1186,7 +1186,7 @@ const PPDS = { day: 36, week: 20, month: 8 };
 let PPD = PPDS.week;
 let viewMode = 'week';
 let milestoneView = false;
-let showBarDates = false;
+let showBarDates = true;
 const MS_ROW_H = 160;
 
 const AV_COLORS = {
