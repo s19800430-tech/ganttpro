@@ -2919,9 +2919,9 @@ function recalcProjEnd() {
     if (d && (!maxDate || d > maxDate)) maxDate = d;
   });
   if (!maxDate) return;
-  // Pad 14 days so bars aren't flush to chart edge
+  // Pad at least 3 months beyond last task
   const padded = new Date(maxDate);
-  padded.setDate(padded.getDate() + 14);
+  padded.setMonth(padded.getMonth() + 3);
   const endStr = padded.toISOString().slice(0, 10);
   curProj().endDate = endStr;
   CHART_END = padded;
