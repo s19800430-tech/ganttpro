@@ -3134,21 +3134,20 @@ function getOrCreateShareToken(proj) {
   return proj.shareToken;
 }
 
-async function openShareModal() {
+function openShareModal() {
   if (isReadOnly) return;
   const proj = curProj();
   const token = getOrCreateShareToken(proj);
   document.getElementById('shareModalProjName').textContent = proj.name;
   const note = document.querySelector('.share-owner-note');
   if (note) note.innerHTML = '💡 此連結為唯讀連結。只有您（專案建立者）在一般模式下可以編輯。';
-  document.getElementById('shareLinkInput').value = '產生中…';
-  document.getElementById('shareOverlay').classList.add('open');
   render();
-  const compressed = await saveShareToCloud(token, proj);
-  const hash = compressed ? '#d=' + compressed : '';
+  const encoded = saveShareToCloud(token, proj);
+  const hash = encoded ? '#d=' + encoded : '';
   const url = location.origin + location.pathname + '?share=' + token + hash;
   document.getElementById('shareLinkInput').value = url;
-  if (!compressed && note) note.innerHTML = '⚠️ 連結產生失敗，請稍後再試。';
+  if (!encoded && note) note.innerHTML = '⚠️ 連結產生失敗，請稍後再試。';
+  document.getElementById('shareOverlay').classList.add('open');
 }
 
 function closeShareModal() {
@@ -3596,31 +3595,24 @@ async function loadFromCloud() {
   } catch(e) { return false; }
 }
 
-async function _compress(str) {
+function _encodeData(obj) {
   try {
-    const cs = new CompressionStream('deflate-raw');
-    const w = cs.writable.getWriter();
-    w.write(new TextEncoder().encode(str));
-    w.close();
-    const buf = await new Response(cs.readable).arrayBuffer();
-    const bytes = new Uint8Array(buf);
+    const bytes = new TextEncoder().encode(JSON.stringify(obj));
     let bin = '';
     for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
     return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
   } catch(e) { return null; }
 }
 
-async function _decompress(b64) {
+function _decodeData(b64) {
   try {
     const std = b64.replace(/-/g,'+').replace(/_/g,'/');
     const padded = std + '='.repeat((4 - std.length % 4) % 4);
-    const bytes = Uint8Array.from(atob(padded), c => c.charCodeAt(0));
-    const ds = new DecompressionStream('deflate-raw');
-    const w = ds.writable.getWriter();
-    w.write(bytes);
-    w.close();
-    return new TextDecoder().decode(await new Response(ds.readable).arrayBuffer());
-  } catch(e) { console.error('[decompress]', e); return null; }
+    const bin = atob(padded);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch(e) { console.error('[decode]', e); return null; }
 }
 
 async function loadShareFromCloud(token) {
@@ -3628,8 +3620,8 @@ async function loadShareFromCloud(token) {
   const hashMatch = location.hash.match(/[#&]d=([^&]*)/);
   const hashData = hashMatch ? hashMatch[1] : null;
   if (hashData) {
-    const json = await _decompress(hashData);
-    if (json) { try { return JSON.parse(json); } catch(e) {} }
+    const obj = _decodeData(hashData);
+    if (obj) return obj;
   }
   // 備援：從 Supabase 讀取
   try {
@@ -3639,19 +3631,18 @@ async function loadShareFromCloud(token) {
   } catch(e) { return null; }
 }
 
-async function saveShareToCloud(token, project) {
-  // 壓縮資料供 URL hash 傳遞
-  const json = JSON.stringify(project);
-  const compressed = await _compress(json);
+function saveShareToCloud(token, project) {
+  // 編碼專案資料供 URL hash 傳遞
+  const encoded = _encodeData(project);
   // 同步存 Supabase（備援）
   if (currentUser) {
     try {
-      await sb.from('gantt_shares')
-        .upsert({ token, owner_id: currentUser.id, project_data: JSON.parse(json) },
+      sb.from('gantt_shares')
+        .upsert({ token, owner_id: currentUser.id, project_data: JSON.parse(JSON.stringify(project)) },
                 { onConflict: 'token' });
     } catch(e) {}
   }
-  return compressed;
+  return encoded;
 }
 
 function setupRealtime() {
