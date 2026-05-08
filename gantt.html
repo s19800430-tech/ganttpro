@@ -2264,7 +2264,7 @@ function setView(v) {
   document.querySelectorAll('#viewBtns .btn').forEach(b => {
     b.classList.toggle('active', b.dataset.v === v);
   });
-  recalcProjEnd();
+  updateChartStart();
   render();
 }
 
@@ -2285,17 +2285,16 @@ function toggleBarDates() {
 
 function applyZoom(factor) {
   const cs = document.getElementById('chartScroll');
-  // Save center as absolute date (survives CHART_START change)
-  const centerMs = CHART_START.getTime() + (cs.scrollLeft + cs.clientWidth / 2) / PPD * 86400000;
+  // Anchor: keep the left-edge date fixed so content doesn't jump off-screen
+  const leftMs = CHART_START.getTime() + cs.scrollLeft / PPD * 86400000;
   PPD = Math.max(2, Math.min(80, Math.round(PPD * factor)));
   document.querySelectorAll('#viewBtns .btn').forEach(b => {
     b.classList.toggle('active', PPDS[b.dataset.v] === PPD);
   });
-  recalcProjEnd(); // recompute CHART_START with new PPD
+  updateChartStart(); // recompute CHART_START padding for new PPD
   render();
   requestAnimationFrame(() => {
-    const newOffset = (centerMs - CHART_START.getTime()) / 86400000 * PPD;
-    cs.scrollLeft = Math.max(0, newOffset - cs.clientWidth / 2);
+    cs.scrollLeft = Math.max(0, (leftMs - CHART_START.getTime()) / 86400000 * PPD);
   });
 }
 function zoomIn()  { applyZoom(1.4); }
@@ -2308,7 +2307,7 @@ function fitToFrame() {
   document.querySelectorAll('#viewBtns .btn').forEach(b => {
     b.classList.toggle('active', PPDS[b.dataset.v] === PPD);
   });
-  recalcProjEnd();
+  updateChartStart();
   render();
   requestAnimationFrame(() => { cs.scrollLeft = 0; });
 }
@@ -2950,25 +2949,27 @@ function indentTask(id) {
   render();
 }
 
-function recalcProjEnd() {
-  let minDate = null, maxDate = null;
+function updateChartStart() {
+  let minDate = null;
   tasks.forEach(t => {
     const s = t.start || t.date;
-    const e = t.end || t.date;
     if (s && (!minDate || s < minDate)) minDate = s;
+  });
+  const baseStart = minDate || curProj()?.startDate;
+  if (!baseStart) return;
+  const d = new Date(baseStart);
+  const dayPad = Math.max(1, Math.ceil(30 / PPD));
+  d.setDate(d.getDate() - dayPad);
+  CHART_START = d;
+}
+
+function recalcProjEnd() {
+  updateChartStart();
+  let maxDate = null;
+  tasks.forEach(t => {
+    const e = t.end || t.date;
     if (e && (!maxDate || e > maxDate)) maxDate = e;
   });
-
-  // CHART_START: enough pixels before earliest task for start-date label (~30px)
-  const projStart = curProj()?.startDate;
-  const baseStart = minDate || projStart;
-  if (baseStart) {
-    const cs = new Date(baseStart);
-    const dayPad = Math.max(1, Math.ceil(30 / PPD));
-    cs.setDate(cs.getDate() - dayPad);
-    CHART_START = cs;
-  }
-
   if (!maxDate) return;
   // Pad at least 3 months beyond last task
   const padded = new Date(maxDate);
