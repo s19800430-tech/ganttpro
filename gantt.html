@@ -914,7 +914,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   </div>
   <div class="proj-selector" id="projSelector" onclick="toggleProjMenu(event)">
     <div class="proj-sel-dot" id="projDot" style="background:#5E6AD2"></div>
-    <span class="proj-sel-name" id="projSelectorName">Spaces 平台 V2.0 開發計畫</span>
+    <span class="proj-sel-name" id="projSelectorName">載入中…</span>
     <span class="proj-sel-arrow">▾</span>
     <div class="proj-menu" id="projMenu" onclick="event.stopPropagation()"></div>
   </div>
@@ -1286,47 +1286,6 @@ const TEMPLATES = [
    PROJECTS DATA
 ═══════════════════════════════════════════ */
 let projects = [
-  {
-    id: 1,
-    name: 'Spaces 平台 V2.0 開發計畫',
-    color: '#5E6AD2',
-    startDate: '2026-04-01',
-    endDate: '2026-07-31',
-    nextId: 30,
-    tasks: [
-      { id:1, name:'Spaces 平台 V2.0', type:'group', parent:null, color:'#5E6AD2', assignee:'Paul' },
-
-      { id:2, name:'需求分析', type:'group', parent:1, color:'#818CF8', assignee:'Paul' },
-      { id:3, name:'市場調研',             type:'task',      parent:2, color:'#818CF8', assignee:'王小明',   start:'2026-04-01', end:'2026-04-10', done:true, deps:[] },
-      { id:4, name:'用戶訪談與痛點分析',   type:'task',      parent:2, color:'#818CF8', assignee:'李美華',   start:'2026-04-08', end:'2026-04-18', done:true, deps:[3] },
-      { id:5, name:'競品分析',             type:'task',      parent:2, color:'#818CF8', assignee:'王小明',   start:'2026-04-10', end:'2026-04-20', done:true, deps:[3] },
-      { id:6, name:'功能定義完成',         type:'milestone', parent:2, color:'#5E6AD2', assignee:'Paul',     date:'2026-04-22',                   deps:[4,5] },
-
-      { id:7,  name:'產品設計',            type:'group',     parent:1, color:'#34D399', assignee:'陳設計' },
-      { id:8,  name:'UI/UX 設計',          type:'task',      parent:7, color:'#34D399', assignee:'陳設計',   start:'2026-04-20', end:'2026-05-05', done:true,  deps:[6] },
-      { id:9,  name:'API 規格設計',        type:'task',      parent:7, color:'#34D399', assignee:'張後端',   start:'2026-04-22', end:'2026-05-08', done:false, deps:[6] },
-      { id:10, name:'互動原型製作',        type:'task',      parent:7, color:'#34D399', assignee:'陳設計',   start:'2026-04-28', end:'2026-05-06', done:true,  deps:[8] },
-      { id:11, name:'設計審查通過',        type:'milestone', parent:7, color:'#5E6AD2', assignee:'Paul',     date:'2026-05-10',                   deps:[8,9] },
-
-      { id:12, name:'系統開發',            type:'group',     parent:1, color:'#FBBF24', assignee:'張後端' },
-      { id:13, name:'前端介面開發',        type:'task',      parent:12, color:'#FBBF24', assignee:'林前端',  start:'2026-05-06', end:'2026-05-28', done:false, deps:[11] },
-      { id:14, name:'後端 API 開發',       type:'task',      parent:12, color:'#FBBF24', assignee:'張後端',  start:'2026-05-10', end:'2026-06-02', done:false, deps:[11] },
-      { id:15, name:'AI 模組整合',         type:'task',      parent:12, color:'#FBBF24', assignee:'吳 AI',   start:'2026-05-18', end:'2026-06-08', done:false, deps:[14] },
-      { id:16, name:'資料庫效能優化',      type:'task',      parent:12, color:'#FBBF24', assignee:'張後端',  start:'2026-05-25', end:'2026-06-05', done:false, deps:[14] },
-      { id:17, name:'開發完成里程碑',      type:'milestone', parent:12, color:'#F59E0B', assignee:'Paul',    date:'2026-06-10',                   deps:[13,14,15] },
-
-      { id:18, name:'品質測試',            type:'group',     parent:1, color:'#F87171', assignee:'測試工程師' },
-      { id:19, name:'單元測試',            type:'task',      parent:18, color:'#F87171', assignee:'測試工程師', start:'2026-05-28', end:'2026-06-08', done:false, deps:[13] },
-      { id:20, name:'整合測試',            type:'task',      parent:18, color:'#F87171', assignee:'測試工程師', start:'2026-06-08', end:'2026-06-18', done:false, deps:[19,14] },
-      { id:21, name:'效能壓力測試',        type:'task',      parent:18, color:'#F87171', assignee:'測試工程師', start:'2026-06-12', end:'2026-06-20', done:false, deps:[19] },
-      { id:22, name:'UAT 驗收完成',        type:'milestone', parent:18, color:'#5E6AD2', assignee:'Paul',    date:'2026-06-22',                   deps:[20,21] },
-
-      { id:23, name:'部署上線',            type:'group',     parent:1, color:'#10B981', assignee:'維運團隊' },
-      { id:24, name:'部署環境準備',        type:'task',      parent:23, color:'#10B981', assignee:'維運團隊', start:'2026-06-18', end:'2026-06-25', done:false, deps:[22] },
-      { id:25, name:'資安掃描確認',        type:'task',      parent:23, color:'#10B981', assignee:'Paul',     start:'2026-06-22', end:'2026-06-27', done:false, deps:[20] },
-      { id:26, name:'Spaces V2.0 正式上線', type:'milestone', parent:23, color:'#EF4444', assignee:'Paul',   date:'2026-06-30',                   deps:[24,25] },
-    ]
-  },
   {
     id: 2,
     name: '硬體產品開發與量產標準流程',
