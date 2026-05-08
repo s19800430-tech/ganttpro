@@ -3022,7 +3022,7 @@ function deleteProject(id, e) {
   closeProjMenuOnly();
   const ownedLeft = projects.filter(x => !x._isShared);
   if (ownedLeft.length === 0) {
-    // 全部刪完：重置狀態，更新 header，開啟新建專案
+    // 全部刪完：重置狀態，更新 header
     currentProjId = null;
     tasks = [];
     nextId = 1;
@@ -3030,7 +3030,6 @@ function deleteProject(id, e) {
     updateProjUI();
     renderProjMenu();
     render();
-    setTimeout(openProjModal, 150);
   } else if (id === currentProjId) {
     switchProject((ownedLeft[0] || projects[0]).id);
     saveToCloud();
