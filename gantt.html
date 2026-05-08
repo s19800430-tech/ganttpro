@@ -815,6 +815,10 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 .collab-add-row input:focus{border-color:var(--accent)}
 .collab-add-row select{padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--t1);font-size:12px;font-family:inherit;outline:none}
 .collab-footer{display:flex;justify-content:flex-end;margin-top:20px}
+.collab-proj-row{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.collab-proj-label{font-size:12px;color:var(--t3);white-space:nowrap}
+.collab-proj-select{flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--t1);font-size:13px;font-family:inherit;outline:none;cursor:pointer}
+.collab-proj-select:focus{border-color:var(--accent)}
 .collab-share-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:8px}
 .collab-share-item .ci-email{flex:1;font-size:12px;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .collab-share-item .ci-perm{font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600}
@@ -978,8 +982,11 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 <!-- COLLAB MODAL -->
 <div class="collab-overlay" id="collabOverlay" onclick="closeCollabModal()">
   <div class="collab-box" onclick="event.stopPropagation()">
-    <div class="collab-title">🔗 共享專案</div>
-    <div class="collab-sub" id="collabSub">輸入對象的 Gmail，選擇權限後加入</div>
+    <div class="collab-title">🔗 共享管理</div>
+    <div class="collab-proj-row">
+      <label class="collab-proj-label">專案</label>
+      <select id="collabProjSelect" class="collab-proj-select" onchange="onCollabProjChange()"></select>
+    </div>
     <div class="collab-share-list" id="collabShareList"></div>
     <div class="collab-add-row">
       <input id="collabEmailInput" type="email" placeholder="輸入對方的 Gmail 帳號" onkeydown="if(event.key==='Enter')addShare()">
@@ -1138,6 +1145,13 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
       <input class="form-ctrl" type="date" id="pStart" value="2026-05-06">
     </div>
     <div class="form-row">
+      <label class="form-lbl">套用範本</label>
+      <select class="form-ctrl" id="pTemplate" onchange="onTemplateChange()">
+        <option value="">— 空白專案 —</option>
+      </select>
+    </div>
+    <div id="templatePreview" style="display:none;margin:4px 0 0;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--t3);line-height:1.6"></div>
+    <div class="form-row">
       <label class="form-lbl">專案顏色</label>
       <div style="display:flex;align-items:center;gap:8px;margin-top:6px" id="projColorPreview">
         <div id="projColorDot" style="width:20px;height:20px;border-radius:50%;background:#5E6AD2;flex-shrink:0"></div>
@@ -1211,6 +1225,63 @@ function getNextGroupColor() {
 }
 
 /* ═══════════════════════════════════════════
+   PROJECT TEMPLATES
+═══════════════════════════════════════════ */
+const TEMPLATES = [
+  {
+    id: 'hardware',
+    name: '硬體產品開發與量產標準流程',
+    color: '#0EA5E9',
+    tasks: [
+      { id:1,  name:'{{PROJECT_NAME}}',      type:'group',     parent:null, color:'#0EA5E9' },
+
+      { id:2,  name:'需求定義',              type:'group',     parent:1,  color:'#818CF8' },
+      { id:3,  name:'市場需求調研',          type:'task',      parent:2,  color:'#818CF8', wday:10, deps:[],    done:false, start:'', end:'' },
+      { id:4,  name:'產品規格制定',          type:'task',      parent:2,  color:'#818CF8', wday:8,  deps:[3],   done:false, start:'', end:'' },
+      { id:5,  name:'競品分析',              type:'task',      parent:2,  color:'#818CF8', wday:5,  deps:[],    done:false, start:'', end:'' },
+      { id:6,  name:'規格凍結',              type:'milestone', parent:2,  color:'#5E6AD2',          deps:[4],   date:'' },
+
+      { id:7,  name:'概念設計',              type:'group',     parent:1,  color:'#60A5FA' },
+      { id:8,  name:'系統架構設計',          type:'task',      parent:7,  color:'#60A5FA', wday:10, deps:[6],   done:false, start:'', end:'' },
+      { id:9,  name:'硬體概念設計',          type:'task',      parent:7,  color:'#60A5FA', wday:8,  deps:[8],   done:false, start:'', end:'' },
+      { id:10, name:'外觀設計',              type:'task',      parent:7,  color:'#60A5FA', wday:8,  deps:[8],   done:false, start:'', end:'' },
+      { id:11, name:'CDR 概念設計審查',      type:'milestone', parent:7,  color:'#3B82F6',          deps:[9,10],date:'' },
+
+      { id:12, name:'詳細設計',              type:'group',     parent:1,  color:'#34D399' },
+      { id:13, name:'電路圖設計',            type:'task',      parent:12, color:'#34D399', wday:15, deps:[11],  done:false, start:'', end:'' },
+      { id:14, name:'PCB Layout',            type:'task',      parent:12, color:'#34D399', wday:12, deps:[13],  done:false, start:'', end:'' },
+      { id:15, name:'結構件設計',            type:'task',      parent:12, color:'#34D399', wday:12, deps:[11],  done:false, start:'', end:'' },
+      { id:16, name:'韌體開發',              type:'task',      parent:12, color:'#34D399', wday:20, deps:[13],  done:false, start:'', end:'' },
+      { id:17, name:'PDR 詳細設計審查',      type:'milestone', parent:12, color:'#10B981',          deps:[14,15],date:'' },
+
+      { id:18, name:'EVT 原型製作',          type:'group',     parent:1,  color:'#FBBF24' },
+      { id:19, name:'PCB 打樣',              type:'task',      parent:18, color:'#FBBF24', wday:10, deps:[17],  done:false, start:'', end:'' },
+      { id:20, name:'結構件打樣',            type:'task',      parent:18, color:'#FBBF24', wday:10, deps:[17],  done:false, start:'', end:'' },
+      { id:21, name:'原型組裝與調試',        type:'task',      parent:18, color:'#FBBF24', wday:5,  deps:[19,20],done:false,start:'', end:'' },
+      { id:22, name:'EVT 原型完成',          type:'milestone', parent:18, color:'#F59E0B',          deps:[21],  date:'' },
+
+      { id:23, name:'DVT 驗證測試',          type:'group',     parent:1,  color:'#F87171' },
+      { id:24, name:'功能測試',              type:'task',      parent:23, color:'#F87171', wday:10, deps:[22],  done:false, start:'', end:'' },
+      { id:25, name:'環境壓力測試',          type:'task',      parent:23, color:'#F87171', wday:10, deps:[22],  done:false, start:'', end:'' },
+      { id:26, name:'安規認證',              type:'task',      parent:23, color:'#F87171', wday:15, deps:[24],  done:false, start:'', end:'' },
+      { id:27, name:'問題修改改版',          type:'task',      parent:23, color:'#F87171', wday:10, deps:[24,25],done:false,start:'', end:'' },
+      { id:28, name:'DVT 驗證完成',          type:'milestone', parent:23, color:'#EF4444',          deps:[26,27],date:'' },
+
+      { id:29, name:'PVT 量產準備',          type:'group',     parent:1,  color:'#A78BFA' },
+      { id:30, name:'供應商確認',            type:'task',      parent:29, color:'#A78BFA', wday:10, deps:[28],  done:false, start:'', end:'' },
+      { id:31, name:'生產工程設計',          type:'task',      parent:29, color:'#A78BFA', wday:10, deps:[28],  done:false, start:'', end:'' },
+      { id:32, name:'試量產',                type:'task',      parent:29, color:'#A78BFA', wday:15, deps:[30,31],done:false,start:'', end:'' },
+      { id:33, name:'PVT 量產準備完成',      type:'milestone', parent:29, color:'#8B5CF6',          deps:[32],  date:'' },
+
+      { id:34, name:'MP 量產導入',           type:'group',     parent:1,  color:'#10B981' },
+      { id:35, name:'正式量產',              type:'task',      parent:34, color:'#10B981', wday:20, deps:[33],  done:false, start:'', end:'' },
+      { id:36, name:'品質監控',              type:'task',      parent:34, color:'#10B981', wday:15, deps:[35],  done:false, start:'', end:'' },
+      { id:37, name:'MP 正式出貨',           type:'milestone', parent:34, color:'#059669',          deps:[35],  date:'' },
+    ]
+  }
+];
+
+/* ═══════════════════════════════════════════
    PROJECTS DATA
 ═══════════════════════════════════════════ */
 let projects = [
@@ -1257,13 +1328,13 @@ let projects = [
   },
   {
     id: 2,
-    name: '硬體產品開發計畫',
+    name: '硬體產品開發與量產標準流程',
     color: '#0EA5E9',
     startDate: '2026-05-04',
     endDate: '2027-03-31',
     nextId: 38,
     tasks: [
-      { id:1,  name:'硬體產品開發',      type:'group',     parent:null, color:'#0EA5E9' },
+      { id:1,  name:'硬體產品開發與量產標準流程', type:'group', parent:null, color:'#0EA5E9' },
 
       { id:2,  name:'需求定義',           type:'group',     parent:1,  color:'#818CF8' },
       { id:3,  name:'市場需求調研',       type:'task',      parent:2,  color:'#818CF8', wday:10, deps:[],    done:false, start:'', end:'' },
@@ -2944,11 +3015,57 @@ function openProjModal() {
   if (isReadOnly) return;
   document.getElementById('pName').value = '';
   document.getElementById('pStart').value = TODAY_STR;
+
+  // Inject template row dynamically (handles browser HTML cache)
+  if (!document.getElementById('pTemplate')) {
+    const startRow = document.getElementById('pStart').closest('.form-row');
+    const tplRow = document.createElement('div');
+    tplRow.className = 'form-row';
+    tplRow.id = 'tplRow';
+    tplRow.innerHTML =
+      '<label class="form-lbl">套用範本</label>' +
+      '<select class="form-ctrl" id="pTemplate" onchange="onTemplateChange()">' +
+      '<option value="">— 空白專案 —</option></select>';
+    startRow.insertAdjacentElement('afterend', tplRow);
+    const prevDiv = document.createElement('div');
+    prevDiv.id = 'templatePreview';
+    prevDiv.style.cssText = 'display:none;margin:4px 0 0;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--t3);line-height:1.6';
+    tplRow.insertAdjacentElement('afterend', prevDiv);
+  }
+
+  // Fill template options
+  const sel = document.getElementById('pTemplate');
+  sel.innerHTML = '<option value="">— 空白專案 —</option>' +
+    TEMPLATES.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  sel.value = '';
+  document.getElementById('templatePreview').style.display = 'none';
   // Preview the color that will be auto-assigned
   const nextColor = getNextGroupColor();
   document.getElementById('projColorDot').style.background = nextColor;
   document.getElementById('projOverlay').classList.add('open');
   setTimeout(() => document.getElementById('pName').focus(), 50);
+}
+
+function onTemplateChange() {
+  const val = document.getElementById('pTemplate').value;
+  const preview = document.getElementById('templatePreview');
+  const tpl = TEMPLATES.find(t => t.id === val);
+  if (!tpl) { preview.style.display = 'none'; return; }
+  // Count tasks by type
+  const groups = tpl.tasks.filter(t => t.type === 'group' && t.parent !== null).length;
+  const tasks  = tpl.tasks.filter(t => t.type === 'task').length;
+  const miles  = tpl.tasks.filter(t => t.type === 'milestone').length;
+  // List phase names (top-level groups)
+  const phases = tpl.tasks.filter(t => t.type === 'group' && t.parent === 1)
+    .map(t => t.name).join('　→　');
+  preview.innerHTML = `<b>範本內容：</b>${groups} 個階段、${tasks} 個任務、${miles} 個里程碑<br>
+    <span style="color:var(--t4)">${phases}</span>`;
+  preview.style.display = '';
+  // Auto-fill name if empty
+  const nameEl = document.getElementById('pName');
+  if (!nameEl.value.trim()) nameEl.value = tpl.name;
+  // Update color dot to template color
+  document.getElementById('projColorDot').style.background = tpl.color || getNextGroupColor();
 }
 
 function closeProjModal(e) {
@@ -2964,12 +3081,26 @@ function selectColor(el) {
 function submitProject() {
   const name = document.getElementById('pName').value.trim();
   if (!name) { document.getElementById('pName').focus(); return; }
-  const start = document.getElementById('pStart').value;
-  const color = getNextGroupColor();
+  const start   = document.getElementById('pStart').value;
+  const tplId   = document.getElementById('pTemplate').value;
+  const tpl     = TEMPLATES.find(t => t.id === tplId);
+  const color   = tpl ? tpl.color : getNextGroupColor();
 
-  // Default end = start + 3 months (will auto-expand as tasks are added)
+  let projTasks, projNextId;
+  if (tpl) {
+    // Deep-clone template tasks, replace root group name with project name
+    projTasks = JSON.parse(JSON.stringify(tpl.tasks));
+    projTasks[0].name = name;
+    projTasks[0].color = color;
+    projNextId = Math.max(...projTasks.map(t => t.id)) + 1;
+  } else {
+    projTasks  = [{ id:1, name, type:'group', parent:null, color, assignee:'' }];
+    projNextId = 2;
+  }
+
+  // Default end = start + 12 months for template, 3 months for blank
   const d = new Date(start);
-  d.setMonth(d.getMonth() + 3);
+  d.setMonth(d.getMonth() + (tpl ? 12 : 3));
   const end = d.toISOString().slice(0, 10);
 
   const newProj = {
@@ -2977,23 +3108,21 @@ function submitProject() {
     name, color,
     startDate: start,
     endDate: end,
-    nextId: 2,
+    nextId: projNextId,
     ownerId: getOwnerId(),
-    tasks: [
-      { id:1, name, type:'group', parent:null, color, assignee:'' }
-    ]
+    tasks: projTasks
   };
   projects.push(newProj);
   document.getElementById('projOverlay').classList.remove('open');
-  // Save current nextId
   curProj().nextId = nextId;
-  // Switch to new project
   currentProjId = newProj.id;
   tasks  = curProj().tasks;
   nextId = curProj().nextId;
   CHART_START = new Date(start);
   CHART_END   = new Date(end);
   collapsed.clear();
+  scheduleTasks();
+  recalcProjEnd();
   updateProjUI();
   render();
 }
@@ -3265,12 +3394,22 @@ function setupSharedRealtime(ownerIds) {
 let _collabShares = [];
 
 async function openCollabModal() {
-  if (isReadOnly || curProj()?._isShared) return;
+  if (isReadOnly) return;
   const overlay = document.getElementById('collabOverlay');
   overlay.classList.add('open');
   document.getElementById('collabMsg').style.display = 'none';
   document.getElementById('collabEmailInput').value = '';
-  document.getElementById('collabSub').textContent = '專案：' + curProj().name + '　｜　輸入 Gmail 加入共享';
+
+  // 填入所有「我擁有」的專案（排除別人分享給我的）
+  const sel = document.getElementById('collabProjSelect');
+  const ownedProjects = projects.filter(p => !p._isShared);
+  sel.innerHTML = ownedProjects.map(p =>
+    `<option value="${p.id}">${p.name}</option>`
+  ).join('');
+  // 預設選目前專案
+  const cur = curProj();
+  if (cur && !cur._isShared) sel.value = cur.id;
+
   await refreshCollabList();
 }
 
@@ -3278,11 +3417,18 @@ function closeCollabModal() {
   document.getElementById('collabOverlay').classList.remove('open');
 }
 
+async function onCollabProjChange() {
+  document.getElementById('collabMsg').style.display = 'none';
+  await refreshCollabList();
+}
+
 async function refreshCollabList() {
-  const proj = curProj();
+  const sel = document.getElementById('collabProjSelect');
+  const projId = sel ? sel.value : (curProj()?.id);
+  if (!projId) return;
   const { data, error } = await sb.from('gantt_project_shares')
-    .select('id, shared_with_email, permission, created_at')
-    .eq('project_id', proj.id)
+    .select('id, shared_with_email, permission')
+    .eq('project_id', String(projId))
     .eq('owner_id', currentUser.id);
   _collabShares = error ? [] : (data || []);
   renderCollabModal();
@@ -3304,44 +3450,44 @@ function renderCollabModal() {
 }
 
 async function addShare() {
-  const email = document.getElementById('collabEmailInput').value.trim().toLowerCase();
+  const emailInput = document.getElementById('collabEmailInput');
+  const email = (emailInput.value || '').trim().toLowerCase();
   const perm  = document.getElementById('collabPermSelect').value;
   const msgEl = document.getElementById('collabMsg');
+
+  const showMsg = (txt, ok) => {
+    msgEl.textContent = txt;
+    msgEl.style.color = ok ? '#0a0' : '#E53';
+    msgEl.style.display = 'block';
+  };
+
   msgEl.style.display = 'none';
 
-  if (!email || !email.includes('@')) {
-    msgEl.textContent = '請輸入有效的 Gmail 帳號';
-    msgEl.style.display = '';
-    return;
-  }
-  if (email === currentUser.email) {
-    msgEl.textContent = '不能分享給自己';
-    msgEl.style.display = '';
-    return;
-  }
-  // Check if the email is a registered user
-  const { data: userCheck } = await sb.from('gantt_allowed_users')
-    .select('email').eq('email', email).maybeSingle();
-  if (!userCheck) {
-    msgEl.textContent = '該帳號尚未在 GanttPro 註冊';
-    msgEl.style.display = '';
-    return;
-  }
+  if (!email || !email.includes('@')) { showMsg('請輸入有效的 Gmail 帳號'); return; }
+  if (currentUser && email === currentUser.email) { showMsg('不能分享給自己'); return; }
 
-  const proj = curProj();
-  const { error } = await sb.from('gantt_project_shares').insert({
-    project_id: String(proj.id),
-    owner_id: currentUser.id,
-    shared_with_email: email,
-    permission: perm
-  });
-  if (error) {
-    msgEl.textContent = error.code === '23505' ? '已分享給此用戶' : ('分享失敗：' + error.message);
-    msgEl.style.display = '';
-    return;
+  try {
+    const sel = document.getElementById('collabProjSelect');
+    const projId = sel?.value;
+    if (!projId) { showMsg('請先選擇專案'); return; }
+
+    const { error } = await sb.from('gantt_project_shares').upsert({
+      project_id: String(projId),
+      owner_id: currentUser.id,
+      shared_with_email: email,
+      permission: perm
+    }, { onConflict: 'project_id,shared_with_email' });
+
+    if (error) {
+      showMsg(error.code === '23505' ? '已分享給此用戶' : ('分享失敗：' + error.message));
+      return;
+    }
+    showMsg('✓ 已成功加入', true);
+    emailInput.value = '';
+    await refreshCollabList();
+  } catch(e) {
+    showMsg('加入失敗：' + e.message);
   }
-  document.getElementById('collabEmailInput').value = '';
-  await refreshCollabList();
 }
 
 async function removeShare(shareId, email) {
