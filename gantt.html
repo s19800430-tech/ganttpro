@@ -4005,6 +4005,9 @@ function updateUserDisplay() {
 async function initApp() {
   if (_appInitialized) return;
   _appInitialized = true;
+  // Clear header immediately before showing app, preventing cached name flash
+  const _nameEl = document.getElementById('projSelectorName');
+  if (_nameEl) _nameEl.textContent = '';
   showApp();
   updateUserDisplay();
   // Clear hardcoded demo data before cloud load to prevent flash
