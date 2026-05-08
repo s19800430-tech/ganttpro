@@ -1231,6 +1231,7 @@ const TEMPLATES = [
   {
     id: 'hardware',
     name: '硬體產品開發與量產標準流程',
+    defaultName: '硬體產品開發計畫',
     color: '#0EA5E9',
     tasks: [
       { id:1,  name:'{{PROJECT_NAME}}',      type:'group',     parent:null, color:'#0EA5E9' },
@@ -3061,9 +3062,14 @@ function onTemplateChange() {
   preview.innerHTML = `<b>範本內容：</b>${groups} 個階段、${tasks} 個任務、${miles} 個里程碑<br>
     <span style="color:var(--t4)">${phases}</span>`;
   preview.style.display = '';
-  // Auto-fill name if empty
+  // Auto-fill name if empty (use short default, not full template name)
   const nameEl = document.getElementById('pName');
-  if (!nameEl.value.trim()) nameEl.value = tpl.name;
+  if (!nameEl.value.trim()) {
+    const today = new Date();
+    const ym = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
+    nameEl.value = (tpl.defaultName || tpl.name.split('（')[0]) + ' ' + ym;
+    setTimeout(() => { nameEl.select(); }, 60);
+  }
   // Update color dot to template color
   document.getElementById('projColorDot').style.background = tpl.color || getNextGroupColor();
 }
