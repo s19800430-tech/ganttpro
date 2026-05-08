@@ -2264,6 +2264,7 @@ function setView(v) {
   document.querySelectorAll('#viewBtns .btn').forEach(b => {
     b.classList.toggle('active', b.dataset.v === v);
   });
+  recalcProjEnd();
   render();
 }
 
@@ -2284,15 +2285,17 @@ function toggleBarDates() {
 
 function applyZoom(factor) {
   const cs = document.getElementById('chartScroll');
-  const centerDays = (cs.scrollLeft + cs.clientWidth / 2) / PPD;
+  // Save center as absolute date (survives CHART_START change)
+  const centerMs = CHART_START.getTime() + (cs.scrollLeft + cs.clientWidth / 2) / PPD * 86400000;
   PPD = Math.max(2, Math.min(80, Math.round(PPD * factor)));
-  // Deactivate all preset view buttons since PPD is now custom
   document.querySelectorAll('#viewBtns .btn').forEach(b => {
     b.classList.toggle('active', PPDS[b.dataset.v] === PPD);
   });
+  recalcProjEnd(); // recompute CHART_START with new PPD
   render();
   requestAnimationFrame(() => {
-    cs.scrollLeft = Math.max(0, centerDays * PPD - cs.clientWidth / 2);
+    const newOffset = (centerMs - CHART_START.getTime()) / 86400000 * PPD;
+    cs.scrollLeft = Math.max(0, newOffset - cs.clientWidth / 2);
   });
 }
 function zoomIn()  { applyZoom(1.4); }
@@ -2305,6 +2308,7 @@ function fitToFrame() {
   document.querySelectorAll('#viewBtns .btn').forEach(b => {
     b.classList.toggle('active', PPDS[b.dataset.v] === PPD);
   });
+  recalcProjEnd();
   render();
   requestAnimationFrame(() => { cs.scrollLeft = 0; });
 }
@@ -2955,12 +2959,13 @@ function recalcProjEnd() {
     if (e && (!maxDate || e > maxDate)) maxDate = e;
   });
 
-  // CHART_START: 1 day before earliest task, for start-date label space
+  // CHART_START: enough pixels before earliest task for start-date label (~30px)
   const projStart = curProj()?.startDate;
   const baseStart = minDate || projStart;
   if (baseStart) {
     const cs = new Date(baseStart);
-    cs.setDate(cs.getDate() - 1);
+    const dayPad = Math.max(1, Math.ceil(30 / PPD));
+    cs.setDate(cs.getDate() - dayPad);
     CHART_START = cs;
   }
 
