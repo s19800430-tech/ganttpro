@@ -2370,7 +2370,7 @@ function openNameEditor(task, cell, isNew = false) {
   function commit() {
     if (committed) return; committed = true;
     const name = inp.value.trim();
-    if (!name) { tasks = tasks.filter(t => t.id !== task.id); render(); return; }
+    if (!name) { task.name = '新任務'; }
     if (!isNew) pushHistory();
     task.name = name;
     recalcProjEnd(); render();
@@ -2391,7 +2391,7 @@ function addTaskInline(refTaskId) {
   const parent = taskById(parentId);
   const newTask = {
     id: nextId++,
-    name: '',
+    name: '新任務',
     type: 'task',
     parent: parentId,
     color: parent ? parent.color : ref.color || '#5E6AD2',
