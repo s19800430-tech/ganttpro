@@ -386,6 +386,8 @@ body.dark .ms-badge{background:#3d2c00;color:#fbbf24;border-color:#593f00}
   overflow:hidden;white-space:nowrap;
 }
 .week-cell.today-wk{color:var(--red)!important;font-weight:600}
+.week-cell.day-cell{font-size:9.5px;padding:0 2px;justify-content:center}
+.week-cell.wknd-cell{color:var(--t4);background:rgba(0,0,0,0.025)}
 
 /* ── CHART CANVAS ── */
 .chart-canvas{position:relative;min-width:max-content}
@@ -1797,27 +1799,23 @@ function renderChartHeader() {
       d.setDate(d.getDate() + 1);
     }
   } else if (viewMode === 'week') {
-    // Find first Monday on or before CHART_START
+    // Show individual day cells
     let d = new Date(CHART_START);
-    const dow = d.getDay();
-    d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
     while (d <= CHART_END) {
-      const ws = new Date(d);
-      const we = new Date(d); we.setDate(we.getDate() + 6);
-      const x1 = Math.max(0, dateToX(toStr(ws)));
-      const x2 = Math.min(tw, dateToX(toStr(we)) + PPD);
-      if (x1 < tw && x2 > 0) {
-        const isToday = TODAY >= ws && TODAY <= we;
-        const el = document.createElement('div');
-        el.className = 'week-cell' + (isToday ? ' today-wk' : '');
-        el.style.cssText = `left:${x1}px;width:${x2 - x1}px`;
-        // Week number
-        const jan1 = new Date(ws.getFullYear(), 0, 1);
-        const wn = Math.ceil(((ws - jan1) / 86400000 + jan1.getDay() + 1) / 7);
-        el.textContent = `W${wn}  ${ws.getMonth()+1}/${ws.getDate()}`;
-        wRow.appendChild(el);
-      }
-      d.setDate(d.getDate() + 7);
+      const ds = toStr(d);
+      const x = dateToX(ds);
+      const isWknd = isWeekend(d);
+      const isTdy = ds === TODAY_STR;
+      const isMonday = d.getDay() === 1;
+      const isFirst = d.getDate() === 1;
+      const el = document.createElement('div');
+      el.className = 'week-cell day-cell' + (isTdy ? ' today-wk' : '') + (isWknd ? ' wknd-cell' : '');
+      el.style.cssText = `left:${x}px;width:${PPD}px`;
+      el.textContent = (isMonday || isFirst)
+        ? `${d.getMonth()+1}/${d.getDate()}`
+        : d.getDate();
+      wRow.appendChild(el);
+      d.setDate(d.getDate() + 1);
     }
   } else {
     // Month view: every 5 days
