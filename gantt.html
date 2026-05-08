@@ -2741,7 +2741,7 @@ function scheduleTasks() {
         if (e && (!latestEnd || e > latestEnd)) latestEnd = e;
       });
       if (task.type === 'task') {
-        const rawStart = latestEnd ? addWorkingDays(latestEnd, 1) : projStart;
+        const rawStart = latestEnd ? addWorkingDays(latestEnd, 2) : projStart;
         let s = new Date(rawStart);
         while (isWeekend(s)) s.setDate(s.getDate() + 1);
         task.start = s.toISOString().slice(0, 10);
@@ -2779,7 +2779,7 @@ function autoScheduleFromDeps(task) {
   });
   if (!latestEnd) return;
   const wdays = (task.start && task.end) ? countWorkingDays(task.start, task.end) : 1;
-  const newStart = addWorkingDays(latestEnd, 1);
+  const newStart = addWorkingDays(latestEnd, 2);
   if (newStart > (task.start || '')) {
     task.start = newStart;
     task.end = addWorkingDays(task.start, wdays);
