@@ -939,6 +939,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   <button class="btn zoom-btn" onclick="zoomOut()" title="縮小">－</button>
   <button class="btn zoom-btn" onclick="zoomIn()" title="放大">＋</button>
   <button class="btn fit-btn" onclick="fitToFrame()" title="縮放至適合視窗"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4.5V1h3.5M8.5 1H12v3.5M12 8.5V12H8.5M4.5 12H1V8.5"/></svg></button>
+  <button class="btn" id="barDatesBtn" onclick="toggleBarDates()" title="顯示任務日期與工作日">日期</button>
   <div class="readonly-badge">👁 唯讀模式</div>
   <button class="btn btn-owner-only" id="collabBtn" onclick="openCollabModal()" title="協作管理">👥 協作</button>
   <button class="btn btn-owner-only" onclick="openVersionPanel()" title="版本紀錄">🕐 版本</button>
@@ -1183,6 +1184,7 @@ const PPDS = { day: 36, week: 20, month: 8 };
 let PPD = PPDS.week;
 let viewMode = 'week';
 let milestoneView = false;
+let showBarDates = false;
 const MS_ROW_H = 160;
 
 const AV_COLORS = {
@@ -1900,7 +1902,7 @@ function renderChartBody() {
     canvas.appendChild(row);
   });
 
-  if (!milestoneView) renderArrows(canvas, rows, tw, th);
+  // arrows removed per user request
   updateStats();
 }
 
@@ -1983,19 +1985,21 @@ function renderBar(row, task) {
 
   row.appendChild(bar);
 
-  // Date labels outside the bar
-  const fmt = s => { const [y,m,d] = s.split('-'); return `${y}/${+m}/${+d}`; };
-  const sd = document.createElement('div');
-  sd.className = 'bar-date';
-  sd.style.cssText = `right:${w+4}px;text-align:right`;
-  sd.textContent = fmt(task.start);
-  bar.appendChild(sd);
+  // Date labels outside the bar (only when showBarDates is enabled)
+  if (showBarDates) {
+    const fmt = s => { const [y,m,d] = s.split('-'); return `${+m}/${+d}`; };
+    const sd = document.createElement('div');
+    sd.className = 'bar-date';
+    sd.style.cssText = `right:${w+4}px;text-align:right`;
+    sd.textContent = fmt(task.start);
+    bar.appendChild(sd);
 
-  const ed2 = document.createElement('div');
-  ed2.className = 'bar-date';
-  ed2.style.cssText = `left:${w+4}px`;
-  ed2.textContent = fmt(task.end);
-  bar.appendChild(ed2);
+    const ed2 = document.createElement('div');
+    ed2.className = 'bar-date';
+    ed2.style.cssText = `left:${w+4}px`;
+    ed2.textContent = `${fmt(task.end)} (${task.wday||1}d)`;
+    bar.appendChild(ed2);
+  }
 }
 
 function renderGroupBar(row, task, bounds) {
@@ -2240,6 +2244,12 @@ function setChartView(v) {
     b.classList.toggle('active', b.dataset.cv === v);
   });
   document.body.classList.toggle('ms-view', milestoneView);
+  render();
+}
+
+function toggleBarDates() {
+  showBarDates = !showBarDates;
+  document.getElementById('barDatesBtn').classList.toggle('active', showBarDates);
   render();
 }
 
