@@ -1978,7 +1978,7 @@ function renderGrid(canvas, tw, th) {
 function renderBar(row, task) {
   if (!task.start || !task.end) return;
   const x1 = dateToX(task.start);
-  const x2 = dateToX(task.end) + PPD;
+  const x2 = dateToX(task.end); // exclusive end: no +PPD needed
   const w = x2 - x1;
   if (!isFinite(w) || w <= 0) return;
 
@@ -2036,7 +2036,7 @@ function renderBar(row, task) {
 
 function renderGroupBar(row, task, bounds) {
   const x1 = dateToX(bounds.s);
-  const x2 = dateToX(bounds.e) + PPD;
+  const x2 = dateToX(bounds.e); // exclusive end
   const w = Math.max(x2 - x1, 8);
 
   const bar = document.createElement('div');
@@ -2222,10 +2222,10 @@ function showTT(e, task) {
   const tt = document.getElementById('tooltip');
   let h = `<div class="tt-h">${task.name}</div>`;
   if (task.type === 'task') {
-    const days = Math.round((new Date(task.end) - new Date(task.start)) / 86400000) + 1;
+    const wdays = task.wday || countWorkingDays(task.start, task.end);
     h += `<div class="tt-r"><span>開始</span><span>${task.start}</span></div>`;
     h += `<div class="tt-r"><span>結束</span><span>${task.end}</span></div>`;
-    h += `<div class="tt-r"><span>天數</span><span>${days} 天</span></div>`;
+    h += `<div class="tt-r"><span>工作天</span><span>${wdays} 天</span></div>`;
     h += `<div class="tt-r"><span>狀態</span><span style="color:${task.done?'#10B981':'#9CA3AF'}">${task.done ? '✓ 已完成' : '⏳ 待完成'}</span></div>`;
     if ((task.deps||[]).length) h += `<div class="tt-r"><span>前置任務</span><span>${task.deps.length} 項</span></div>`;
   } else if (task.type === 'milestone') {
@@ -2400,7 +2400,7 @@ function openModal() {
   document.getElementById('modal-submit').textContent = '新增任務';
   document.getElementById('fName').value = '';
   document.getElementById('fStart').value = TODAY_STR;
-  document.getElementById('fEnd').value = TODAY_STR;
+  document.getElementById('fEnd').value = addWorkingDays(TODAY_STR, 1);
   document.getElementById('fWday').value = 1;
   document.getElementById('fType').value = 'task';
   populateModal();
@@ -2564,9 +2564,8 @@ function isWeekend(d) { const w = new Date(d).getDay(); return w === 0 || w === 
 
 function addWorkingDays(startStr, days) {
   let d = new Date(startStr);
-  // Start day counts as day 1 (if weekday)
   while (isWeekend(d)) d.setDate(d.getDate() + 1);
-  let count = 1;
+  let count = 0; // exclusive: start is day 0, end = start + days working days
   while (count < days) {
     d.setDate(d.getDate() + 1);
     if (!isWeekend(d)) count++;
@@ -2578,7 +2577,7 @@ function countWorkingDays(startStr, endStr) {
   let d = new Date(startStr);
   const end = new Date(endStr);
   let count = 0;
-  while (d <= end) {
+  while (d < end) { // exclusive: end not counted
     if (!isWeekend(d)) count++;
     d.setDate(d.getDate() + 1);
   }
@@ -2597,10 +2596,10 @@ function openDateEditor(task, field, cell) {
     if (!inp.value) { render(); return; }
     if (field === 'start') {
       task.start = inp.value;
-      if (task.end && task.end < task.start) task.end = task.start;
+      if (task.end && task.end <= task.start) task.end = addWorkingDays(task.start, 1);
     } else {
       task.end = inp.value;
-      if (task.start && task.start > task.end) task.start = task.end;
+      if (task.start && task.start >= task.end) task.start = task.end; // keep start behind end
     }
     recalcProjEnd(); render();
   }
@@ -2783,14 +2782,14 @@ function scheduleTasks() {
         if (e && (!latestEnd || e > latestEnd)) latestEnd = e;
       });
       if (task.type === 'task') {
-        const rawStart = latestEnd ? addWorkingDays(latestEnd, 2) : projStart;
+        const rawStart = latestEnd ? addWorkingDays(latestEnd, 1) : projStart;
         let s = new Date(rawStart);
         while (isWeekend(s)) s.setDate(s.getDate() + 1);
         task.start = s.toISOString().slice(0, 10);
         task.end   = addWorkingDays(task.start, task.wday || 1);
       } else { // milestone
         if (latestEnd) {
-          let d = new Date(latestEnd); d.setDate(d.getDate() + 1);
+          let d = new Date(latestEnd);
           while (isWeekend(d)) d.setDate(d.getDate() + 1);
           task.date = d.toISOString().slice(0, 10);
         } else {
@@ -2821,7 +2820,7 @@ function autoScheduleFromDeps(task) {
   });
   if (!latestEnd) return;
   const wdays = (task.start && task.end) ? countWorkingDays(task.start, task.end) : 1;
-  const newStart = addWorkingDays(latestEnd, 2);
+  const newStart = addWorkingDays(latestEnd, 1);
   if (newStart > (task.start || '')) {
     task.start = newStart;
     task.end = addWorkingDays(task.start, wdays);
