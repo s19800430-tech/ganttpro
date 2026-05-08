@@ -2340,6 +2340,7 @@ function updateModalForType() {
 
 function openModal() {
   if (isReadOnly) return;
+  if (!curProj()) { openProjModal(); return; }
   editingTaskId = null;
   document.getElementById('modal-title').textContent = '＋ 新增任務';
   document.getElementById('modal-submit').textContent = '新增任務';
