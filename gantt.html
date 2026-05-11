@@ -457,6 +457,30 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
 .wday-tag{
   font-size:10px;color:var(--t4);flex-shrink:0;
 }
+.settings-wrap{position:relative;display:inline-flex;}
+.settings-panel{
+  position:absolute;top:calc(100% + 8px);right:0;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:5px;z-index:2000;
+  box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:170px;
+  display:none;
+}
+.settings-panel.open{display:block;}
+.settings-item{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 10px;font-size:13px;cursor:pointer;
+  border-radius:6px;color:var(--t2);user-select:none;
+}
+.settings-item:hover{background:var(--s-hover);}
+.settings-item input[type=checkbox]{accent-color:#6366F1;cursor:pointer;width:14px;height:14px;}
+.settings-action{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 10px;font-size:13px;cursor:pointer;
+  border-radius:6px;color:var(--t2);width:100%;
+  background:none;border:none;text-align:left;font-family:inherit;
+}
+.settings-action:hover{background:var(--s-hover);}
+.settings-sep{height:1px;background:var(--border);margin:4px 2px;}
 
 .group-bar{
   position:absolute;height:8px;top:14px;
@@ -957,12 +981,21 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   <button class="btn zoom-btn" onclick="zoomOut()" title="縮小">－</button>
   <button class="btn zoom-btn" onclick="zoomIn()" title="放大">＋</button>
   <button class="btn fit-btn" onclick="fitToFrame()" title="縮放至適合視窗"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4.5V1h3.5M8.5 1H12v3.5M12 8.5V12H8.5M4.5 12H1V8.5"/></svg></button>
-  <button class="btn active" id="barDatesBtn" onclick="toggleBarDates()" title="顯示任務日期與工作日">日期</button>
   <div class="readonly-badge">👁 唯讀模式</div>
   <button class="btn btn-owner-only" id="collabBtn" onclick="openCollabModal()" title="協作管理">👥 協作</button>
-  <button class="btn btn-owner-only" onclick="openVersionPanel()" title="版本紀錄">🕐 版本</button>
-  <button class="btn" onclick="exportPDF()" title="匯出 PDF">⬇ PDF</button>
   <button class="btn" id="darkBtn" onclick="toggleDark()" title="深色模式">🌙</button>
+  <div class="settings-wrap" id="settingsWrap">
+    <button class="btn" id="settingsBtn" onclick="toggleSettings()" title="設定">⚙ 設定</button>
+    <div class="settings-panel" id="settingsPanel">
+      <label class="settings-item">
+        <input type="checkbox" id="settingBarDates" checked onchange="onSettingBarDatesChange()">
+        顯示 Bar 日期
+      </label>
+      <div class="settings-sep"></div>
+      <button class="settings-action btn-owner-only" id="settingVersionBtn" onclick="openVersionPanel();closeSettings()">🕐 版本紀錄</button>
+      <button class="settings-action" onclick="exportPDF();closeSettings()">⬇ 匯出 PDF</button>
+    </div>
+  </div>
   <button class="btn" id="adminBtn" onclick="openAdminPanel()" title="管理員面板" style="display:none">👑 Admin</button>
   <div id="userDisplay"></div>
   <button class="btn" id="signOutBtn" onclick="signOut()" title="登出" style="display:none">登出</button>
@@ -1634,13 +1667,6 @@ function renderTaskPanel() {
     nm.addEventListener('click', e => { e.stopPropagation(); if (!isReadOnly) openNameEditor(task, nm); });
     nc.appendChild(nm);
 
-    if (task.type === 'task' && task.wday) {
-      const wd = document.createElement('span');
-      wd.className = 'wday-tag';
-      wd.textContent = `${task.wday}d`;
-      nc.appendChild(wd);
-    }
-
     if (task.type === 'milestone') {
       const badge = document.createElement('span');
       badge.className = 'ms-badge';
@@ -2064,7 +2090,8 @@ function renderBar(row, task) {
     const lbl = document.createElement('div');
     lbl.className = 'bar-lbl';
     lbl.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;padding:0 8px;z-index:2;pointer-events:none';
-    lbl.textContent = task.name || '';
+    const wdayStr = (task.type === 'task' && task.wday) ? ` ${task.wday}d` : '';
+    lbl.textContent = (task.name || '') + wdayStr;
     inner.appendChild(lbl);
   }
 
@@ -2356,9 +2383,27 @@ function setChartView(v) {
 
 function toggleBarDates() {
   showBarDates = !showBarDates;
-  document.getElementById('barDatesBtn').classList.toggle('active', showBarDates);
   render();
 }
+
+function onSettingBarDatesChange() {
+  showBarDates = document.getElementById('settingBarDates').checked;
+  render();
+}
+
+function toggleSettings() {
+  const panel = document.getElementById('settingsPanel');
+  panel.classList.toggle('open');
+}
+
+function closeSettings() {
+  document.getElementById('settingsPanel').classList.remove('open');
+}
+
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('settingsWrap');
+  if (wrap && !wrap.contains(e.target)) closeSettings();
+});
 
 function applyZoom(factor) {
   const cs = document.getElementById('chartScroll');
