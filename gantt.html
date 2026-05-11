@@ -2009,7 +2009,9 @@ function prevWorkingDay(endStr) {
 function renderBar(row, task) {
   if (!task.start || !task.end) return;
   const x1 = dateToX(task.start);
-  const x2 = dateToX(task.end); // exclusive end
+  // Visual end extends 1 working day past exclusive end, so task.end column is filled
+  const visualEnd = addWorkingDays(task.end, 1);
+  const x2 = dateToX(visualEnd);
   const w = x2 - x1;
   if (!isFinite(w) || w <= 0) return;
 
@@ -2024,8 +2026,8 @@ function renderBar(row, task) {
   const inner = document.createElement('div');
   inner.style.cssText = 'position:absolute;inset:0;overflow:hidden;';
 
-  // Render only working-day segments (skip weekends)
-  const segs = getWorkingSegs(task.start, task.end);
+  // Render only working-day segments (skip weekends), inclusive of task.end column
+  const segs = getWorkingSegs(task.start, visualEnd);
   segs.forEach(seg => {
     const sl = dateToX(seg.s) - x1;
     const sw = dateToX(seg.e) - dateToX(seg.s);
@@ -2054,7 +2056,7 @@ function renderBar(row, task) {
     bar.appendChild(sd);
     const ed = document.createElement('div');
     ed.className = 'bar-ed';
-    ed.textContent = fmt(prevWorkingDay(task.end));
+    ed.textContent = fmt(task.end); // show inclusive end date
     bar.appendChild(ed);
   }
 
@@ -2067,7 +2069,7 @@ function renderBar(row, task) {
 
 function renderGroupBar(row, task, bounds) {
   const x1 = dateToX(bounds.s);
-  const x2 = dateToX(bounds.e); // exclusive end
+  const x2 = dateToX(addWorkingDays(bounds.e, 1)); // extend to fill last working day column
   const w = Math.max(x2 - x1, 8);
 
   const bar = document.createElement('div');
