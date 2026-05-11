@@ -429,14 +429,14 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
 .gantt-bar{
   position:absolute;
   height:var(--barh);top:8px;
-  border-radius:4px;cursor:pointer;
+  cursor:pointer;
   z-index:2;overflow:visible;
   transition:filter .1s,transform .1s;
 }
 .gantt-bar:hover{filter:brightness(1.08);transform:scaleY(1.06)}
 
-.bar-bg{position:absolute;inset:0;opacity:.88;border-radius:4px}
-.bar-fill{position:absolute;top:0;left:0;bottom:0;border-radius:4px}
+.bar-bg{position:absolute;inset:0;opacity:.88;}
+.bar-fill{position:absolute;top:0;left:0;bottom:0;}
 .bar-lbl{
   position:relative;padding:0 8px;
   font-size:10.5px;font-weight:600;color:#fff;
@@ -2033,15 +2033,11 @@ function renderBar(row, task) {
   const inner = document.createElement('div');
   inner.style.cssText = 'position:absolute;inset:0;overflow:hidden;';
 
-  // Render only working-day segments (skip weekends), inclusive of task.end column
-  const segs = getWorkingSegs(task.start, visualEnd);
-  segs.forEach(seg => {
-    const sl = dateToX(seg.s) - x1;
-    const sw = dateToX(seg.e) - dateToX(seg.s);
-    const sg = document.createElement('div');
-    sg.style.cssText = `position:absolute;top:0;bottom:0;left:${sl}px;width:${sw}px;background:${task.color};opacity:.88;border-radius:4px`;
-    inner.appendChild(sg);
-  });
+  // Continuous bar (includes weekends)
+  const bg = document.createElement('div');
+  bg.className = 'bar-bg';
+  bg.style.background = task.color;
+  inner.appendChild(bg);
 
   const fmt = s => { const [,m,d] = s.split('-'); return `${+m}/${+d}`; };
 
