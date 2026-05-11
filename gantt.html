@@ -4172,20 +4172,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Auth-required mode
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    currentUser = session.user;
-    const authorized = await checkAuthorized();
-    if (authorized) await initApp();
-  }
-
+  // Register BEFORE getSession so we catch OAuth hash callbacks (INITIAL_SESSION / SIGNED_IN)
   sb.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session) {
+    if (_appInitialized) return;
+    if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
       currentUser = session.user;
       const authorized = await checkAuthorized();
       if (authorized) await initApp();
     }
   });
+
+  // Fallback: check existing session (covers page reload when already logged in)
+  const { data: { session } } = await sb.auth.getSession();
+  if (session && !_appInitialized) {
+    currentUser = session.user;
+    const authorized = await checkAuthorized();
+    if (authorized) await initApp();
+  }
 });
 </script>
 </body>
