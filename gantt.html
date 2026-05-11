@@ -1060,12 +1060,14 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
         <div class="th th-col">結束日期<div class="col-rsz" data-ci="3"></div></div>
         <div class="th th-col" style="justify-content:center">工作日<div class="col-rsz" data-ci="4"></div></div>
         <div class="th th-col">前置任務<div class="col-rsz" data-ci="5"></div></div>
+        <div class="th th-col">SS前置<div class="col-rsz" data-ci="6"></div></div>
         <span class="th" style="text-align:center">完成</span>
         <span></span>
       </div>
       <div class="task-thead-r">
         <span></span>
         <span class="th-sub">共 <b id="taskCount">0</b> 項任務</span>
+        <span></span>
         <span></span>
         <span></span>
         <span></span>
@@ -1380,6 +1382,7 @@ let editingTaskId = null;
 let dragSrcId = null;
 let selectedDeps = new Set();
 let depsExcludeId = null;
+let selectedSdeps = new Set();
 
 /* ─── UNDO HISTORY ─── */
 const MAX_HISTORY = 50;
@@ -1673,7 +1676,7 @@ function renderTaskPanel() {
     }
     row.appendChild(wc);
 
-    // Deps cell — show row numbers, click to edit inline
+    // Deps cell (FS) — show row numbers, click to edit inline
     const dc = document.createElement('div');
     dc.className = 'deps-cell';
     const deps = task.deps || [];
@@ -1681,7 +1684,6 @@ function renderTaskPanel() {
     dc.innerHTML = depNums.length > 0
       ? `<span class="deps-nums">${depNums.join(', ')}</span>`
       : `<span style="font-size:11px;color:var(--t4)">—</span>`;
-    // Click on deps cell → open inline editor
     dc.addEventListener('click', e => {
       e.stopPropagation();
       if (isReadOnly) return;
@@ -1689,6 +1691,22 @@ function renderTaskPanel() {
     });
     dc.style.cursor = isReadOnly ? 'default' : 'text';
     row.appendChild(dc);
+
+    // SS Deps cell — Start to Start
+    const sc = document.createElement('div');
+    sc.className = 'deps-cell';
+    const sdeps = task.sdeps || [];
+    const sdepNums = sdeps.map(id => getRowNum(id)).filter(Boolean);
+    sc.innerHTML = sdepNums.length > 0
+      ? `<span class="deps-nums" style="color:#F59E0B">${sdepNums.join(', ')}</span>`
+      : `<span style="font-size:11px;color:var(--t4)">—</span>`;
+    sc.addEventListener('click', e => {
+      e.stopPropagation();
+      if (isReadOnly) return;
+      openSsDepsEditor(task, sc);
+    });
+    sc.style.cursor = isReadOnly ? 'default' : 'text';
+    row.appendChild(sc);
 
     // Checkbox cell
     const cc = document.createElement('div');
@@ -2185,20 +2203,24 @@ function renderArrows(canvas, rows, tw, th) {
   svg.setAttribute('height', th);
   svg.className = 'arrows-svg';
 
-  // Arrow marker
+  // Arrow markers
   const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-  const mk = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-  mk.setAttribute('id', 'ah');
-  mk.setAttribute('markerWidth', '7');
-  mk.setAttribute('markerHeight', '7');
-  mk.setAttribute('refX', '6');
-  mk.setAttribute('refY', '3.5');
-  mk.setAttribute('orient', 'auto');
-  const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-  poly.setAttribute('points', '0 0, 7 3.5, 0 7');
-  poly.setAttribute('fill', '#9CA3AF');
-  mk.appendChild(poly);
-  defs.appendChild(mk);
+  function makeMarker(id, color) {
+    const mk = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+    mk.setAttribute('id', id);
+    mk.setAttribute('markerWidth', '7');
+    mk.setAttribute('markerHeight', '7');
+    mk.setAttribute('refX', '6');
+    mk.setAttribute('refY', '3.5');
+    mk.setAttribute('orient', 'auto');
+    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    poly.setAttribute('points', '0 0, 7 3.5, 0 7');
+    poly.setAttribute('fill', color);
+    mk.appendChild(poly);
+    defs.appendChild(mk);
+  }
+  makeMarker('ah', '#9CA3AF');
+  makeMarker('ah-ss', '#F59E0B');
   svg.appendChild(defs);
 
   // Row index lookup
@@ -2206,35 +2228,50 @@ function renderArrows(canvas, rows, tw, th) {
   rows.forEach(({ task }, i) => ri.set(task.id, i));
 
   rows.forEach(({ task }) => {
-    if (!task.deps || !task.deps.length) return;
     const tRow = ri.get(task.id);
     if (tRow === undefined) return;
-
     const tY = tRow * ROW_H + ROW_H / 2;
     const tX = task.type === 'milestone' ? dateToX(task.date) : dateToX(task.start);
 
-    task.deps.forEach(depId => {
+    // FS arrows
+    (task.deps || []).forEach(depId => {
       const dep = taskById(depId);
       if (!dep) return;
       const sRow = ri.get(depId);
       if (sRow === undefined) return;
-
       const sY = sRow * ROW_H + ROW_H / 2;
       const sX = dep.type === 'milestone'
         ? dateToX(dep.date) + 8
         : dateToX(dep.end) + PPD;
-
       const dx = (tX - sX) / 2;
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d',
-        `M ${sX} ${sY} C ${sX + Math.max(dx, 20)} ${sY}, ${tX - Math.max(dx, 20)} ${tY}, ${tX} ${tY}`
-      );
+      path.setAttribute('d', `M ${sX} ${sY} C ${sX + Math.max(dx, 20)} ${sY}, ${tX - Math.max(dx, 20)} ${tY}, ${tX} ${tY}`);
       path.setAttribute('fill', 'none');
       path.setAttribute('stroke', '#C4C8D8');
       path.setAttribute('stroke-width', '1.5');
       path.setAttribute('stroke-dasharray', '5 3');
       path.setAttribute('marker-end', 'url(#ah)');
       path.setAttribute('opacity', '0.7');
+      svg.appendChild(path);
+    });
+
+    // SS arrows (amber, from dep.start → task.start)
+    (task.sdeps || []).forEach(depId => {
+      const dep = taskById(depId);
+      if (!dep) return;
+      const sRow = ri.get(depId);
+      if (sRow === undefined) return;
+      const sY = sRow * ROW_H + ROW_H / 2;
+      const sX = dep.type === 'milestone' ? dateToX(dep.date) : dateToX(dep.start);
+      const dx = (tX - sX) / 2;
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M ${sX} ${sY} C ${sX + Math.max(dx, 20)} ${sY}, ${tX - Math.max(dx, 20)} ${tY}, ${tX} ${tY}`);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', '#F59E0B');
+      path.setAttribute('stroke-width', '1.5');
+      path.setAttribute('stroke-dasharray', '4 3');
+      path.setAttribute('marker-end', 'url(#ah-ss)');
+      path.setAttribute('opacity', '0.65');
       svg.appendChild(path);
     });
   });
@@ -2263,11 +2300,12 @@ function showTT(e, task) {
     h += `<div class="tt-r"><span>結束</span><span>${task.end}</span></div>`;
     h += `<div class="tt-r"><span>工作天</span><span>${wdays} 天</span></div>`;
     h += `<div class="tt-r"><span>狀態</span><span style="color:${task.done?'#10B981':'#9CA3AF'}">${task.done ? '✓ 已完成' : '⏳ 待完成'}</span></div>`;
-    if ((task.deps||[]).length) h += `<div class="tt-r"><span>前置任務</span><span>${task.deps.length} 項</span></div>`;
+    if ((task.deps||[]).length) h += `<div class="tt-r"><span>FS前置</span><span>${task.deps.length} 項</span></div>`;
+    if ((task.sdeps||[]).length) h += `<div class="tt-r"><span>SS前置</span><span style="color:#F59E0B">${task.sdeps.length} 項</span></div>`;
   } else if (task.type === 'milestone') {
     h += `<div class="tt-r"><span>日期</span><span>${task.date}</span></div>`;
     h += `<div class="tt-r"><span>負責人</span><span>${task.assignee || '—'}</span></div>`;
-    h += `<div class="tt-r"><span>前置任務</span><span>${(task.deps||[]).length} 項</span></div>`;
+    h += `<div class="tt-r"><span>FS前置</span><span>${(task.deps||[]).length} 項</span></div>`;
   } else if (task.type === 'group') {
     const b = groupBounds(task.id);
     const prog = groupProgress(task.id);
@@ -2398,6 +2436,7 @@ function populateModal(excludeId = null, checkedDeps = [], presetParent = null, 
   // Deps picker
   depsExcludeId = excludeId;
   selectedDeps = new Set(checkedDeps);
+  selectedSdeps = new Set();
   updateDepsTags();
 
   // Done checkbox
@@ -2547,6 +2586,7 @@ function openEditModal(taskId) {
   document.getElementById('fEnd').value = task.end || task.date || TODAY_STR;
   document.getElementById('fWday').value = (task.start && task.end) ? countWorkingDays(task.start, task.end) : 1;
   populateModal(taskId, task.deps || [], task.parent, task.done || false);
+  selectedSdeps = new Set(task.sdeps || []);
   updateModalForType();
   document.getElementById('overlay').classList.add('open');
   setTimeout(() => document.getElementById('fName').focus(), 50);
@@ -2569,6 +2609,7 @@ function submitTask() {
   const end = document.getElementById('fEnd').value;
   const done = document.getElementById('fDone').classList.contains('done');
   const deps = [...selectedDeps];
+  const sdeps = [...selectedSdeps];
 
   pushHistory();
   if (editingTaskId !== null) {
@@ -2580,6 +2621,7 @@ function submitTask() {
       t.parent = parentId;
       t.color = parent ? parent.color : t.color;
       t.deps = deps;
+      if (sdeps.length) t.sdeps = sdeps; else delete t.sdeps;
       if (type === 'task') { t.start = start; t.end = end; t.done = done; delete t.date; }
       else { t.date = start; delete t.start; delete t.end; }
     }
@@ -2587,6 +2629,7 @@ function submitTask() {
     // Add new task
     const autoColor = type === 'group' ? getNextGroupColor() : (parent ? parent.color : '#5E6AD2');
     const t = { id: nextId++, name, type, parent: parentId, color: autoColor, deps };
+    if (sdeps.length) t.sdeps = sdeps;
     if (type === 'task') { t.start = start; t.end = end; t.done = done; }
     else { t.date = start; }
     tasks.push(t);
@@ -2783,6 +2826,36 @@ function openDepsEditor(task, cell) {
   });
 }
 
+function openSsDepsEditor(task, cell) {
+  const inp = document.createElement('input');
+  inp.className = 'deps-input';
+  inp.placeholder = '如：2, 3（列號）';
+  inp.value = (task.sdeps || []).map(id => getRowNum(id)).filter(Boolean).join(', ');
+  cell.innerHTML = '';
+  cell.appendChild(inp);
+  inp.focus();
+  inp.select();
+
+  let committed = false;
+  function commit() {
+    if (committed) return; committed = true;
+    const rowNums = inp.value.split(/[,\s]+/).map(s => parseInt(s)).filter(n => !isNaN(n));
+    const newSdeps = rowNums
+      .map(n => getTaskByRowNum(n))
+      .filter(t => t && t.id !== task.id)
+      .map(t => t.id);
+    pushHistory();
+    task.sdeps = [...new Set(newSdeps)];
+    scheduleTasks();
+    recalcProjEnd(); render();
+  }
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { inp.blur(); }
+    if (e.key === 'Escape') { committed = true; render(); }
+  });
+}
+
 function allGroupMembersScheduled(groupId, scheduled) {
   return tasks.filter(t => t.parent === groupId).every(child => {
     if (child.type === 'group') return allGroupMembersScheduled(child.id, scheduled);
@@ -2806,29 +2879,44 @@ function scheduleTasks() {
     progress = false;
     candidates.forEach(task => {
       if (scheduled.has(task.id)) return;
+      // FS deps: must be scheduled first
       const deps = (task.deps || []).map(id => taskById(id)).filter(Boolean);
-      const unresolved = deps.filter(d => {
+      const unresolvedFs = deps.filter(d => {
         if (d.type === 'group') return !allGroupMembersScheduled(d.id, scheduled);
         return !scheduled.has(d.id);
       });
-      if (unresolved.length) return;
-      // Latest end among deps
-      let latestEnd = null;
+      if (unresolvedFs.length) return;
+      // SS deps: must be scheduled first too
+      const sdeps = (task.sdeps || []).map(id => taskById(id)).filter(Boolean);
+      const unresolvedSs = sdeps.filter(d => !scheduled.has(d.id));
+      if (unresolvedSs.length) return;
+
+      // Latest end among FS deps → task must start after this
+      let latestFsEnd = null;
       deps.forEach(dep => {
         const e = dep.type === 'task' ? dep.end
                 : dep.type === 'milestone' ? dep.date
                 : dep.type === 'group' ? groupBounds(dep.id).e : null;
-        if (e && (!latestEnd || e > latestEnd)) latestEnd = e;
+        if (e && (!latestFsEnd || e > latestFsEnd)) latestFsEnd = e;
       });
+      // Latest start among SS deps → task must start no earlier than this
+      let latestSsStart = null;
+      sdeps.forEach(dep => {
+        const s = dep.type === 'task' ? dep.start : dep.type === 'milestone' ? dep.date : null;
+        if (s && (!latestSsStart || s > latestSsStart)) latestSsStart = s;
+      });
+
       if (task.type === 'task') {
-        const rawStart = latestEnd ? addWorkingDays(latestEnd, 1) : projStart;
+        let rawStart = latestFsEnd ? addWorkingDays(latestFsEnd, 1) : projStart;
+        if (latestSsStart && latestSsStart > rawStart) rawStart = latestSsStart;
         let s = new Date(rawStart);
         while (isWeekend(s)) s.setDate(s.getDate() + 1);
         task.start = s.toISOString().slice(0, 10);
         task.end   = addWorkingDays(task.start, task.wday || 1);
       } else { // milestone
-        if (latestEnd) {
-          let d = new Date(latestEnd);
+        let best = latestFsEnd || latestSsStart || null;
+        if (best) {
+          let d = new Date(best);
           while (isWeekend(d)) d.setDate(d.getDate() + 1);
           task.date = d.toISOString().slice(0, 10);
         } else {
@@ -2846,8 +2934,10 @@ function scheduleTasks() {
 function autoScheduleFromDeps(task) {
   if (task.type !== 'task') return;
   const deps = task.deps || [];
-  if (!deps.length) return;
-  let latestEnd = null;
+  const sdeps = task.sdeps || [];
+  if (!deps.length && !sdeps.length) return;
+  let candidateStart = null;
+  // FS: start after dep ends
   deps.forEach(depId => {
     const dep = taskById(depId);
     if (!dep) return;
@@ -2855,13 +2945,22 @@ function autoScheduleFromDeps(task) {
                 : dep.type === 'milestone' ? dep.date
                 : dep.type === 'group' ? groupBounds(dep.id).e
                 : null;
-    if (depEnd && (!latestEnd || depEnd > latestEnd)) latestEnd = depEnd;
+    if (depEnd) {
+      const s = addWorkingDays(depEnd, 1);
+      if (!candidateStart || s > candidateStart) candidateStart = s;
+    }
   });
-  if (!latestEnd) return;
+  // SS: start no earlier than dep starts
+  sdeps.forEach(depId => {
+    const dep = taskById(depId);
+    if (!dep) return;
+    const s = dep.type === 'task' ? dep.start : dep.type === 'milestone' ? dep.date : null;
+    if (s && (!candidateStart || s > candidateStart)) candidateStart = s;
+  });
+  if (!candidateStart) return;
   const wdays = (task.start && task.end) ? countWorkingDays(task.start, task.end) : 1;
-  const newStart = addWorkingDays(latestEnd, 1);
-  if (newStart > (task.start || '')) {
-    task.start = newStart;
+  if (candidateStart > (task.start || '')) {
+    task.start = candidateStart;
     task.end = addWorkingDays(task.start, wdays);
   }
 }
@@ -3285,7 +3384,7 @@ function setupSync() {
 /* ═══════════════════════════════════════════
    COLUMN RESIZER
 ═══════════════════════════════════════════ */
-const COL_WIDTHS = [28, null, 86, 86, 52, 100, 36, 68]; // null = 1fr
+const COL_WIDTHS = [28, null, 86, 86, 52, 100, 80, 36, 68]; // null = 1fr
 
 function applyColGrid() {
   const tpl = COL_WIDTHS.map(w => w === null ? '1fr' : w + 'px').join(' ');
