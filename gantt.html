@@ -1693,20 +1693,20 @@ function renderTaskPanel() {
     row.appendChild(dc);
 
     // SS Deps cell — Start to Start
-    const sc = document.createElement('div');
-    sc.className = 'deps-cell';
+    const sdc = document.createElement('div');
+    sdc.className = 'deps-cell';
     const sdeps = task.sdeps || [];
     const sdepNums = sdeps.map(id => getRowNum(id)).filter(Boolean);
-    sc.innerHTML = sdepNums.length > 0
+    sdc.innerHTML = sdepNums.length > 0
       ? `<span class="deps-nums" style="color:#F59E0B">${sdepNums.join(', ')}</span>`
       : `<span style="font-size:11px;color:var(--t4)">—</span>`;
-    sc.addEventListener('click', e => {
+    sdc.addEventListener('click', e => {
       e.stopPropagation();
       if (isReadOnly) return;
-      openSsDepsEditor(task, sc);
+      openSsDepsEditor(task, sdc);
     });
-    sc.style.cursor = isReadOnly ? 'default' : 'text';
-    row.appendChild(sc);
+    sdc.style.cursor = isReadOnly ? 'default' : 'text';
+    row.appendChild(sdc);
 
     // Checkbox cell
     const cc = document.createElement('div');
