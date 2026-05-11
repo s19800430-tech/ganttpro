@@ -1189,8 +1189,8 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 ═══════════════════════════════════════════ */
 let CHART_START = new Date('2026-04-01');
 let CHART_END   = new Date('2026-07-31');
-const TODAY_STR   = '2026-05-06';
-const TODAY       = new Date(TODAY_STR);
+const TODAY_STR = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Taipei' });
+const TODAY     = new Date(TODAY_STR);
 const ROW_H       = 36;
 const BAR_H       = 20;
 
