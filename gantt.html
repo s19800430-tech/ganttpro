@@ -1094,7 +1094,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   <div class="stat"><div class="stat-dot" style="background:#9CA3AF"></div>待完成 <b id="sPending">0</b></div>
   <div class="stat"><div class="stat-dot" style="background:#5E6AD2"></div>里程碑 <b id="sMilestone">0</b></div>
   <div class="spacer"></div>
-  <div class="stat">今日：<b>2026-05-06</b></div>
+  <div class="stat">今日：<b id="sTodayDisplay"></b></div>
   <div class="stat">專案期間：<b id="sPeriod">2026-04-01 — 2026-07-31</b></div>
 </div>
 
@@ -1194,6 +1194,7 @@ let CHART_START = new Date('2026-04-01');
 let CHART_END   = new Date('2026-07-31');
 const TODAY_STR = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Taipei' });
 const TODAY     = new Date(TODAY_STR);
+document.getElementById('sTodayDisplay').textContent = TODAY_STR;
 const ROW_H       = 36;
 const BAR_H       = 20;
 
@@ -1983,10 +1984,32 @@ function renderGrid(canvas, tw, th) {
   }
 }
 
+// Returns contiguous working-day segments between startStr and endStr (exclusive)
+function getWorkingSegs(startStr, endStr) {
+  const segs = [];
+  let d = new Date(startStr), end = new Date(endStr), segS = null;
+  while (d < end) {
+    const isWknd = d.getDay() === 0 || d.getDay() === 6;
+    if (!isWknd && !segS) segS = d.toISOString().slice(0, 10);
+    else if (isWknd && segS) { segs.push({s: segS, e: d.toISOString().slice(0, 10)}); segS = null; }
+    d.setDate(d.getDate() + 1);
+  }
+  if (segS) segs.push({s: segS, e: endStr});
+  return segs;
+}
+
+// Returns the last working day before exclusive endStr
+function prevWorkingDay(endStr) {
+  const d = new Date(endStr);
+  d.setDate(d.getDate() - 1);
+  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 function renderBar(row, task) {
   if (!task.start || !task.end) return;
   const x1 = dateToX(task.start);
-  const x2 = dateToX(task.end); // exclusive end: no +PPD needed
+  const x2 = dateToX(task.end); // exclusive end
   const w = x2 - x1;
   if (!isFinite(w) || w <= 0) return;
 
@@ -1997,22 +2020,27 @@ function renderBar(row, task) {
 
   if (task.done) bar.style.opacity = '0.32';
 
-  // Inner clip container (clips bg + label, leaves room for date labels outside)
+  // Inner clip container
   const inner = document.createElement('div');
-  inner.style.cssText = 'position:absolute;inset:0;overflow:hidden;border-radius:4px';
+  inner.style.cssText = 'position:absolute;inset:0;overflow:hidden;';
 
-  const bg = document.createElement('div');
-  bg.className = 'bar-bg';
-  bg.style.background = task.color;
-  inner.appendChild(bg);
+  // Render only working-day segments (skip weekends)
+  const segs = getWorkingSegs(task.start, task.end);
+  segs.forEach(seg => {
+    const sl = dateToX(seg.s) - x1;
+    const sw = dateToX(seg.e) - dateToX(seg.s);
+    const sg = document.createElement('div');
+    sg.style.cssText = `position:absolute;top:0;bottom:0;left:${sl}px;width:${sw}px;background:${task.color};opacity:.88;border-radius:4px`;
+    inner.appendChild(sg);
+  });
 
   const fmt = s => { const [,m,d] = s.split('-'); return `${+m}/${+d}`; };
-  const wday = task.wday || 1;
 
-  // Task name: inside bar center when wide enough
+  // Task name: centered across full bar area
   if (w > 70) {
     const lbl = document.createElement('div');
     lbl.className = 'bar-lbl';
+    lbl.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;padding:0 8px;z-index:2;pointer-events:none';
     lbl.textContent = task.name || '';
     inner.appendChild(lbl);
   }
@@ -2020,15 +2048,13 @@ function renderBar(row, task) {
   bar.appendChild(inner);
 
   if (showBarDates) {
-    // Start date: outside bar to the left
     const sd = document.createElement('div');
     sd.className = 'bar-sd';
     sd.textContent = fmt(task.start);
     bar.appendChild(sd);
-    // End date: outside bar to the right
     const ed = document.createElement('div');
     ed.className = 'bar-ed';
-    ed.textContent = fmt(task.end);
+    ed.textContent = fmt(prevWorkingDay(task.end));
     bar.appendChild(ed);
   }
 
