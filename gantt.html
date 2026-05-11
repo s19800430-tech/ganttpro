@@ -388,6 +388,9 @@ body.dark .ms-badge{background:#3d2c00;color:#fbbf24;border-color:#593f00}
 .week-cell.today-wk{color:var(--red)!important;font-weight:600}
 .week-cell.day-cell{font-size:9.5px;padding:0 2px;justify-content:center}
 .week-cell.wknd-cell{color:var(--t3)}
+.week-cell.day-weekday{color:#2563EB;font-weight:600}
+.week-cell.day-sat{color:#60A5FA}
+.week-cell.day-sun{color:#F472B6}
 
 /* ── CHART CANVAS ── */
 .chart-canvas{position:relative;min-width:max-content}
@@ -1810,10 +1813,12 @@ function renderChartHeader() {
     while (d <= CHART_END) {
       const ds = toStr(d);
       const x = dateToX(ds);
-      const isWknd = isWeekend(d);
+      const dow = d.getDay();
+      const isWknd = dow === 0 || dow === 6;
       const isTdy = ds === TODAY_STR;
       const el = document.createElement('div');
-      el.className = 'week-cell day-cell' + (isTdy ? ' today-wk' : '') + (isWknd ? ' wknd-cell' : '');
+      const dayColor = isTdy ? '' : dow === 6 ? ' day-sat' : dow === 0 ? ' day-sun' : ' day-weekday';
+      el.className = 'week-cell day-cell' + dayColor + (isTdy ? ' today-wk' : '') + (isWknd ? ' wknd-cell' : '');
       el.style.cssText = `left:${x}px;width:${PPD}px`;
       el.textContent = PPD >= 30
         ? d.getDate() + dayNames[d.getDay()]
