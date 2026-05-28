@@ -1987,7 +1987,7 @@ function renderChartBody() {
     canvas.appendChild(row);
   });
 
-  // arrows removed per user request
+  if (showCriticalPath) renderArrows(canvas, rows, tw, th);
   updateStats();
 }
 
@@ -2265,27 +2265,29 @@ function renderArrows(canvas, rows, tw, th) {
     const tY = tRow * ROW_H + ROW_H / 2;
     const tX = task.type === 'milestone' ? dateToX(task.date) : dateToX(task.start);
 
-    // FS arrows
-    (task.deps || []).forEach(depId => {
-      const dep = taskById(depId);
-      if (!dep) return;
-      const sRow = ri.get(depId);
-      if (sRow === undefined) return;
-      const sY = sRow * ROW_H + ROW_H / 2;
-      const sX = dep.type === 'milestone'
-        ? dateToX(dep.date) + 8
-        : dateToX(dep.end) + PPD;
-      const dx = (tX - sX) / 2;
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', `M ${sX} ${sY} C ${sX + Math.max(dx, 20)} ${sY}, ${tX - Math.max(dx, 20)} ${tY}, ${tX} ${tY}`);
-      path.setAttribute('fill', 'none');
-      path.setAttribute('stroke', '#C4C8D8');
-      path.setAttribute('stroke-width', '1.5');
-      path.setAttribute('stroke-dasharray', '5 3');
-      path.setAttribute('marker-end', 'url(#ah)');
-      path.setAttribute('opacity', '0.7');
-      svg.appendChild(path);
-    });
+    // FS arrows (只在非 CP 模式顯示)
+    if (!showCriticalPath) {
+      (task.deps || []).forEach(depId => {
+        const dep = taskById(depId);
+        if (!dep) return;
+        const sRow = ri.get(depId);
+        if (sRow === undefined) return;
+        const sY = sRow * ROW_H + ROW_H / 2;
+        const sX = dep.type === 'milestone'
+          ? dateToX(dep.date) + 8
+          : dateToX(dep.end) + PPD;
+        const dx = (tX - sX) / 2;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', `M ${sX} ${sY} C ${sX + Math.max(dx, 20)} ${sY}, ${tX - Math.max(dx, 20)} ${tY}, ${tX} ${tY}`);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', '#C4C8D8');
+        path.setAttribute('stroke-width', '1.5');
+        path.setAttribute('stroke-dasharray', '5 3');
+        path.setAttribute('marker-end', 'url(#ah)');
+        path.setAttribute('opacity', '0.7');
+        svg.appendChild(path);
+      });
+    }
 
     // Critical path arrows (red elbow, FS only)
     if (showCriticalPath && criticalTaskIds.has(task.id)) {
