@@ -839,14 +839,15 @@ body.dark .form-ctrl{color-scheme:dark}
 body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 .proj-item-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .proj-item-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.proj-item-del{
+.proj-item-del,.proj-item-edit{
   width:18px;height:18px;border-radius:4px;
   display:flex;align-items:center;justify-content:center;
   font-size:12px;color:var(--t4);
   transition:background .1s,color .1s;opacity:0;
 }
-.proj-item:hover .proj-item-del{opacity:1}
+.proj-item:hover .proj-item-del,.proj-item:hover .proj-item-edit{opacity:1}
 .proj-item-del:hover{background:rgba(239,68,68,.12);color:var(--red)!important}
+.proj-item-edit:hover{background:rgba(94,106,210,.12);color:var(--accent)!important}
 .proj-menu-div{height:1px;background:var(--border);margin:5px 0}
 .proj-item-new{color:var(--accent);font-weight:500}
 
@@ -1260,7 +1261,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 <div class="overlay" id="projOverlay" onclick="closeProjModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeProjModal()" title="關閉">✕</button>
-    <div class="modal-title">◆ 建立新專案</div>
+    <div class="modal-title" id="projModalTitle">◆ 建立新專案</div>
     <div class="form-row">
       <label class="form-lbl">專案名稱</label>
       <input class="form-ctrl" id="pName" placeholder="例：網站改版計畫、Q3 行銷活動...">
@@ -1285,7 +1286,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeProjModal()">取消</button>
-      <button class="btn btn-primary" onclick="submitProject()">建立專案</button>
+      <button class="btn btn-primary" id="projSubmitBtn" onclick="submitProject()">建立專案</button>
     </div>
   </div>
 </div>
@@ -4013,9 +4014,8 @@ function renderProjMenu() {
     item.innerHTML = `
       <div class="proj-item-dot" style="background:${p.color}"></div>
       <span class="proj-item-name">${p.name}${p._isShared ? ' <span class="collab-shared-badge">共享</span>' : ''}</span>
-      ${!p._isShared
-        ? `<span class="proj-item-del" onclick="deleteProject(${p.id},event)" title="刪除此專案">✕</span>`
-        : ''}
+      ${!p._isShared ? `<span class="proj-item-edit" onclick="openEditProjModal(${p.id},event)" title="編輯此專案">✎</span>` : ''}
+      ${!p._isShared ? `<span class="proj-item-del" onclick="deleteProject(${p.id},event)" title="刪除此專案">✕</span>` : ''}
     `;
     item.addEventListener('click', () => switchProject(p.id));
     menu.appendChild(item);
@@ -4055,7 +4055,32 @@ function deleteProject(id, e) {
   }
 }
 
+let _editingProjId = null;
+
+function openEditProjModal(id, e) {
+  if (e) e.stopPropagation();
+  closeProjMenuOnly();
+  const p = projects.find(x => x.id === id);
+  if (!p) return;
+  _editingProjId = id;
+  document.getElementById('projModalTitle').textContent = '✎ 編輯專案';
+  document.getElementById('projSubmitBtn').textContent = '儲存';
+  document.getElementById('pName').value = p.name;
+  document.getElementById('pStart').value = p.startDate;
+  document.getElementById('projColorDot').style.background = p.color;
+  // 隱藏範本選擇（僅建立時使用）
+  const tplRow = document.getElementById('tplRow');
+  if (tplRow) tplRow.style.display = 'none';
+  const preview = document.getElementById('templatePreview');
+  if (preview) preview.style.display = 'none';
+  document.getElementById('projOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('pName').focus(), 50);
+}
+
 function openProjModal() {
+  _editingProjId = null;
+  document.getElementById('projModalTitle').textContent = '◆ 建立新專案';
+  document.getElementById('projSubmitBtn').textContent = '建立專案';
   document.getElementById('pName').value = '';
   document.getElementById('pStart').value = TODAY_STR;
 
@@ -4085,6 +4110,8 @@ function openProjModal() {
   // Preview the color that will be auto-assigned
   const nextColor = getNextGroupColor();
   document.getElementById('projColorDot').style.background = nextColor;
+  const tplRow = document.getElementById('tplRow');
+  if (tplRow) tplRow.style.display = '';
   document.getElementById('projOverlay').classList.add('open');
   setTimeout(() => document.getElementById('pName').focus(), 50);
 }
@@ -4129,7 +4156,27 @@ function selectColor(el) {
 function submitProject() {
   const name = document.getElementById('pName').value.trim();
   if (!name) { document.getElementById('pName').focus(); return; }
-  const start   = document.getElementById('pStart').value;
+  const start = document.getElementById('pStart').value;
+
+  // 編輯模式：更新現有專案
+  if (_editingProjId !== null) {
+    const p = projects.find(x => x.id === _editingProjId);
+    if (p) {
+      p.name = name;
+      p.startDate = start;
+      CHART_START = new Date(start);
+      scheduleTasks();
+      recalcProjEnd();
+      updateProjUI();
+      render();
+      saveToLS();
+      if (currentUser) saveToCloud();
+    }
+    document.getElementById('projOverlay').classList.remove('open');
+    _editingProjId = null;
+    return;
+  }
+
   const tplId   = document.getElementById('pTemplate').value;
   const tpl     = TEMPLATES.find(t => t.id === tplId);
   const color   = tpl ? tpl.color : getNextGroupColor();
