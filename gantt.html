@@ -4173,6 +4173,8 @@ function submitProject() {
   recalcProjEnd();
   updateProjUI();
   render();
+  saveToLS();
+  if (currentUser) saveToCloud();
 }
 
 /* ═══════════════════════════════════════════
