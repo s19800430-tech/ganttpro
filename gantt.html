@@ -264,6 +264,7 @@ body.dark .btn-group .btn.active{background:rgba(94,106,210,.2)}
 body.dark .ms-badge{background:#3d2c00;color:#fbbf24;border-color:#593f00}
 
 /* ── DATE / WDAY CELLS ── */
+.date-cell.pinned{color:var(--accent)}
 .date-cell{
   display:flex;align-items:center;
   font-size:12px;color:var(--t2);
@@ -1751,15 +1752,19 @@ function renderTaskPanel() {
     if (task.done) row.classList.add('completed');
     row.appendChild(nc);
 
-    // Start date cell (read-only, calculated by scheduler)
+    // Start date cell
     const sc = document.createElement('div');
-    sc.className = 'date-cell';
+    sc.className = 'date-cell' + (task.pinStart ? ' pinned' : '');
     if (task.type === 'group') {
       const gb = groupBounds(task.id);
       sc.textContent = gb.s || '';
       if (gb.s) sc.style.color = 'var(--t3)';
     } else {
       sc.textContent = task.start || task.date || '';
+    }
+    if (task.type === 'task') {
+      sc.style.cursor = 'text';
+      sc.addEventListener('click', e => { e.stopPropagation(); if (!isReadOnly) openStartEditor(task, sc); });
     }
     row.appendChild(sc);
 
@@ -3442,6 +3447,32 @@ function openDateEditor(task, field, cell) {
   inp.addEventListener('keydown', e => { if (e.key === 'Escape') render(); });
 }
 
+function openStartEditor(task, cell) {
+  const inp = document.createElement('input');
+  inp.type = 'date';
+  inp.className = 'inline-input';
+  inp.value = task.start || '';
+  cell.innerHTML = '';
+  cell.appendChild(inp);
+  inp.focus();
+  function commit() {
+    const val = inp.value;
+    if (val && val !== task.start) {
+      pushHistory();
+      task.start = val;
+      task.end = addWorkingDays(val, task.wday || 1);
+      task.pinStart = true;
+    }
+    scheduleTasks();
+    recalcProjEnd();
+    render();
+    saveToLS();
+    if (currentUser) saveToCloud();
+  }
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { render(); } });
+}
+
 function openWdayEditor(task, cell) {
   const inp = document.createElement('input');
   inp.type = 'number';
@@ -3718,7 +3749,8 @@ function scheduleTasks() {
       });
 
       if (task.type === 'task') {
-        let rawStart = latestFsEnd ? nextWorkingDay(latestFsEnd) : projStart;
+        let rawStart = latestFsEnd ? nextWorkingDay(latestFsEnd)
+                     : (task.pinStart && task.start ? task.start : projStart);
         if (latestSsStart && latestSsStart > rawStart) rawStart = latestSsStart;
         // FF: task.end must >= latestFfEnd → push start so end lands on latestFfEnd
         if (latestFfEnd) {
