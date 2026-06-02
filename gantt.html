@@ -31,8 +31,8 @@
   --thead:72px;
   --rowh:36px;
   --barh:20px;
-  --tcol:660px;
-  --cg:28px 1fr 86px 86px 52px 100px 36px 68px;
+  --tcol:860px;
+  --cg:28px minmax(320px,400px) 86px 86px 52px 130px 36px 68px;
 }
 
 body{
@@ -242,6 +242,7 @@ body.dark .btn-group .btn.active{background:rgba(94,106,210,.2)}
 .row-action-btn:hover{background:var(--s-hover);color:var(--t1)}
 .row-action-btn.add{color:var(--accent);background:var(--accent-bg)}
 .row-action-btn.add:hover{background:var(--accent);color:#fff}
+.row-action-btn.del:hover{background:#FEE2E2;color:var(--red)}
 .task-row:hover .row-action-btn{opacity:1;pointer-events:auto}
 .indent{display:inline-block;flex-shrink:0}
 .toggle{
@@ -329,6 +330,7 @@ body.dark .ms-badge{background:#3d2c00;color:#fbbf24;border-color:#593f00}
 /* ── DEPS CELL ── */
 .deps-cell{
   display:flex;align-items:center;overflow:hidden;
+  align-self:stretch;cursor:text;
 }
 .deps-nums{
   font-size:12px;color:var(--t3);
@@ -337,10 +339,50 @@ body.dark .ms-badge{background:#3d2c00;color:#fbbf24;border-color:#593f00}
 }
 .deps-input{
   width:100%;border:none;outline:none;
-  background:var(--accent-bg);border-radius:4px;
-  font-size:12px;color:var(--t1);padding:2px 6px;
+  background:transparent;
+  font-size:12px;color:var(--t1);padding:0;
   font-variant-numeric:tabular-nums;
 }
+.deps-edit-wrap{
+  position:absolute;inset:0;background:var(--surface);
+  border:1.5px solid var(--accent);border-radius:4px;
+  box-shadow:0 0 0 3px rgba(94,106,210,.1);
+  display:flex;align-items:center;padding:0 8px;z-index:20;
+}
+.deps-tip{
+  position:absolute;top:calc(100% + 6px);left:0;min-width:200px;
+  background:#1F2937;color:#F9FAFB;border-radius:6px;
+  padding:8px 10px;font-size:11px;line-height:1.7;z-index:200;
+  box-shadow:0 4px 12px rgba(0,0,0,.2);pointer-events:none;
+  white-space:nowrap;
+}
+
+/* ── DEPS MODAL DROPDOWN ── */
+#fDepsWrap{position:relative}
+#fDepsList{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:6px;max-height:220px;overflow-y:auto;
+  z-index:300;box-shadow:0 4px 16px rgba(0,0,0,.12);display:none;
+}
+.dep-li{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 10px;cursor:default;
+  border-bottom:1px solid var(--border);
+}
+.dep-li:last-child{border-bottom:none}
+.dep-li:hover{background:var(--s-hover)}
+.dep-li.dep-sel{background:var(--accent-bg)}
+.dep-li-num{font-size:11px;color:var(--t4);min-width:26px;font-variant-numeric:tabular-nums}
+.dep-li-name{flex:1;font-size:12px;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dep-type-btns{display:flex;gap:2px;flex-shrink:0}
+.dep-type-btn{
+  height:20px;padding:0 5px;border-radius:3px;font-size:10px;font-weight:600;
+  border:1px solid var(--border);cursor:pointer;
+  background:var(--s2);color:var(--t3);line-height:20px;
+}
+.dep-type-btn:hover{border-color:var(--accent);color:var(--accent)}
+.dep-type-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 
 .check-cell{display:flex;align-items:center;justify-content:center}
 .check-box{
@@ -438,6 +480,11 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
 }
 .gantt-bar:hover{filter:brightness(1.08);transform:scaleY(1.06)}
 .gantt-bar.cp-critical{box-shadow:0 0 0 2.5px #EF4444;z-index:3}
+.gantt-bar.overdue{box-shadow:0 0 0 2px #EF4444,inset 0 0 0 1px rgba(239,68,68,.2);}
+.dep-pred .gantt-bar,.dep-pred .group-bar{box-shadow:0 0 0 2.5px #F59E0B!important;z-index:4}
+.dep-succ .gantt-bar,.dep-succ .group-bar{box-shadow:0 0 0 2.5px #3B82F6!important;z-index:4}
+.dep-pred .task-row,.dep-pred.task-row{background:rgba(245,158,11,.07)!important}
+.dep-succ .task-row,.dep-succ.task-row{background:rgba(59,130,246,.07)!important}
 .cp-mode .gantt-bar:not(.cp-critical){opacity:0.28;filter:grayscale(.3)}
 
 .bar-bg{position:absolute;inset:0;opacity:.88;}
@@ -937,6 +984,14 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
         使用 Google 帳號登入
       </button>
       <p id="loginError" style="color:#e53;font-size:13px;text-align:center;margin:0;display:none"></p>
+      <div style="display:flex;align-items:center;gap:8px;width:100%">
+        <hr style="flex:1;border:none;border-top:1px solid var(--border)">
+        <span style="font-size:11px;color:var(--t4)">或</span>
+        <hr style="flex:1;border:none;border-top:1px solid var(--border)">
+      </div>
+      <button onclick="signInAsGuest()" style="width:100%;padding:10px 0;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--t3);font-size:13px;font-family:inherit;cursor:pointer;transition:background .15s" onmouseover="this.style.background='var(--s-hover)'" onmouseout="this.style.background='transparent'">
+        本地模式（不同步雲端）
+      </button>
     </div>
 
     <!-- 註冊面板（新用戶 Google 登入後顯示） -->
@@ -987,6 +1042,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   <button class="btn zoom-btn" onclick="zoomIn()" title="放大">＋</button>
   <button class="btn fit-btn" onclick="fitToFrame()" title="縮放至適合視窗"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4.5V1h3.5M8.5 1H12v3.5M12 8.5V12H8.5M4.5 12H1V8.5"/></svg></button>
   <button class="btn" id="cpBtn" onclick="toggleCriticalPath()" title="顯示關鍵路徑">◆ 關鍵路徑</button>
+  <button class="btn" onclick="exportPNG()" title="匯出為 PNG 圖片">⬇ PNG</button>
   <div class="readonly-badge">👁 唯讀模式</div>
   <button class="btn btn-owner-only" id="collabBtn" onclick="openCollabModal()" title="協作管理">👥 協作</button>
   <button class="btn" id="darkBtn" onclick="toggleDark()" title="深色模式">🌙</button>
@@ -1099,14 +1155,12 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
         <div class="th th-col">結束日期<div class="col-rsz" data-ci="3"></div></div>
         <div class="th th-col" style="justify-content:center">工作日<div class="col-rsz" data-ci="4"></div></div>
         <div class="th th-col">前置任務<div class="col-rsz" data-ci="5"></div></div>
-        <div class="th th-col">SS前置<div class="col-rsz" data-ci="6"></div></div>
         <span class="th" style="text-align:center">完成</span>
         <span></span>
       </div>
       <div class="task-thead-r">
         <span></span>
         <span class="th-sub">共 <b id="taskCount">0</b> 項任務</span>
-        <span></span>
         <span></span>
         <span></span>
         <span></span>
@@ -1140,6 +1194,18 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   <div class="stat">專案期間：<b id="sPeriod">2026-04-01 — 2026-07-31</b></div>
 </div>
 
+<!-- DELETE CONFIRM MODAL -->
+<div class="overlay" id="deleteOverlay" onclick="closeDeleteModal(event)">
+  <div class="modal" onclick="event.stopPropagation()" style="width:320px;padding:20px 20px 16px">
+    <div class="modal-title" style="font-size:14px;margin-bottom:6px">刪除任務</div>
+    <p id="deleteModalMsg" style="font-size:12px;color:var(--t3);margin:0 0 18px;line-height:1.5">此操作無法復原。</p>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button onclick="closeDeleteModal()" style="height:28px;padding:0 12px;border-radius:5px;font-size:12px;border:1px solid var(--border);background:var(--surface);color:var(--t2);cursor:pointer">取消</button>
+      <button id="deleteConfirmBtn" style="height:28px;padding:0 12px;border-radius:5px;font-size:12px;border:none;background:var(--red);color:#fff;cursor:pointer">刪除</button>
+    </div>
+  </div>
+</div>
+
 <!-- ADD TASK MODAL -->
 <div class="overlay" id="overlay" onclick="closeModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
@@ -1171,14 +1237,13 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
         <input class="form-ctrl" type="number" id="fWday" min="1" value="6" style="text-align:center">
       </div>
     </div>
-    <div class="form-row" id="rowDeps" style="display:none">
+    <div class="form-row" id="rowDeps">
       <label class="form-lbl">前置任務</label>
-      <div class="deps-picker" id="depsPicker">
-        <div class="deps-tags" id="depsTags" onclick="toggleDepsMenu(event)">
-          <span class="deps-ph" id="depsPlaceholder">點擊選擇前置任務...</span>
-        </div>
-        <div class="deps-menu" id="depsMenu"></div>
+      <div id="fDepsWrap">
+        <input class="form-ctrl" id="fDeps" placeholder="輸入列號（如 2、2SS）或從下方選擇" autocomplete="off">
+        <div id="fDepsList" onmousedown="event.preventDefault()"></div>
       </div>
+      <div id="fDepsTip" style="font-size:11px;color:var(--t3);margin-top:4px;line-height:1.5"></div>
     </div>
     <div class="form-row" id="rowDone" style="display:flex;align-items:center;gap:10px;margin-bottom:0">
       <label class="form-lbl" style="margin-bottom:0">已完成</label>
@@ -1670,6 +1735,7 @@ function renderTaskPanel() {
     nm.className = 'tname' + (task.type === 'group' ? ' bold' : '');
     nm.textContent = task.name;
     nm.style.cursor = 'text';
+    nm.title = task.name;
     nm.addEventListener('click', e => { e.stopPropagation(); if (!isReadOnly) openNameEditor(task, nm); });
     nc.appendChild(nm);
 
@@ -1687,13 +1753,25 @@ function renderTaskPanel() {
     // Start date cell (read-only, calculated by scheduler)
     const sc = document.createElement('div');
     sc.className = 'date-cell';
-    sc.textContent = task.start || task.date || '';
+    if (task.type === 'group') {
+      const gb = groupBounds(task.id);
+      sc.textContent = gb.s || '';
+      if (gb.s) sc.style.color = 'var(--t3)';
+    } else {
+      sc.textContent = task.start || task.date || '';
+    }
     row.appendChild(sc);
 
     // End date cell
     const ec = document.createElement('div');
     ec.className = 'date-cell';
-    ec.textContent = task.end || task.date || '';
+    if (task.type === 'group') {
+      const gb = groupBounds(task.id);
+      ec.textContent = gb.e || '';
+      if (gb.e) ec.style.color = 'var(--t3)';
+    } else {
+      ec.textContent = task.end || task.date || '';
+    }
     row.appendChild(ec);
 
     // Working days cell
@@ -1703,42 +1781,34 @@ function renderTaskPanel() {
       wc.textContent = countWorkingDays(task.start, task.end);
       wc.style.cursor = 'text';
       wc.addEventListener('click', e => { e.stopPropagation(); if (!isReadOnly) openWdayEditor(task, wc); });
+    } else if (task.type === 'group') {
+      const gb = groupBounds(task.id);
+      if (gb.s && gb.e) {
+        wc.textContent = countWorkingDays(gb.s, gb.e);
+        wc.style.color = 'var(--t3)';
+      } else {
+        wc.textContent = '—';
+      }
     } else {
       wc.textContent = '—';
     }
     row.appendChild(wc);
 
-    // Deps cell (FS) — show row numbers, click to edit inline
+    // Unified deps cell (FS/SS/FF/SF)
     const dc = document.createElement('div');
     dc.className = 'deps-cell';
-    const deps = task.deps || [];
-    const depNums = deps.map(id => getRowNum(id)).filter(Boolean);
-    dc.innerHTML = depNums.length > 0
-      ? `<span class="deps-nums">${depNums.join(', ')}</span>`
+    dc.style.position = 'relative';
+    const allDepsText = buildDepsText(task);
+    dc.innerHTML = allDepsText
+      ? `<span class="deps-nums">${allDepsText}</span>`
       : `<span style="font-size:11px;color:var(--t4)">—</span>`;
     dc.addEventListener('click', e => {
       e.stopPropagation();
       if (isReadOnly) return;
-      openDepsEditor(task, dc);
+      openAllDepsEditor(task, dc);
     });
     dc.style.cursor = isReadOnly ? 'default' : 'text';
     row.appendChild(dc);
-
-    // SS Deps cell — Start to Start
-    const sdc = document.createElement('div');
-    sdc.className = 'deps-cell';
-    const sdeps = task.sdeps || [];
-    const sdepNums = sdeps.map(id => getRowNum(id)).filter(Boolean);
-    sdc.innerHTML = sdepNums.length > 0
-      ? `<span class="deps-nums" style="color:#F59E0B">${sdepNums.join(', ')}</span>`
-      : `<span style="font-size:11px;color:var(--t4)">—</span>`;
-    sdc.addEventListener('click', e => {
-      e.stopPropagation();
-      if (isReadOnly) return;
-      openSsDepsEditor(task, sdc);
-    });
-    sdc.style.cursor = isReadOnly ? 'default' : 'text';
-    row.appendChild(sdc);
 
     // Checkbox cell
     const cc = document.createElement('div');
@@ -1794,6 +1864,13 @@ function renderTaskPanel() {
     addBtn.title = '在此節點下新增任務';
     addBtn.onclick = e => { e.stopPropagation(); addTaskInline(task.id); };
     ac.appendChild(addBtn);
+
+    const delBtn = document.createElement('div');
+    delBtn.className = 'row-action-btn del';
+    delBtn.textContent = '✕';
+    delBtn.title = '刪除任務';
+    delBtn.onclick = e => { e.stopPropagation(); confirmDeleteTask(task.id); };
+    ac.appendChild(delBtn);
 
     row.appendChild(ac);
 
@@ -1984,10 +2061,23 @@ function renderChartBody() {
 
     row.addEventListener('mouseenter', () => highlightRow(task.id, true));
     row.addEventListener('mouseleave', () => highlightRow(task.id, false));
+    row.addEventListener('dblclick', e => {
+      if (isReadOnly) return;
+      if (e.target.closest('.gantt-bar,.group-bar,.milestone-d')) return;
+      const scrollX = document.getElementById('chartScroll').scrollLeft;
+      const canvasRect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - canvasRect.left + scrollX;
+      const daysOffset = Math.floor(clickX / PPD);
+      const d = new Date(CHART_START);
+      d.setDate(d.getDate() + daysOffset);
+      while (isWeekend(d)) d.setDate(d.getDate() + 1);
+      const dateStr = d.toISOString().slice(0, 10);
+      openModal(null, dateStr);
+    });
     canvas.appendChild(row);
   });
 
-  if (showCriticalPath) renderArrows(canvas, rows, tw, th);
+  renderArrows(canvas, rows, tw, th);
   updateStats();
 }
 
@@ -2065,13 +2155,14 @@ function prevWorkingDay(endStr) {
 function renderBar(row, task) {
   if (!task.start || !task.end) return;
   const x1 = dateToX(task.start);
-  const visualEnd = nextWorkingDay(task.end);
+  const visualEnd = (() => { const d = new Date(task.end); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); })();
   const x2 = dateToX(visualEnd);
   const w = x2 - x1;
   if (!isFinite(w) || w <= 0) return;
 
   const bar = document.createElement('div');
-  bar.className = 'gantt-bar' + (showCriticalPath && criticalTaskIds.has(task.id) ? ' cp-critical' : '');
+  const isOverdue = task.type === 'task' && !task.done && task.end && task.end < TODAY_STR;
+  bar.className = 'gantt-bar' + (showCriticalPath && criticalTaskIds.has(task.id) ? ' cp-critical' : '') + (isOverdue ? ' overdue' : '');
   bar.dataset.id = task.id;
   bar.style.cssText = `left:${x1}px;width:${w}px`;
 
@@ -2112,16 +2203,16 @@ function renderBar(row, task) {
     bar.appendChild(ed);
   }
 
-  bar.addEventListener('mouseenter', e => showTT(e, task));
+  bar.addEventListener('mouseenter', e => { showTT(e, task); highlightDeps(task.id, true); });
   bar.addEventListener('mousemove', moveTT);
-  bar.addEventListener('mouseleave', hideTT);
+  bar.addEventListener('mouseleave', e => { hideTT(); highlightDeps(task.id, false); });
 
   row.appendChild(bar);
 }
 
 function renderGroupBar(row, task, bounds) {
   const x1 = dateToX(bounds.s);
-  const x2 = dateToX(nextWorkingDay(bounds.e));
+  const x2 = dateToX((() => { const d = new Date(bounds.e); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); })());
   const w = Math.max(x2 - x1, 8);
 
   const bar = document.createElement('div');
@@ -2168,7 +2259,7 @@ function renderMilestoneTimeline(row, groupTask, msList) {
 
   // Milestones already sorted by date (from getVisibleRows)
   msList.forEach((ms, idx) => {
-    const x = dateToX(ms.date);
+    const x = dateToX(ms.date) + PPD / 2;
     if (x < -60 || x > rowW + 60) return;
     const above   = idx % 2 === 0;
     const msColor = ms.color || groupTask.color || '#5E6AD2';
@@ -2213,7 +2304,7 @@ function renderMilestoneTimeline(row, groupTask, msList) {
 }
 
 function renderMilestone(row, task) {
-  const x = dateToX(task.date);
+  const x = dateToX(task.date) + PPD / 2;
   const d = document.createElement('div');
   d.className = 'milestone-d';
   d.dataset.id = task.id;
@@ -2232,7 +2323,7 @@ function renderArrows(canvas, rows, tw, th) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('width', tw);
   svg.setAttribute('height', th);
-  svg.className = 'arrows-svg';
+  svg.setAttribute('class', 'arrows-svg');
 
   // Arrow markers
   const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
@@ -2252,6 +2343,8 @@ function renderArrows(canvas, rows, tw, th) {
   }
   makeMarker('ah', '#9CA3AF');
   makeMarker('ah-ss', '#F59E0B');
+  makeMarker('ah-ff', '#10B981');
+  makeMarker('ah-sf', '#8B5CF6');
   makeMarker('ah-cp', '#EF4444');
   svg.appendChild(defs);
 
@@ -2262,20 +2355,33 @@ function renderArrows(canvas, rows, tw, th) {
   rows.forEach(({ task }) => {
     const tRow = ri.get(task.id);
     if (tRow === undefined) return;
+    if (task.type === 'task' && !task.start) return;
+    if (task.type === 'milestone' && !task.date) return;
+    if (task.type === 'group') return;
     const tY = tRow * ROW_H + ROW_H / 2;
-    const tX = task.type === 'milestone' ? dateToX(task.date) : dateToX(task.start);
+    const tX = task.type === 'milestone' ? dateToX(task.date) + PPD / 2 : dateToX(task.start);
+    if (isNaN(tX)) return;
 
     // FS arrows (只在非 CP 模式顯示)
     if (!showCriticalPath) {
       (task.deps || []).forEach(depId => {
         const dep = taskById(depId);
         if (!dep) return;
+        if (dep.type === 'task' && !dep.end) return;
+        if (dep.type === 'milestone' && !dep.date) return;
+        if (dep.type === 'group') {
+          const gb = groupBounds(dep.id);
+          if (!gb.e) return;
+        }
+        if (task.type === 'task' && !task.start) return;
         const sRow = ri.get(depId);
         if (sRow === undefined) return;
         const sY = sRow * ROW_H + ROW_H / 2;
+        const depEnd = dep.type === 'group' ? groupBounds(dep.id).e : dep.end;
         const sX = dep.type === 'milestone'
-          ? dateToX(dep.date) + 8
-          : dateToX(dep.end) + PPD;
+          ? dateToX(dep.date) + PPD / 2 + 7
+          : dateToX(depEnd) + PPD;
+        if (isNaN(sX)) return;
         const dx = (tX - sX) / 2;
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', `M ${sX} ${sY} C ${sX + Math.max(dx, 20)} ${sY}, ${tX - Math.max(dx, 20)} ${tY}, ${tX} ${tY}`);
@@ -2299,14 +2405,12 @@ function renderArrows(canvas, rows, tw, th) {
         const sY = sRow * ROW_H + ROW_H / 2;
         const sX = dateToX(dep.end) + PPD;
         let pathD;
-        if (sY === tY) {
-          pathD = `M ${sX} ${sY} H ${tX}`;           // 同行：水平
-        } else if (tX > sX) {
-          pathD = `M ${sX} ${sY} H ${tX} V ${tY}`;   // bar 有間距：右→下
-        } else if (tX === sX) {
-          pathD = `M ${sX} ${sY} V ${tY}`;            // 緊接：直接向下
+        if (Math.abs(sY - tY) < 2) {
+          pathD = `M ${sX} ${sY} H ${tX}`;  // 同行：水平
         } else {
-          pathD = `M ${sX} ${sY} H ${sX + 20} V ${tY} H ${tX}`; // 重疊：繞行
+          // 貝茲曲線：無論跨幾列都不會有垂直線
+          const hdx = Math.max(Math.abs(tX - sX) / 2, 40);
+          pathD = `M ${sX} ${sY} C ${sX + hdx} ${sY}, ${tX - hdx} ${tY}, ${tX} ${tY}`;
         }
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', pathD);
@@ -2320,14 +2424,18 @@ function renderArrows(canvas, rows, tw, th) {
       });
     }
 
-    // SS arrows (amber, from dep.start → task.start)
+    // SS arrows (amber, dep.start → task.start)
     (task.sdeps || []).forEach(depId => {
       const dep = taskById(depId);
       if (!dep) return;
+      if (dep.type === 'task' && !dep.start) return;
+      if (dep.type === 'milestone' && !dep.date) return;
+      if (task.type === 'task' && !task.start) return;
       const sRow = ri.get(depId);
       if (sRow === undefined) return;
       const sY = sRow * ROW_H + ROW_H / 2;
-      const sX = dep.type === 'milestone' ? dateToX(dep.date) : dateToX(dep.start);
+      const sX = dep.type === 'milestone' ? dateToX(dep.date) + PPD / 2 : dateToX(dep.start);
+      if (isNaN(sX)) return;
       const dx = (tX - sX) / 2;
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       path.setAttribute('d', `M ${sX} ${sY} C ${sX + Math.max(dx, 20)} ${sY}, ${tX - Math.max(dx, 20)} ${tY}, ${tX} ${tY}`);
@@ -2337,6 +2445,52 @@ function renderArrows(canvas, rows, tw, th) {
       path.setAttribute('stroke-dasharray', '4 3');
       path.setAttribute('marker-end', 'url(#ah-ss)');
       path.setAttribute('opacity', '0.65');
+      svg.appendChild(path);
+    });
+
+    // FF arrows (green, dep.end → task.end)
+    (task.ffdeps || []).forEach(depId => {
+      const dep = taskById(depId);
+      if (!dep) return;
+      if (dep.type === 'task' && !dep.end) return;
+      if (task.type === 'task' && !task.end) return;
+      const sRow = ri.get(depId);
+      if (sRow === undefined) return;
+      const sY = sRow * ROW_H + ROW_H / 2;
+      const sX = dep.type === 'milestone' ? dateToX(dep.date) + PPD / 2 : dateToX(dep.end) + PPD;
+      const ffTX = task.type === 'milestone' ? dateToX(task.date) + PPD / 2 : dateToX(task.end) + PPD;
+      const dx = (ffTX - sX) / 2;
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M ${sX} ${sY} C ${sX + Math.max(dx, 20)} ${sY}, ${ffTX - Math.max(dx, 20)} ${tY}, ${ffTX} ${tY}`);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', '#10B981');
+      path.setAttribute('stroke-width', '1.5');
+      path.setAttribute('stroke-dasharray', '4 3');
+      path.setAttribute('marker-end', 'url(#ah-ff)');
+      path.setAttribute('opacity', '0.7');
+      svg.appendChild(path);
+    });
+
+    // SF arrows (purple, dep.start → task.end)
+    (task.sfdeps || []).forEach(depId => {
+      const dep = taskById(depId);
+      if (!dep) return;
+      if (dep.type === 'task' && !dep.start) return;
+      if (task.type === 'task' && !task.end) return;
+      const sRow = ri.get(depId);
+      if (sRow === undefined) return;
+      const sY = sRow * ROW_H + ROW_H / 2;
+      const sX = dep.type === 'milestone' ? dateToX(dep.date) + PPD / 2 : dateToX(dep.start);
+      const sfTX = task.type === 'milestone' ? dateToX(task.date) + PPD / 2 : dateToX(task.end) + PPD;
+      const dx = (sfTX - sX) / 2;
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M ${sX} ${sY} C ${sX + Math.max(dx, 20)} ${sY}, ${sfTX - Math.max(dx, 20)} ${tY}, ${sfTX} ${tY}`);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', '#8B5CF6');
+      path.setAttribute('stroke-width', '1.5');
+      path.setAttribute('stroke-dasharray', '4 3');
+      path.setAttribute('marker-end', 'url(#ah-sf)');
+      path.setAttribute('opacity', '0.7');
       svg.appendChild(path);
     });
   });
@@ -2353,6 +2507,32 @@ function highlightRow(id, on) {
   });
 }
 
+function getPredIds(task) {
+  return [...(task.deps||[]), ...(task.sdeps||[]), ...(task.ffdeps||[]), ...(task.sfdeps||[])];
+}
+function getSuccIds(id) {
+  return tasks.filter(t =>
+    (t.deps||[]).includes(id)||(t.sdeps||[]).includes(id)||
+    (t.ffdeps||[]).includes(id)||(t.sfdeps||[]).includes(id)
+  ).map(t => t.id);
+}
+function highlightDeps(id, on) {
+  if (!on) {
+    document.querySelectorAll('.dep-pred,.dep-succ').forEach(el => {
+      el.classList.remove('dep-pred','dep-succ');
+    });
+    return;
+  }
+  const task = taskById(id);
+  if (!task) return;
+  getPredIds(task).forEach(predId => {
+    document.querySelectorAll(`[data-id="${predId}"]`).forEach(el => el.classList.add('dep-pred'));
+  });
+  getSuccIds(id).forEach(succId => {
+    document.querySelectorAll(`[data-id="${succId}"]`).forEach(el => el.classList.add('dep-succ'));
+  });
+}
+
 /* ═══════════════════════════════════════════
    TOOLTIP
 ═══════════════════════════════════════════ */
@@ -2365,8 +2545,10 @@ function showTT(e, task) {
     h += `<div class="tt-r"><span>結束</span><span>${task.end}</span></div>`;
     h += `<div class="tt-r"><span>工作天</span><span>${wdays} 天</span></div>`;
     h += `<div class="tt-r"><span>狀態</span><span style="color:${task.done?'#10B981':'#9CA3AF'}">${task.done ? '✓ 已完成' : '⏳ 待完成'}</span></div>`;
-    if ((task.deps||[]).length) h += `<div class="tt-r"><span>FS前置</span><span>${task.deps.length} 項</span></div>`;
-    if ((task.sdeps||[]).length) h += `<div class="tt-r"><span>SS前置</span><span style="color:#F59E0B">${task.sdeps.length} 項</span></div>`;
+    if ((task.deps||[]).length)   h += `<div class="tt-r"><span>FS前置</span><span>${task.deps.length} 項</span></div>`;
+    if ((task.sdeps||[]).length)  h += `<div class="tt-r"><span>SS前置</span><span style="color:#F59E0B">${task.sdeps.length} 項</span></div>`;
+    if ((task.ffdeps||[]).length) h += `<div class="tt-r"><span>FF前置</span><span style="color:#10B981">${task.ffdeps.length} 項</span></div>`;
+    if ((task.sfdeps||[]).length) h += `<div class="tt-r"><span>SF前置</span><span style="color:#8B5CF6">${task.sfdeps.length} 項</span></div>`;
   } else if (task.type === 'milestone') {
     h += `<div class="tt-r"><span>日期</span><span>${task.date}</span></div>`;
     h += `<div class="tt-r"><span>負責人</span><span>${task.assignee || '—'}</span></div>`;
@@ -2429,7 +2611,11 @@ let showCriticalPath = false;
 let criticalTaskIds = new Set();
 
 function computeCriticalPath() {
-  // Include tasks AND milestones
+  // ── 正確的 CPM 演算法 ──
+  // 1. 前向傳遞（scheduleTasks 已算出 ES=start, EF=end）
+  // 2. 後向傳遞：計算每個節點的 LF（最晚完成日）
+  // 3. Float = LF - EF；Float=0 → 關鍵任務
+
   const nodes = tasks.filter(t =>
     (t.type === 'task' && t.start && t.end) ||
     (t.type === 'milestone' && t.date)
@@ -2438,62 +2624,116 @@ function computeCriticalPath() {
 
   const getS = t => t.type === 'milestone' ? t.date : t.start;
   const getE = t => t.type === 'milestone' ? t.date : t.end;
+  const wdur = t => t.type === 'task' ? countWorkingDays(t.start, t.end) : 0;
+  const nodeIds = new Set(nodes.map(t => t.id));
 
-  // Build FS successor map (tasks + milestones)
-  const successors = {};
-  nodes.forEach(t => { successors[t.id] = []; });
+  // 建立「後繼者」關係（所有依賴類型）
+  const succList = {}; // succList[predId] = [{succ, type}]
+  nodes.forEach(t => { succList[t.id] = []; });
   nodes.forEach(t => {
-    (t.deps || []).forEach(depId => {
-      if (successors[depId] !== undefined) successors[depId].push(t);
+    const reg = (list, type) => (list || []).forEach(predId => {
+      if (nodeIds.has(predId)) succList[predId].push({ succ: t, type });
     });
+    reg(t.deps,   'FS');
+    reg(t.sdeps,  'SS');
+    reg(t.ffdeps, 'FF');
+    reg(t.sfdeps, 'SF');
   });
 
-  // Project end = latest task end
+  // 專案結束日 = 所有任務中最晚的 EF
   const projEnd = nodes.filter(t => t.type === 'task')
-    .reduce((max, t) => t.end > max ? t.end : max, '');
+    .reduce((mx, t) => (t.end > mx ? t.end : mx), '');
+  if (!projEnd) return new Set();
 
+  // 後向傳遞：迭代計算 LF
   const LF = {};
   nodes.forEach(t => { LF[t.id] = null; });
 
   let changed = true, iter = 0;
-  while (changed && iter++ < 300) {
+  while (changed && iter++ < 500) {
     changed = false;
     nodes.forEach(t => {
-      const succs = successors[t.id];
+      const succs = succList[t.id];
       let newLF;
+
       if (!succs.length) {
+        // 無後繼 → LF = 專案結束日
         newLF = t.type === 'task' ? projEnd : getS(t);
       } else {
         newLF = null;
-        succs.forEach(s => {
-          // If successor is milestone: pred can end ON milestone date
-          // If successor is task: pred must end day before task starts
-          const lf = s.type === 'milestone' ? getS(s) : prevWorkingDay(getS(s));
-          if (newLF === null || lf < newLF) newLF = lf;
+        succs.forEach(({ succ, type }) => {
+          const succLF = LF[succ.id];
+          let c; // constraint on t.LF
+
+          switch (type) {
+            case 'FS':
+              // t 必須在 succ 開始前完成 → t.LF = prevWorkingDay(succ.LS)
+              // succ.LS = succ.LF - succ_duration + 1；簡化：用 prevWorkingDay(succ.start)
+              c = prevWorkingDay(getS(succ));
+              break;
+
+            case 'SS':
+              // t 必須在 succ 開始前開始 → t.LS = succ.LS
+              // t.LF = t.LS + t_duration - 1 = succ.LS + t_duration - 1
+              // succ.LS = succ.LF - succ_duration + 1（已知 succLF 時）
+              if (succLF && succ.type === 'task') {
+                const succLS = subtractWorkingDays(succLF, wdur(succ) - 1);
+                c = t.type === 'task' ? addWorkingDays(succLS, wdur(t) - 1) : succLS;
+              } else {
+                c = t.type === 'task'
+                  ? addWorkingDays(getS(succ), wdur(t) - 1)
+                  : getS(succ);
+              }
+              break;
+
+            case 'FF':
+              // t 必須在 succ 完成前完成 → t.LF = succ.LF
+              c = succLF || getE(succ);
+              break;
+
+            case 'SF':
+              // t 必須在 succ 完成前開始 → t.LS = succ.LF
+              // t.LF = t.LS + t_duration - 1 = succ.LF + t_duration - 1
+              const sfLF = succLF || getE(succ);
+              c = t.type === 'task' ? addWorkingDays(sfLF, wdur(t) - 1) : sfLF;
+              break;
+          }
+          if (c && (newLF === null || c < newLF)) newLF = c;
         });
         if (!newLF) newLF = t.type === 'task' ? projEnd : getS(t);
       }
+
       if (newLF && newLF !== LF[t.id]) { LF[t.id] = newLF; changed = true; }
     });
   }
 
+  // Float = LF - EF；Float = 0（EF >= LF）→ 關鍵任務
+  // 里程碑不加入最終結果，但影響其前置任務的 LF
   const critical = new Set();
-  nodes.forEach(t => { if (LF[t.id] && getE(t) >= LF[t.id]) critical.add(t.id); });
+  nodes.forEach(t => {
+    if (t.type === 'task' && LF[t.id] && getE(t) >= LF[t.id]) critical.add(t.id);
+  });
   return critical;
 }
 
-// 透過 milestone 往回追蹤，找到關鍵路徑上的 task 來源 id
+// 找到關鍵路徑上的 task 來源 id（里程碑為透明，自動往前追蹤）
 function getCriticalPredTaskIds(task) {
-  const result = [];
+  const result = new Set();
   function trace(depId) {
-    if (!criticalTaskIds.has(depId)) return;
     const dep = taskById(depId);
     if (!dep) return;
-    if (dep.type === 'task') { result.push(depId); return; }
-    if (dep.type === 'milestone') (dep.deps || []).forEach(trace);
+    if (dep.type === 'task') {
+      if (criticalTaskIds.has(depId)) result.add(depId);
+      return;
+    }
+    if (dep.type === 'milestone') {
+      // 里程碑：追蹤所有依賴類型
+      [...(dep.deps||[]), ...(dep.sdeps||[]), ...(dep.ffdeps||[]), ...(dep.sfdeps||[])].forEach(trace);
+    }
   }
-  (task.deps || []).forEach(trace);
-  return result;
+  // 追蹤所有四種依賴類型的前置任務
+  [...(task.deps||[]), ...(task.sdeps||[]), ...(task.ffdeps||[]), ...(task.sfdeps||[])].forEach(trace);
+  return [...result];
 }
 
 function toggleCriticalPath() {
@@ -2502,6 +2742,179 @@ function toggleCriticalPath() {
   if (showCriticalPath) criticalTaskIds = computeCriticalPath();
   else criticalTaskIds = new Set();
   render();
+}
+
+function exportPNG() {
+  const rows = getVisibleRows();
+  if (!rows.length) return;
+  const proj = curProj() || {};
+  const tw = totalW();
+  const PANEL = 420;
+  const HDR = 56;
+  const THDR = 24; // table header
+  const totalH = HDR + THDR + rows.length * ROW_H;
+  const totalWpx = PANEL + tw;
+
+  const c = document.createElement('canvas');
+  c.width = totalWpx;
+  c.height = totalH;
+  const ctx = c.getContext('2d');
+  ctx.textBaseline = 'middle';
+
+  // ─── 背景 ───
+  ctx.fillStyle = '#F0F1F5';
+  ctx.fillRect(0, 0, totalWpx, totalH);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, PANEL, totalH);
+  ctx.fillRect(PANEL, 0, tw, totalH);
+
+  // ─── 專案標題列 ───
+  ctx.fillStyle = '#1F2937';
+  ctx.font = 'bold 13px -apple-system,system-ui,sans-serif';
+  ctx.fillText(proj.name || 'GanttPro', 10, HDR / 2 - 6);
+  ctx.fillStyle = '#6B7280';
+  ctx.font = '11px -apple-system,system-ui,sans-serif';
+  ctx.fillText(`匯出日期：${TODAY_STR}　任務數：${rows.filter(r=>r.task.type==='task').length}　里程碑：${rows.filter(r=>r.task.type==='milestone').length}`, 10, HDR / 2 + 10);
+
+  // ─── 表頭列 ───
+  ctx.fillStyle = '#F9FAFB';
+  ctx.fillRect(0, HDR, totalWpx, THDR);
+  ctx.fillStyle = '#6B7280';
+  ctx.font = '600 10px -apple-system,system-ui,sans-serif';
+  [['#',8],['任務名稱',28],['開始日期',240],['結束日期',310],['工作日',380]].forEach(([t,x])=>{
+    ctx.fillText(t, x, HDR + THDR/2);
+  });
+  // Gantt header: month labels
+  let dm = new Date(CHART_START.getFullYear(), CHART_START.getMonth(), 1);
+  while (dm <= CHART_END) {
+    const mx = PANEL + dateToX(dm.toISOString().slice(0,10));
+    if (mx >= PANEL) {
+      ctx.fillStyle = '#374151';
+      ctx.font = '10px -apple-system,system-ui,sans-serif';
+      ctx.fillText(`${dm.getFullYear()} ${dm.getMonth()+1}月`, mx+3, HDR + THDR/2);
+    }
+    dm.setMonth(dm.getMonth()+1);
+  }
+
+  // ─── 垂直格線（月） ───
+  ctx.strokeStyle = '#E5E7EB'; ctx.lineWidth = 0.5;
+  let dg = new Date(CHART_START.getFullYear(), CHART_START.getMonth(), 1);
+  while (dg <= CHART_END) {
+    const gx = PANEL + dateToX(dg.toISOString().slice(0,10));
+    if (gx >= PANEL) {
+      ctx.beginPath(); ctx.moveTo(gx, HDR); ctx.lineTo(gx, totalH); ctx.stroke();
+    }
+    dg.setMonth(dg.getMonth()+1);
+  }
+
+  // ─── 今日線 ───
+  const todayX = PANEL + dateToX(TODAY_STR);
+  if (todayX >= PANEL && todayX <= totalWpx) {
+    ctx.strokeStyle = '#EF4444'; ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath(); ctx.moveTo(todayX, HDR); ctx.lineTo(todayX, totalH); ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#EF4444';
+    ctx.font = 'bold 9px sans-serif';
+    ctx.fillText('今日', todayX+2, HDR+6);
+  }
+
+  // ─── 任務列 ───
+  rows.forEach(({task, depth}, i) => {
+    const y = HDR + THDR + i * ROW_H;
+
+    // 列背景
+    ctx.fillStyle = task.type === 'group' ? '#F9FAFB' : (i%2===0 ? '#FFFFFF' : '#FAFAFA');
+    ctx.fillRect(0, y, PANEL, ROW_H);
+    ctx.fillStyle = i%2===0 ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,.012)';
+    ctx.fillRect(PANEL, y, tw, ROW_H);
+
+    // 列分隔線
+    ctx.strokeStyle = '#E5E7EB'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(0, y+ROW_H); ctx.lineTo(totalWpx, y+ROW_H); ctx.stroke();
+
+    // 列號
+    ctx.fillStyle = '#9CA3AF'; ctx.font = '10px sans-serif';
+    ctx.fillText(i+1, 8, y+ROW_H/2);
+
+    // 色點
+    const indent = depth * 10;
+    ctx.fillStyle = task.color || '#5E6AD2';
+    ctx.beginPath(); ctx.arc(22+indent, y+ROW_H/2, 4, 0, Math.PI*2); ctx.fill();
+
+    // 任務名稱
+    ctx.fillStyle = task.type === 'group' ? '#111827' : '#374151';
+    ctx.font = task.type === 'group' ? 'bold 12px sans-serif' : '12px sans-serif';
+    let name = task.name;
+    const maxNW = 200 - indent;
+    while (ctx.measureText(name).width > maxNW && name.length > 1) name = name.slice(0,-1);
+    if (name !== task.name) name += '…';
+    ctx.fillText(name, 32+indent, y+ROW_H/2);
+
+    // 日期欄
+    if (task.type === 'task' || task.type === 'milestone') {
+      ctx.fillStyle = '#6B7280'; ctx.font = '10.5px sans-serif';
+      const s = task.start || task.date || '';
+      const e = task.end   || task.date || '';
+      ctx.fillText(s.replace(/^\d{4}-/,'').replace('-','/'), 240, y+ROW_H/2);
+      ctx.fillText(e.replace(/^\d{4}-/,'').replace('-','/'), 310, y+ROW_H/2);
+      if (task.type === 'task') {
+        const wd = task.wday || (task.start && task.end ? countWorkingDays(task.start,task.end) : 1);
+        ctx.fillText(wd+'d', 385, y+ROW_H/2);
+      }
+    }
+
+    // ─── 甘特 Bar ───
+    if (task.type === 'task' && task.start && task.end) {
+      const bx = PANEL + dateToX(task.start);
+      const bw = Math.max(PANEL + dateToX((() => { const d = new Date(task.end); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); })()) - bx, 3);
+      const by = y + (ROW_H - 20) / 2;
+      ctx.globalAlpha = task.done ? 0.32 : 1;
+      ctx.fillStyle = task.color || '#5E6AD2';
+      ctx.beginPath(); ctx.roundRect(bx, by, bw, 20, 3); ctx.fill();
+      if (showCriticalPath && criticalTaskIds.has(task.id)) {
+        ctx.strokeStyle = '#EF4444'; ctx.lineWidth = 2;
+        ctx.globalAlpha = 1;
+        ctx.beginPath(); ctx.roundRect(bx, by, bw, 20, 3); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      if (bw > 50) {
+        ctx.fillStyle = '#fff'; ctx.font = '11px sans-serif';
+        let lbl = task.name; while (ctx.measureText(lbl).width > bw-12 && lbl.length>1) lbl=lbl.slice(0,-1);
+        ctx.fillText(lbl, bx+6, by+10);
+      }
+    } else if (task.type === 'milestone' && task.date) {
+      const mx = PANEL + dateToX(task.date) + PPD/2;
+      const my = y + ROW_H/2;
+      ctx.fillStyle = task.color || '#F59E0B';
+      ctx.save(); ctx.translate(mx,my); ctx.rotate(Math.PI/4);
+      ctx.fillRect(-7,-7,14,14); ctx.restore();
+    } else if (task.type === 'group') {
+      const b = groupBounds(task.id);
+      if (b.s && b.e) {
+        const bx = PANEL + dateToX(b.s);
+        const bw = Math.max(PANEL + dateToX(nextWorkingDay(b.e)) - bx, 6);
+        const by = y + (ROW_H-8)/2;
+        ctx.fillStyle = task.color || '#5E6AD2';
+        ctx.beginPath(); ctx.roundRect(bx, by, bw, 8, 4); ctx.fill();
+      }
+    }
+  });
+
+  // ─── 面板邊線 ───
+  ctx.strokeStyle = '#D1D5DB'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(PANEL, 0); ctx.lineTo(PANEL, totalH); ctx.stroke();
+  ctx.strokeStyle = '#E5E7EB'; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(0, HDR+THDR); ctx.lineTo(totalWpx, HDR+THDR); ctx.stroke();
+
+  // ─── 下載 ───
+  const filename = `gantt-${(proj.name||'export').replace(/\s+/g,'-')}-${TODAY_STR}.png`;
+  c.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.download = filename; a.href = url; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  }, 'image/png');
 }
 
 function onSettingBarDatesChange() {
@@ -2631,22 +3044,103 @@ function updateModalForType() {
   const isMs = document.getElementById('fType').value === 'milestone';
   document.getElementById('rowDates').style.display = isMs ? 'none' : '';
   document.getElementById('rowDone').style.display  = isMs ? 'none' : '';
+  document.getElementById('rowDeps').style.display  = isMs ? 'none' : '';
 }
 
-function openModal() {
+function setupDepsInputListener(excludeId) {
+  const inp = document.getElementById('fDeps');
+  const tip = document.getElementById('fDepsTip');
+  const list = document.getElementById('fDepsList');
+  if (!inp) return;
+
+  function updateTip() {
+    const val = inp.value;
+    if (!val.trim()) { tip.innerHTML = ''; return; }
+    const parsed = parseDepInput(val, excludeId);
+    tip.innerHTML = parsed.map(p => {
+      if (p.err) return `<span style="color:var(--red)">✕ ${p.raw}：${p.err}</span>`;
+      const dt = taskById(p.taskId);
+      return `<span style="color:#10B981">✓ ${p.rowNum}${p.type}・${dt ? dt.name : ''}</span>`;
+    }).join('&nbsp;&nbsp;');
+  }
+
+  inp.oninput = () => { updateTip(); renderDepsDropdown(excludeId); };
+  inp.onfocus = () => { renderDepsDropdown(excludeId); if (list) list.style.display = 'block'; };
+  inp.onblur  = () => { setTimeout(() => { if (list) list.style.display = 'none'; }, 150); };
+  updateTip();
+}
+
+function renderDepsDropdown(excludeId) {
+  const list = document.getElementById('fDepsList');
+  const inp  = document.getElementById('fDeps');
+  if (!list || !inp) return;
+
+  const parsed = parseDepInput(inp.value, excludeId);
+  const selMap = {};
+  parsed.filter(p => !p.err).forEach(p => { selMap[p.rowNum] = p.type; });
+
+  const rows = getVisibleRows().filter(({task}) =>
+    task.type !== 'group' && task.id !== excludeId
+  );
+
+  if (!rows.length) { list.innerHTML = '<div style="padding:10px;font-size:12px;color:var(--t4);text-align:center">無可選任務</div>'; return; }
+
+  list.innerHTML = rows.map(({task}, i) => {
+    const rowNum = i + 1;
+    const selType = selMap[rowNum] || '';
+    const isSel = !!selType;
+    const typeBtns = ['FS','SS','FF','SF'].map(t =>
+      `<button class="dep-type-btn${selType===t?' active':''}" onclick="addDepToInput(${rowNum},'${t}',${JSON.stringify(excludeId)})">${t}</button>`
+    ).join('');
+    return `<div class="dep-li${isSel?' dep-sel':''}">
+      <span class="dep-li-num">#${rowNum}</span>
+      <span class="dep-li-name" title="${task.name}">${task.name}</span>
+      <div class="dep-type-btns">${typeBtns}</div>
+    </div>`;
+  }).join('');
+}
+
+function addDepToInput(rowNum, type, excludeId) {
+  const inp = document.getElementById('fDeps');
+  if (!inp) return;
+  const parsed = parseDepInput(inp.value, excludeId);
+  const existing = parsed.filter(p => !p.err);
+  const same = existing.find(p => p.rowNum === rowNum);
+
+  let parts;
+  if (same && same.type === type) {
+    // 已選且同類型 → 取消
+    parts = existing.filter(p => p.rowNum !== rowNum).map(p => `${p.rowNum}${p.type}`);
+  } else {
+    // 新增或換類型
+    const others = existing.filter(p => p.rowNum !== rowNum).map(p => `${p.rowNum}${p.type}`);
+    others.push(`${rowNum}${type}`);
+    parts = others;
+  }
+
+  inp.value = parts.join(', ');
+  inp.dispatchEvent(new Event('input'));
+  inp.focus();
+}
+
+function openModal(unused, prefillDate) {
   if (isReadOnly) return;
   if (!curProj()) { openProjModal(); return; }
   editingTaskId = null;
   document.getElementById('modal-title').textContent = '＋ 新增任務';
   document.getElementById('modal-submit').textContent = '新增任務';
   document.getElementById('fName').value = '';
-  document.getElementById('fStart').value = TODAY_STR;
-  document.getElementById('fEnd').value = TODAY_STR;
+  const startDate = prefillDate || TODAY_STR;
+  document.getElementById('fStart').value = startDate;
+  document.getElementById('fEnd').value = startDate;
   document.getElementById('fWday').value = 1;
   document.getElementById('fType').value = 'task';
+  document.getElementById('fDeps').value = '';
+  document.getElementById('fDepsTip').textContent = '';
   populateModal();
   updateModalForType();
   document.getElementById('overlay').classList.add('open');
+  setupDepsInputListener(null);
   setTimeout(() => document.getElementById('fName').focus(), 50);
 }
 
@@ -2750,8 +3244,11 @@ function openEditModal(taskId) {
   document.getElementById('fWday').value = (task.start && task.end) ? countWorkingDays(task.start, task.end) : 1;
   populateModal(taskId, task.deps || [], task.parent, task.done || false);
   selectedSdeps = new Set(task.sdeps || []);
+  document.getElementById('fDeps').value = buildDepsText(task);
+  document.getElementById('fDepsTip').textContent = '';
   updateModalForType();
   document.getElementById('overlay').classList.add('open');
+  setupDepsInputListener(taskId);
   setTimeout(() => document.getElementById('fName').focus(), 50);
 }
 
@@ -2759,6 +3256,62 @@ function closeModal(e) {
   if (!e || e.target === document.getElementById('overlay')) {
     document.getElementById('overlay').classList.remove('open');
   }
+}
+
+let _deleteTargetId = null;
+
+function confirmDeleteTask(id) {
+  const task = taskById(id);
+  if (!task) return;
+  _deleteTargetId = id;
+
+  const descendants = getAllDescendants(id);
+  const msg = document.getElementById('deleteModalMsg');
+  if (task.type === 'group' && descendants.length > 0) {
+    msg.textContent = `此群組及其 ${descendants.length} 個子任務將一併刪除，此操作無法復原。`;
+  } else {
+    msg.textContent = '此操作無法復原。';
+  }
+
+  document.getElementById('deleteConfirmBtn').onclick = () => { executeDeleteTask(_deleteTargetId); };
+  document.getElementById('deleteOverlay').classList.add('open');
+}
+
+function closeDeleteModal(e) {
+  if (!e || e.target === document.getElementById('deleteOverlay')) {
+    document.getElementById('deleteOverlay').classList.remove('open');
+    _deleteTargetId = null;
+  }
+}
+
+function getAllDescendants(id) {
+  const result = [];
+  function collect(parentId) {
+    tasks.filter(t => t.parent === parentId).forEach(t => {
+      result.push(t.id);
+      collect(t.id);
+    });
+  }
+  collect(id);
+  return result;
+}
+
+function executeDeleteTask(id) {
+  document.getElementById('deleteOverlay').classList.remove('open');
+  _deleteTargetId = null;
+  pushHistory();
+  const toDelete = new Set([id, ...getAllDescendants(id)]);
+  // 清除其他任務對被刪除任務的依賴
+  tasks.forEach(t => {
+    if (t.deps)   t.deps   = t.deps.filter(d => !toDelete.has(d));
+    if (t.sdeps)  t.sdeps  = t.sdeps.filter(d => !toDelete.has(d));
+    if (t.ffdeps) t.ffdeps = t.ffdeps.filter(d => !toDelete.has(d));
+    if (t.sfdeps) t.sfdeps = t.sfdeps.filter(d => !toDelete.has(d));
+  });
+  tasks = tasks.filter(t => !toDelete.has(t.id));
+  render();
+  saveToLS();
+  if (currentUser) saveToCloud();
 }
 
 function submitTask() {
@@ -2771,8 +3324,15 @@ function submitTask() {
   const start = document.getElementById('fStart').value;
   const end = document.getElementById('fEnd').value;
   const done = document.getElementById('fDone').classList.contains('done');
-  const deps = [...selectedDeps];
-  const sdeps = [...selectedSdeps];
+
+  // 解析前置任務文字輸入
+  const depsRaw = document.getElementById('fDeps').value;
+  const parsedDeps = parseDepInput(depsRaw, editingTaskId);
+  const hasDepErr = parsedDeps.some(p => p.err);
+  const newDeps   = hasDepErr ? null : [...new Set(parsedDeps.filter(p=>p.type==='FS').map(p=>p.taskId))];
+  const newSdeps  = hasDepErr ? null : [...new Set(parsedDeps.filter(p=>p.type==='SS').map(p=>p.taskId))];
+  const newFfdeps = hasDepErr ? null : [...new Set(parsedDeps.filter(p=>p.type==='FF').map(p=>p.taskId))];
+  const newSfdeps = hasDepErr ? null : [...new Set(parsedDeps.filter(p=>p.type==='SF').map(p=>p.taskId))];
 
   pushHistory();
   if (editingTaskId !== null) {
@@ -2783,16 +3343,21 @@ function submitTask() {
       t.type = type;
       t.parent = parentId;
       t.color = parent ? parent.color : t.color;
-      t.deps = deps;
-      if (sdeps.length) t.sdeps = sdeps; else delete t.sdeps;
+      if (!hasDepErr) {
+        t.deps = newDeps; t.sdeps = newSdeps;
+        if (newFfdeps.length) t.ffdeps = newFfdeps; else delete t.ffdeps;
+        if (newSfdeps.length) t.sfdeps = newSfdeps; else delete t.sfdeps;
+      }
       if (type === 'task') { t.start = start; t.end = end; t.done = done; delete t.date; }
       else { t.date = start; delete t.start; delete t.end; }
     }
   } else {
     // Add new task
     const autoColor = type === 'group' ? getNextGroupColor() : (parent ? parent.color : '#5E6AD2');
-    const t = { id: nextId++, name, type, parent: parentId, color: autoColor, deps };
-    if (sdeps.length) t.sdeps = sdeps;
+    const t = { id: nextId++, name, type, parent: parentId, color: autoColor,
+                deps: newDeps||[], sdeps: newSdeps||[] };
+    if (newFfdeps?.length) t.ffdeps = newFfdeps;
+    if (newSfdeps?.length) t.sfdeps = newSfdeps;
     if (type === 'task') { t.start = start; t.end = end; t.done = done; }
     else { t.date = start; }
     tasks.push(t);
@@ -2806,6 +3371,17 @@ function submitTask() {
 }
 
 function isWeekend(d) { const w = new Date(d).getDay(); return w === 0 || w === 6; }
+
+function subtractWorkingDays(endStr, days) {
+  let d = new Date(endStr);
+  while (isWeekend(d)) d.setDate(d.getDate() - 1);
+  let count = 0;
+  while (count < days) {
+    d.setDate(d.getDate() - 1);
+    if (!isWeekend(d)) count++;
+  }
+  return d.toISOString().slice(0, 10);
+}
 
 function addWorkingDays(startStr, days) {
   let d = new Date(startStr);
@@ -2917,24 +3493,7 @@ function removeDepTag(id) {
   updateDepsTags();
 }
 
-function updateDepsTags() {
-  const box = document.getElementById('depsTags');
-  box.querySelectorAll('.deps-tag-item').forEach(el => el.remove());
-  const ph = document.getElementById('depsPlaceholder');
-  if (selectedDeps.size === 0) {
-    ph.style.display = '';
-  } else {
-    ph.style.display = 'none';
-    selectedDeps.forEach(id => {
-      const t = taskById(id);
-      if (!t) return;
-      const tag = document.createElement('span');
-      tag.className = 'deps-tag-item';
-      tag.innerHTML = `#${t.id}&nbsp;${t.name}<span class="deps-tag-x" onclick="removeDepTag(${id});event.stopPropagation()">✕</span>`;
-      box.insertBefore(tag, ph);
-    });
-  }
-}
+function updateDepsTags() { /* 已由 fDeps 文字輸入取代 */ }
 
 function renderDepsMenu() {
   const menu = document.getElementById('depsMenu');
@@ -2964,66 +3523,122 @@ function renderDepsMenu() {
   });
 }
 
-function openDepsEditor(task, cell) {
-  const inp = document.createElement('input');
-  inp.className = 'deps-input';
-  inp.placeholder = '如：2, 3（列號）';
-  // Display current deps as row numbers
-  inp.value = (task.deps || []).map(id => getRowNum(id)).filter(Boolean).join(', ');
-  cell.innerHTML = '';
-  cell.appendChild(inp);
-  inp.focus();
-  inp.select();
+function openDepsEditor(task, cell) { openAllDepsEditor(task, cell); }
 
-  let committed = false;
-  function commit() {
-    if (committed) return; committed = true;
-    // Parse as row numbers, convert to task IDs
-    const rowNums = inp.value.split(/[,\s]+/).map(s => parseInt(s)).filter(n => !isNaN(n));
-    const newDeps = rowNums
-      .map(n => getTaskByRowNum(n))
-      .filter(t => t && t.id !== task.id)
-      .map(t => t.id);
-    pushHistory();
-    task.deps = [...new Set(newDeps)];
-    scheduleTasks();
-    recalcProjEnd(); render();
-  }
-  inp.addEventListener('blur', commit);
-  inp.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { inp.blur(); }
-    if (e.key === 'Escape') { committed = true; render(); }
-  });
+function buildDepsText(task) {
+  const parts = [];
+  (task.deps   || []).forEach(id => { const n = getRowNum(id); if (n) parts.push(n + 'FS'); });
+  (task.sdeps  || []).forEach(id => { const n = getRowNum(id); if (n) parts.push(n + 'SS'); });
+  (task.ffdeps || []).forEach(id => { const n = getRowNum(id); if (n) parts.push(n + 'FF'); });
+  (task.sfdeps || []).forEach(id => { const n = getRowNum(id); if (n) parts.push(n + 'SF'); });
+  return parts.join(', ');
 }
 
-function openSsDepsEditor(task, cell) {
+function wouldCreateCycle(taskId, newDepId) {
+  // 從 newDepId 出發，沿依賴鏈找，若能到達 taskId 就是循環
+  const visited = new Set();
+  function dfs(id) {
+    if (id === taskId) return true;
+    if (visited.has(id)) return false;
+    visited.add(id);
+    const t = taskById(id);
+    if (!t) return false;
+    const all = [...(t.deps||[]), ...(t.sdeps||[]), ...(t.ffdeps||[]), ...(t.sfdeps||[])];
+    return all.some(dfs);
+  }
+  return dfs(newDepId);
+}
+
+function parseDepInput(val, taskId) {
+  if (!val.trim()) return [];
+  return val.split(',').map(s => {
+    s = s.trim();
+    if (!s) return null;
+    const m = s.toUpperCase().match(/^(\d+)\s*(FS|SS|FF|SF)?$/);
+    if (!m) return { raw: s, err: '格式錯誤（應為：2FS 或 3SS）' };
+    const rowNum = parseInt(m[1]);
+    const type = m[2] || 'FS';
+    const depTask = getTaskByRowNum(rowNum);
+    if (!depTask) return { raw: s, err: `找不到第 ${rowNum} 列任務` };
+    if (depTask.id === taskId) return { raw: s, err: '不能設定自己為前置任務' };
+    if (taskId != null && wouldCreateCycle(taskId, depTask.id))
+      return { raw: s, err: '循環依賴：對方已依賴此任務' };
+    return { rowNum, type, taskId: depTask.id, raw: s };
+  }).filter(Boolean);
+}
+
+function openAllDepsEditor(task, cell) {
+  const wrap = document.createElement('div');
+  wrap.className = 'deps-edit-wrap';
+
   const inp = document.createElement('input');
   inp.className = 'deps-input';
-  inp.placeholder = '如：2, 3（列號）';
-  inp.value = (task.sdeps || []).map(id => getRowNum(id)).filter(Boolean).join(', ');
+  inp.placeholder = '如：2FS, 3SS, 4FF';
+  inp.value = buildDepsText(task);
+  wrap.appendChild(inp);
+
   cell.innerHTML = '';
-  cell.appendChild(inp);
-  inp.focus();
-  inp.select();
+  cell.appendChild(wrap);
+
+  // Tooltip 掛在 body，避免被 overflow:hidden 裁切
+  const tip = document.createElement('div');
+  tip.className = 'deps-tip';
+  tip.style.display = 'none';
+  tip.style.position = 'fixed';
+  document.body.appendChild(tip);
+
+  function positionTip() {
+    const r = wrap.getBoundingClientRect();
+    tip.style.left = r.left + 'px';
+    tip.style.top  = (r.bottom + 6) + 'px';
+    tip.style.minWidth = Math.max(r.width, 200) + 'px';
+  }
+
+  function updateTip(v) {
+    if (!v.trim()) { tip.style.display = 'none'; return; }
+    const parsed = parseDepInput(v, task.id);
+    if (!parsed.length) { tip.style.display = 'none'; return; }
+    const rows = parsed.map(p => {
+      if (p.err) return `<div><span style="color:#A5B4FC;font-weight:600;display:inline-block;min-width:44px">${p.raw}</span> <span style="color:#FCA5A5">✕ ${p.err}</span></div>`;
+      const dt = taskById(p.taskId);
+      return `<div><span style="color:#A5B4FC;font-weight:600;display:inline-block;min-width:44px">${p.rowNum}${p.type}</span> <span style="color:#6EE7B7">✓ ${dt ? dt.name : ''} · ${p.type}</span></div>`;
+    });
+    rows.push('<div style="margin-top:4px;color:#9CA3AF;font-size:10px">Enter 確認 &nbsp; Esc 取消</div>');
+    tip.innerHTML = rows.join('');
+    positionTip();
+    tip.style.display = 'block';
+  }
+
+  inp.addEventListener('input', () => updateTip(inp.value));
+  updateTip(inp.value);
 
   let committed = false;
   function commit() {
     if (committed) return; committed = true;
-    const rowNums = inp.value.split(/[,\s]+/).map(s => parseInt(s)).filter(n => !isNaN(n));
-    const newSdeps = rowNums
-      .map(n => getTaskByRowNum(n))
-      .filter(t => t && t.id !== task.id)
-      .map(t => t.id);
-    pushHistory();
-    task.sdeps = [...new Set(newSdeps)];
-    scheduleTasks();
-    recalcProjEnd(); render();
+    const parsed = parseDepInput(inp.value, task.id);
+    const hasErr = parsed.some(p => p.err);
+    if (!hasErr) {
+      pushHistory();
+      task.deps   = [...new Set(parsed.filter(p => p.type === 'FS').map(p => p.taskId))];
+      task.sdeps  = [...new Set(parsed.filter(p => p.type === 'SS').map(p => p.taskId))];
+      task.ffdeps = [...new Set(parsed.filter(p => p.type === 'FF').map(p => p.taskId))];
+      task.sfdeps = [...new Set(parsed.filter(p => p.type === 'SF').map(p => p.taskId))];
+      scheduleTasks();
+      recalcProjEnd();
+    }
+    tip.remove();
+    render();
+    saveToLS();
+    if (currentUser) saveToCloud();
   }
+
   inp.addEventListener('blur', commit);
   inp.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { inp.blur(); }
-    if (e.key === 'Escape') { committed = true; render(); }
+    if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+    if (e.key === 'Escape') { committed = true; tip.remove(); render(); }
   });
+
+  setTimeout(() => { inp.focus(); inp.select(); }, 30);
 }
 
 function allGroupMembersScheduled(groupId, scheduled) {
@@ -3060,6 +3675,14 @@ function scheduleTasks() {
       const sdeps = (task.sdeps || []).map(id => taskById(id)).filter(Boolean);
       const unresolvedSs = sdeps.filter(d => !scheduled.has(d.id));
       if (unresolvedSs.length) return;
+      // FF deps: must be scheduled first
+      const ffdeps = (task.ffdeps || []).map(id => taskById(id)).filter(Boolean);
+      const unresolvedFf = ffdeps.filter(d => !scheduled.has(d.id));
+      if (unresolvedFf.length) return;
+      // SF deps: must be scheduled first
+      const sfdeps = (task.sfdeps || []).map(id => taskById(id)).filter(Boolean);
+      const unresolvedSf = sfdeps.filter(d => !scheduled.has(d.id));
+      if (unresolvedSf.length) return;
 
       // Latest end among FS deps → task must start after this
       let latestFsEnd = null;
@@ -3075,10 +3698,32 @@ function scheduleTasks() {
         const s = dep.type === 'task' ? dep.start : dep.type === 'milestone' ? dep.date : null;
         if (s && (!latestSsStart || s > latestSsStart)) latestSsStart = s;
       });
+      // Latest end among FF deps → backward-schedule task start so end >= dep end
+      let latestFfEnd = null;
+      ffdeps.forEach(dep => {
+        const e = dep.type === 'task' ? dep.end : dep.type === 'milestone' ? dep.date : null;
+        if (e && (!latestFfEnd || e > latestFfEnd)) latestFfEnd = e;
+      });
+      // Latest start among SF deps → backward-schedule task start so end >= dep start
+      let latestSfStart = null;
+      sfdeps.forEach(dep => {
+        const s = dep.type === 'task' ? dep.start : dep.type === 'milestone' ? dep.date : null;
+        if (s && (!latestSfStart || s > latestSfStart)) latestSfStart = s;
+      });
 
       if (task.type === 'task') {
         let rawStart = latestFsEnd ? nextWorkingDay(latestFsEnd) : projStart;
         if (latestSsStart && latestSsStart > rawStart) rawStart = latestSsStart;
+        // FF: task.end must >= latestFfEnd → push start so end lands on latestFfEnd
+        if (latestFfEnd) {
+          const ffStart = subtractWorkingDays(latestFfEnd, (task.wday || 1) - 1);
+          if (ffStart > rawStart) rawStart = ffStart;
+        }
+        // SF: task.end must >= latestSfStart → same logic
+        if (latestSfStart) {
+          const sfStart = subtractWorkingDays(latestSfStart, (task.wday || 1) - 1);
+          if (sfStart > rawStart) rawStart = sfStart;
+        }
         let s = new Date(rawStart);
         while (isWeekend(s)) s.setDate(s.getDate() + 1);
         task.start = s.toISOString().slice(0, 10);
@@ -3554,10 +4199,10 @@ function setupSync() {
 /* ═══════════════════════════════════════════
    COLUMN RESIZER
 ═══════════════════════════════════════════ */
-const COL_WIDTHS = [28, null, 86, 86, 52, 100, 80, 36, 68]; // null = 1fr
+const COL_WIDTHS = [28, null, 86, 86, 52, 130, 36, 68]; // null = 1fr
 
 function applyColGrid() {
-  const tpl = COL_WIDTHS.map(w => w === null ? '1fr' : w + 'px').join(' ');
+  const tpl = COL_WIDTHS.map(w => w === null ? 'minmax(320px,400px)' : w + 'px').join(' ');
   document.documentElement.style.setProperty('--cg', tpl);
 }
 
@@ -4026,13 +4671,13 @@ function renderVersionList() {
 ═══════════════════════════════════════════ */
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); return; }
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.key !== 'Escape' && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
   if (e.key === 't' || e.key === 'T') scrollToToday();
   if (e.key === 'd') setView('day');
   if (e.key === 'w') setView('week');
   if (e.key === 'm') setView('month');
   if (e.key === 'n') openModal();
-  if (e.key === 'Escape') { closeModal(); closeProjModal(); closeProjMenuOnly(); }
+  if (e.key === 'Escape') { closeModal(); closeProjModal(); closeProjMenuOnly(); closeDeleteModal(); }
 });
 
 /* ═══════════════════════════════════════════
@@ -4066,6 +4711,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 let _myUpdate = false;
 let currentUser = null;
+let _guestMode = false;
 let _appInitialized = false;
 
 function setSyncDot(state) {
@@ -4317,6 +4963,11 @@ async function signInWithGoogle() {
   }
 }
 
+async function signInAsGuest() {
+  _guestMode = true;
+  await initApp();
+}
+
 async function checkAuthorized() {
   if (!currentUser) return false;
   const snap = await db.collection('gantt_allowed_users').doc(currentUser.email).get();
@@ -4354,8 +5005,9 @@ async function submitRegister() {
 }
 
 async function signOut() {
-  await auth.signOut();
+  if (!_guestMode) await auth.signOut();
   currentUser = null;
+  _guestMode = false;
   _appInitialized = false;
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('loginPanel').style.display = 'flex';
@@ -4412,10 +5064,15 @@ async function initApp() {
     recalcProjEnd();
   }
   render();
-  setSyncDot(cloudOk ? 'ok' : 'err');
+  setSyncDot(cloudOk ? 'ok' : (_guestMode ? 'off' : 'err'));
   setTimeout(scrollToToday, 120);
   const adminBtn = document.getElementById('adminBtn');
   if (adminBtn) adminBtn.style.display = isAdmin() ? '' : 'none';
+  if (_guestMode) {
+    const el = document.getElementById('userDisplay');
+    if (el) el.innerHTML = `<div title="訪客模式（本地）" style="width:26px;height:26px;border-radius:50%;background:var(--t4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700">訪</div>`;
+    document.getElementById('signOutBtn').style.display = '';
+  }
 }
 
 /* ═══════════════════════════════════════════
