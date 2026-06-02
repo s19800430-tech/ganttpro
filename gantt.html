@@ -4162,7 +4162,7 @@ function submitProject() {
   };
   projects.push(newProj);
   document.getElementById('projOverlay').classList.remove('open');
-  curProj().nextId = nextId;
+  if (curProj()) curProj().nextId = nextId; // 儲存舊專案的 nextId（無舊專案時跳過）
   currentProjId = newProj.id;
   tasks  = curProj().tasks;
   nextId = curProj().nextId;
