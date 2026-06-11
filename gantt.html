@@ -264,7 +264,7 @@ body.dark .btn-group .btn.active{background:rgba(94,106,210,.2)}
 body.dark .ms-badge{background:#3d2c00;color:#fbbf24;border-color:#593f00}
 
 /* ── DATE / WDAY CELLS ── */
-.date-cell.pinned{color:var(--accent)}
+.pin-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--accent);opacity:.65;margin-right:5px;vertical-align:1px}
 .date-cell{
   display:flex;align-items:center;
   font-size:12px;color:var(--t2);
@@ -425,7 +425,9 @@ body.dark .ms-badge{background:#3d2c00;color:#fbbf24;border-color:#593f00}
   font-size:11px;font-weight:700;color:var(--t2);
   text-transform:uppercase;letter-spacing:.5px;
   border-right:1px solid var(--border2);
+  overflow:hidden;
 }
+.month-label-in{position:sticky;left:8px;white-space:nowrap}
 .week-cell{
   position:absolute;height:100%;
   display:flex;align-items:center;padding:0 6px;
@@ -481,7 +483,7 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
 }
 .gantt-bar:hover{filter:brightness(1.08);transform:scaleY(1.06)}
 .gantt-bar.cp-critical{box-shadow:0 0 0 2.5px #EF4444;z-index:3}
-.gantt-bar.overdue{box-shadow:0 0 0 2px #EF4444,inset 0 0 0 1px rgba(239,68,68,.2);}
+.gantt-bar.overdue{box-shadow:inset 3px 0 0 0 var(--red)}
 .dep-pred .gantt-bar,.dep-pred .group-bar{box-shadow:0 0 0 2.5px #F59E0B!important;z-index:4}
 .dep-succ .gantt-bar,.dep-succ .group-bar{box-shadow:0 0 0 2.5px #3B82F6!important;z-index:4}
 .dep-pred .task-row,.dep-pred.task-row{background:rgba(245,158,11,.07)!important}
@@ -562,6 +564,9 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
 /* ── MILESTONE TIMELINE VIEW ── */
 /* milestone timeline header row */
 body.ms-view .chart-head{height:auto}
+body.ms-view .chart-scroll{background:var(--surface)}
+.panel-empty{display:flex;flex-direction:column;align-items:center;gap:12px;padding:56px 0}
+.panel-empty-txt{font-size:12.5px;color:var(--t3)}
 .ms-timeline-row{
   position:relative;width:100%;height:160px;
   border-bottom:2px solid var(--border);
@@ -991,7 +996,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
         <span style="font-size:11px;color:var(--t4)">或</span>
         <hr style="flex:1;border:none;border-top:1px solid var(--border)">
       </div>
-      <button onclick="signInAsGuest()" style="width:100%;padding:10px 0;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--t3);font-size:13px;font-family:inherit;cursor:pointer;transition:background .15s" onmouseover="this.style.background='var(--s-hover)'" onmouseout="this.style.background='transparent'">
+      <button onclick="signInAsGuest()" style="width:100%;padding:10px 0;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--t2);font-size:13px;font-family:inherit;cursor:pointer;transition:background .15s" onmouseover="this.style.background='var(--s-hover)'" onmouseout="this.style.background='transparent'">
         本地模式（不同步雲端）
       </button>
     </div>
@@ -1044,7 +1049,13 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   <button class="btn zoom-btn" onclick="zoomIn()" title="放大">＋</button>
   <button class="btn fit-btn" onclick="fitToFrame()" title="縮放至適合視窗"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4.5V1h3.5M8.5 1H12v3.5M12 8.5V12H8.5M4.5 12H1V8.5"/></svg></button>
   <button class="btn" id="cpBtn" onclick="toggleCriticalPath()" title="顯示關鍵路徑">◆ 關鍵路徑</button>
-  <button class="btn" onclick="exportPNG()" title="匯出為 PNG 圖片">⬇ PNG</button>
+  <div class="settings-wrap" id="exportWrap">
+    <button class="btn" onclick="toggleExportMenu()" title="匯出圖檔">⬇ 匯出</button>
+    <div class="settings-panel" id="exportPanel">
+      <button class="settings-action" onclick="exportPNG();closeExportMenu()">🖼 匯出 PNG</button>
+      <button class="settings-action" onclick="exportPDF();closeExportMenu()">📄 匯出 PDF</button>
+    </div>
+  </div>
   <div class="readonly-badge">👁 唯讀模式</div>
   <button class="btn btn-owner-only" id="collabBtn" onclick="openCollabModal()" title="協作管理">👥 協作</button>
   <button class="btn" id="darkBtn" onclick="toggleDark()" title="深色模式">🌙</button>
@@ -1057,7 +1068,6 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
       </label>
       <div class="settings-sep"></div>
       <button class="settings-action btn-owner-only" id="settingVersionBtn" onclick="openVersionPanel();closeSettings()">🕐 版本紀錄</button>
-      <button class="settings-action" onclick="exportPDF();closeSettings()">⬇ 匯出 PDF</button>
     </div>
   </div>
   <button class="btn" id="adminBtn" onclick="openAdminPanel()" title="管理員面板" style="display:none">👑 Admin</button>
@@ -1217,13 +1227,19 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
       <label class="form-lbl">任務名稱</label>
       <input class="form-ctrl" id="fName" placeholder="輸入任務名稱...">
     </div>
-    <select style="display:none" id="fParent"></select>
-    <div class="form-row">
-      <label class="form-lbl">類型</label>
-      <select class="form-ctrl" id="fType" onchange="updateModalForType()">
-        <option value="task">一般任務</option>
-        <option value="milestone">里程碑</option>
-      </select>
+    <div class="form-row-2" style="grid-template-columns:1fr 1fr">
+      <div>
+        <label class="form-lbl">類型</label>
+        <select class="form-ctrl" id="fType" onchange="updateModalForType()">
+          <option value="task">一般任務</option>
+          <option value="milestone">里程碑</option>
+          <option value="group">群組</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-lbl">父群組</label>
+        <select class="form-ctrl" id="fParent"></select>
+      </div>
     </div>
     <div class="form-row-2" id="rowDates" style="grid-template-columns:1fr 1fr 80px">
       <div>
@@ -1653,6 +1669,24 @@ function renderTaskPanel() {
   body.innerHTML = '';
   document.getElementById('taskCount').textContent = tasks.filter(t => t.type === 'task').length;
 
+  // 空狀態：給予明確的下一步引導
+  if (!rows.length) {
+    const empty = document.createElement('div');
+    empty.className = 'panel-empty';
+    const txt = document.createElement('div');
+    txt.className = 'panel-empty-txt';
+    txt.textContent = curProj() ? '這個專案還沒有任務' : '還沒有專案';
+    empty.appendChild(txt);
+    if (!isReadOnly && !milestoneView) {
+      const cta = document.createElement('button');
+      cta.className = 'btn btn-primary';
+      cta.textContent = curProj() ? '＋ 新增任務' : '＋ 建立第一個專案';
+      cta.onclick = () => curProj() ? openModal() : openProjModal();
+      empty.appendChild(cta);
+    }
+    body.appendChild(empty);
+  }
+
   rows.forEach(({ task, depth }, rowIndex) => {
     const row = document.createElement('div');
     row.className = 'task-row' + (task.type === 'group' ? ' group-row' : '');
@@ -1756,7 +1790,13 @@ function renderTaskPanel() {
       sc.textContent = gb.s || '';
       if (gb.s) sc.style.color = 'var(--t3)';
     } else {
-      sc.textContent = task.start || task.date || '';
+      const sv = task.start || task.date || '';
+      if (task.pinStart && sv) {
+        sc.innerHTML = '<span class="pin-dot"></span>' + sv;
+        sc.title = '固定日期，不隨排程自動移動';
+      } else {
+        sc.textContent = sv;
+      }
     }
     if (task.type === 'task') {
       const hasDeps = (task.deps||[]).length || (task.sdeps||[]).length || (task.ffdeps||[]).length || (task.sfdeps||[]).length;
@@ -1834,7 +1874,17 @@ function renderTaskPanel() {
       };
       cc.appendChild(cb);
     } else if (task.type === 'milestone') {
-      cc.innerHTML = `<span style="font-size:13px;color:${task.color}">◆</span>`;
+      const mb = document.createElement('span');
+      mb.textContent = '◆';
+      mb.style.cssText = `font-size:13px;color:${task.color};cursor:pointer;opacity:${task.done ? 0.3 : 1};transition:opacity .12s`;
+      mb.title = task.done ? '點擊標記為未完成' : '點擊標記為完成';
+      mb.onclick = e => {
+        e.stopPropagation();
+        pushHistory();
+        task.done = !task.done;
+        render();
+      };
+      cc.appendChild(mb);
     }
     row.appendChild(cc);
 
@@ -1940,7 +1990,7 @@ function renderChartHeader() {
     el.className = 'month-label';
     el.style.cssText = `left:${x1}px;width:${x2 - x1}px`;
     const mn = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-    el.textContent = `${cur.getFullYear()} ${mn[cur.getMonth()]}`;
+    el.innerHTML = `<span class="month-label-in">${cur.getFullYear()} ${mn[cur.getMonth()]}</span>`;
     mRow.appendChild(el);
     cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
   }
@@ -2556,7 +2606,8 @@ function showTT(e, task) {
     h += `<div class="tt-r"><span>開始</span><span>${task.start}</span></div>`;
     h += `<div class="tt-r"><span>結束</span><span>${task.end}</span></div>`;
     h += `<div class="tt-r"><span>工作天</span><span>${wdays} 天</span></div>`;
-    h += `<div class="tt-r"><span>狀態</span><span style="color:${task.done?'#10B981':'#9CA3AF'}">${task.done ? '✓ 已完成' : '⏳ 待完成'}</span></div>`;
+    const _ovd = !task.done && task.end && task.end < TODAY_STR;
+    h += `<div class="tt-r"><span>狀態</span><span style="color:${task.done?'#10B981':_ovd?'#EF4444':'#9CA3AF'}">${task.done ? '✓ 已完成' : _ovd ? '⚠ 已逾期' : '⏳ 待完成'}</span></div>`;
     if ((task.deps||[]).length)   h += `<div class="tt-r"><span>FS前置</span><span>${task.deps.length} 項</span></div>`;
     if ((task.sdeps||[]).length)  h += `<div class="tt-r"><span>SS前置</span><span style="color:#F59E0B">${task.sdeps.length} 項</span></div>`;
     if ((task.ffdeps||[]).length) h += `<div class="tt-r"><span>FF前置</span><span style="color:#10B981">${task.ffdeps.length} 項</span></div>`;
@@ -2985,6 +3036,17 @@ function toggleSettings() {
   panel.classList.toggle('open');
 }
 
+function toggleExportMenu() {
+  document.getElementById('exportPanel').classList.toggle('open');
+}
+function closeExportMenu() {
+  document.getElementById('exportPanel').classList.remove('open');
+}
+document.addEventListener('click', e => {
+  const w = document.getElementById('exportWrap');
+  if (w && !w.contains(e.target)) closeExportMenu();
+});
+
 function closeSettings() {
   document.getElementById('settingsPanel').classList.remove('open');
 }
@@ -3056,10 +3118,15 @@ function toggleDark() {
    MODAL
 ═══════════════════════════════════════════ */
 function populateModal(excludeId = null, checkedDeps = [], presetParent = null, isDone = false) {
-  // Parent groups
+  // Parent groups（含「無」選項；編輯時排除自己與後代避免循環）
   const sel = document.getElementById('fParent');
   sel.innerHTML = '';
-  tasks.filter(t => t.type === 'group').forEach(t => {
+  const noneOpt = document.createElement('option');
+  noneOpt.value = '';
+  noneOpt.textContent = '— 無（最上層）—';
+  sel.appendChild(noneOpt);
+  const excludeSet = excludeId !== null ? new Set([excludeId, ...getAllDescendants(excludeId)]) : new Set();
+  tasks.filter(t => t.type === 'group' && !excludeSet.has(t.id)).forEach(t => {
     const o = document.createElement('option');
     o.value = t.id;
     o.textContent = t.name;
@@ -3099,10 +3166,14 @@ function syncEndFromWday() {
 })();
 
 function updateModalForType() {
-  const isMs = document.getElementById('fType').value === 'milestone';
-  document.getElementById('rowDates').style.display = isMs ? 'none' : '';
-  document.getElementById('rowDone').style.display  = isMs ? 'none' : '';
-  document.getElementById('rowDeps').style.display  = isMs ? 'none' : '';
+  const t = document.getElementById('fType').value;
+  const isMs = t === 'milestone', isGrp = t === 'group';
+  document.getElementById('rowDates').style.display = isGrp ? 'none' : '';
+  document.getElementById('colEnd').style.display   = isMs ? 'none' : '';
+  document.getElementById('colWday').style.display  = isMs ? 'none' : '';
+  document.getElementById('lblStart').textContent   = isMs ? '日期' : '開始日期';
+  document.getElementById('rowDone').style.display  = (isMs || isGrp) ? 'none' : 'flex';
+  document.getElementById('rowDeps').style.display  = isGrp ? 'none' : '';
 }
 
 function setupDepsInputListener(excludeId) {
@@ -3412,7 +3483,8 @@ function submitTask() {
         if (newSfdeps.length) t.sfdeps = newSfdeps; else delete t.sfdeps;
       }
       if (type === 'task') { t.start = start; t.end = end; t.done = done; t.pinStart = true; delete t.date; }
-      else { t.date = start; t.pinStart = true; delete t.start; delete t.end; }
+      else if (type === 'milestone') { t.date = start; t.pinStart = true; delete t.start; delete t.end; }
+      else { delete t.date; delete t.start; delete t.end; delete t.pinStart; }
     }
   } else {
     // Add new task
@@ -3422,7 +3494,7 @@ function submitTask() {
     if (newFfdeps?.length) t.ffdeps = newFfdeps;
     if (newSfdeps?.length) t.sfdeps = newSfdeps;
     if (type === 'task') { t.start = start; t.end = end; t.done = done; t.pinStart = true; }
-    else { t.date = start; t.pinStart = true; }
+    else if (type === 'milestone') { t.date = start; t.pinStart = true; }
     tasks.push(t);
     curProj().nextId = nextId;
   }
@@ -4939,7 +5011,7 @@ function setSyncDot(state) {
   const dot = document.getElementById('syncDot');
   if (!dot) return;
   dot.className = 'sync-dot' + (state ? ' ' + state : '');
-  dot.title = { saving:'儲存中...', ok:'已同步', err:'同步失敗', off:'唯讀模式' }[state] || '雲端同步';
+  dot.title = { saving:'儲存中...', ok:'已同步', err:'同步失敗', off:'唯讀模式', local:'本地模式（不同步雲端）' }[state] || '雲端同步';
 }
 
 async function saveToCloud() {
@@ -5190,6 +5262,7 @@ async function signInWithGoogle() {
 async function signInAsGuest() {
   _guestMode = true;
   await initApp();
+  setSyncDot('local');
 }
 
 async function checkAuthorized() {
