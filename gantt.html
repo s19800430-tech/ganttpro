@@ -2764,7 +2764,9 @@ function exportPNG() {
   const PANEL = 420;
   const HDR = 56;
   const THDR = 24; // table header
-  const totalH = HDR + THDR + rows.length * ROW_H;
+  const msMode = milestoneView;
+  const bodyH = msMode ? Math.max(rows.length * ROW_H, MS_ROW_H) : rows.length * ROW_H;
+  const totalH = HDR + THDR + bodyH;
   const totalWpx = PANEL + tw;
 
   const c = document.createElement('canvas');
@@ -2835,15 +2837,17 @@ function exportPNG() {
   rows.forEach(({task, depth}, i) => {
     const y = HDR + THDR + i * ROW_H;
 
-    // 列背景
+    // 列背景（里程碑模式：右側為單一時間軸，不畫列底紋）
     ctx.fillStyle = task.type === 'group' ? '#F9FAFB' : (i%2===0 ? '#FFFFFF' : '#FAFAFA');
     ctx.fillRect(0, y, PANEL, ROW_H);
-    ctx.fillStyle = i%2===0 ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,.012)';
-    ctx.fillRect(PANEL, y, tw, ROW_H);
+    if (!msMode) {
+      ctx.fillStyle = i%2===0 ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,.012)';
+      ctx.fillRect(PANEL, y, tw, ROW_H);
+    }
 
     // 列分隔線
     ctx.strokeStyle = '#E5E7EB'; ctx.lineWidth = 0.5;
-    ctx.beginPath(); ctx.moveTo(0, y+ROW_H); ctx.lineTo(totalWpx, y+ROW_H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, y+ROW_H); ctx.lineTo(msMode ? PANEL : totalWpx, y+ROW_H); ctx.stroke();
 
     // 列號
     ctx.fillStyle = '#9CA3AF'; ctx.font = '10px sans-serif';
@@ -2895,7 +2899,7 @@ function exportPNG() {
         let lbl = task.name; while (ctx.measureText(lbl).width > bw-12 && lbl.length>1) lbl=lbl.slice(0,-1);
         ctx.fillText(lbl, bx+6, by+10);
       }
-    } else if (task.type === 'milestone' && task.date) {
+    } else if (task.type === 'milestone' && task.date && !msMode) {
       const mx = PANEL + dateToX(task.date) + PPD/2;
       const my = y + ROW_H/2;
       ctx.fillStyle = task.color || '#F59E0B';
@@ -2917,6 +2921,43 @@ function exportPNG() {
       }
     }
   });
+
+  // ─── 里程碑模式：單一時間軸（同 Web 版 renderMilestoneTimeline）───
+  if (msMode) {
+    const cy = HDR + THDR + bodyH / 2;
+    const halfD = 8, connH = 28;
+    // Spine
+    ctx.strokeStyle = '#5E6AD2'; ctx.lineWidth = 2; ctx.globalAlpha = 0.35;
+    ctx.beginPath(); ctx.moveTo(PANEL, cy); ctx.lineTo(PANEL + tw, cy); ctx.stroke();
+    ctx.globalAlpha = 1;
+    const msList = rows.map(r => r.task).filter(t => t.type === 'milestone' && t.date);
+    msList.forEach((m, idx) => {
+      const x = PANEL + dateToX(m.date) + PPD / 2;
+      const above = idx % 2 === 0;
+      const col = m.color || '#5E6AD2';
+      // Connector
+      ctx.strokeStyle = '#C7CAD1'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x, above ? cy - halfD - connH : cy + halfD);
+      ctx.lineTo(x, above ? cy - halfD : cy + halfD + connH);
+      ctx.stroke();
+      // Diamond
+      ctx.fillStyle = col;
+      ctx.save(); ctx.translate(x, cy); ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-halfD + 1, -halfD + 1, (halfD - 1) * 2, (halfD - 1) * 2);
+      ctx.restore();
+      // Name + date（置中、交錯上下）
+      ctx.textAlign = 'center';
+      const lbl = m.name.length > 16 ? m.name.slice(0, 16) + '…' : m.name;
+      const nameY = above ? cy - halfD - connH - 8 : cy + halfD + connH + 10;
+      ctx.fillStyle = col; ctx.font = '600 11px -apple-system,system-ui,sans-serif';
+      ctx.fillText(lbl, x, nameY);
+      const dateY = above ? nameY - 13 : nameY + 13;
+      ctx.fillStyle = '#9CA3AF'; ctx.font = '10px sans-serif';
+      ctx.fillText(m.date, x, dateY);
+      ctx.textAlign = 'left';
+    });
+  }
 
   // ─── 面板邊線 ───
   ctx.strokeStyle = '#D1D5DB'; ctx.lineWidth = 1;
