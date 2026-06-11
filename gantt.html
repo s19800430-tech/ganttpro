@@ -1617,11 +1617,7 @@ function getVisibleRows() {
       }
     });
   }
-  const root = tasks.find(t => t.parent === null);
-  if (root) {
-    rows.push({ task: root, depth: 0 });
-    if (!collapsed.has(root.id)) addChildren(root.id, 1);
-  }
+  addChildren(null, 0);
   return rows;
 }
 
@@ -3177,15 +3173,18 @@ function openNameEditor(task, cell, isNew = false) {
   function commit() {
     if (committed) return; committed = true;
     const name = inp.value.trim();
-    if (!name) { task.name = '新任務'; }
     if (!isNew) pushHistory();
-    task.name = name;
+    task.name = name || '新任務';
     recalcProjEnd(); render();
   }
   inp.addEventListener('blur', commit);
   inp.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
-    if (e.key === 'Escape') { committed = true; tasks = tasks.filter(t => t.id !== task.id); render(); }
+    if (e.key === 'Escape') {
+      committed = true;
+      if (isNew) { tasks = tasks.filter(t => t.id !== task.id); curProj().tasks = tasks; }
+      render();
+    }
   });
 }
 
@@ -3327,6 +3326,7 @@ function executeDeleteTask(id) {
     if (t.sfdeps) t.sfdeps = t.sfdeps.filter(d => !toDelete.has(d));
   });
   tasks = tasks.filter(t => !toDelete.has(t.id));
+  curProj().tasks = tasks;
   render();
   saveToLS();
   if (currentUser) saveToCloud();
@@ -3336,7 +3336,8 @@ function submitTask() {
   const name = document.getElementById('fName').value.trim();
   if (!name) { document.getElementById('fName').focus(); return; }
 
-  const parentId = parseInt(document.getElementById('fParent').value);
+  const parentRaw = parseInt(document.getElementById('fParent').value);
+  const parentId = Number.isNaN(parentRaw) ? null : parentRaw;
   const parent = taskById(parentId);
   const type = document.getElementById('fType').value;
   const start = document.getElementById('fStart').value;
@@ -3366,8 +3367,8 @@ function submitTask() {
         if (newFfdeps.length) t.ffdeps = newFfdeps; else delete t.ffdeps;
         if (newSfdeps.length) t.sfdeps = newSfdeps; else delete t.sfdeps;
       }
-      if (type === 'task') { t.start = start; t.end = end; t.done = done; delete t.date; }
-      else { t.date = start; delete t.start; delete t.end; }
+      if (type === 'task') { t.start = start; t.end = end; t.done = done; t.pinStart = true; delete t.date; }
+      else { t.date = start; t.pinStart = true; delete t.start; delete t.end; }
     }
   } else {
     // Add new task
@@ -3376,14 +3377,15 @@ function submitTask() {
                 deps: newDeps||[], sdeps: newSdeps||[] };
     if (newFfdeps?.length) t.ffdeps = newFfdeps;
     if (newSfdeps?.length) t.sfdeps = newSfdeps;
-    if (type === 'task') { t.start = start; t.end = end; t.done = done; }
-    else { t.date = start; }
+    if (type === 'task') { t.start = start; t.end = end; t.done = done; t.pinStart = true; }
+    else { t.date = start; t.pinStart = true; }
     tasks.push(t);
     curProj().nextId = nextId;
   }
 
   editingTaskId = null;
   document.getElementById('overlay').classList.remove('open');
+  scheduleTasks();
   recalcProjEnd();
   render();
 }
@@ -3809,7 +3811,7 @@ function scheduleTasks() {
           let d = new Date(best);
           while (isWeekend(d)) d.setDate(d.getDate() + 1);
           task.date = d.toISOString().slice(0, 10);
-        } else {
+        } else if (!(task.pinStart && task.date)) {
           let d = new Date(projStart);
           while (isWeekend(d)) d.setDate(d.getDate() + 1);
           task.date = d.toISOString().slice(0, 10);
@@ -3905,6 +3907,7 @@ function outdentTask(id) {
 
   // Remove subtree from main array
   tasks = tasks.filter(t => !subtreeIds.has(t.id));
+  curProj().tasks = tasks;
 
   // Find insertion point: after last descendant of parent in remaining tasks
   function isDescOf(checkId, ancestorId) {
