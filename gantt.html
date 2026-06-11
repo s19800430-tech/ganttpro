@@ -500,6 +500,8 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
 .bar-prog{position:absolute;top:0;left:0;bottom:0;z-index:1;opacity:.85;border-radius:3px 0 0 3px;pointer-events:none}
 .baseline-bar{position:absolute;height:4px;border-radius:2px;background:var(--t4);opacity:.55;z-index:0;pointer-events:none}
 .wl-cell{position:absolute;top:6px;bottom:6px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--t1);font-weight:600}
+.bar-rz{border-radius:3px}
+.bar-rz:hover{background:rgba(255,255,255,.35)}
 .milestone-ghost{position:absolute;width:10px;height:10px;transform:rotate(45deg);border:2px solid var(--t4);opacity:.5;pointer-events:none}
 .bar-fill{position:absolute;top:0;left:0;bottom:0;}
 .bar-lbl{
@@ -2343,6 +2345,8 @@ function renderBar(row, task) {
   bar.addEventListener('mousemove', moveTT);
   bar.addEventListener('mouseleave', e => { hideTT(); highlightDeps(task.id, false); });
 
+  if (!isReadOnly && task.type === 'task') attachBarDrag(bar, task);
+
   row.appendChild(bar);
 
   // 基準線：顯示計畫日期（灰色細條），與現況不同時才畫
@@ -2355,6 +2359,92 @@ function renderBar(row, task) {
     blb.style.cssText = `left:${bx1}px;width:${Math.max(bx2 - bx1, 3)}px;top:30px`;
     row.appendChild(blb);
   }
+}
+
+/* ── BAR DRAG（拖移整條 / 拖拉左右緣調整起訖）── */
+function attachBarDrag(bar, task) {
+  const hasDeps = (task.deps||[]).length || (task.sdeps||[]).length || (task.ffdeps||[]).length || (task.sfdeps||[]).length;
+
+  // 右緣：調整結束日（永遠可用）；左緣與整條拖移：僅無依賴任務（有依賴時開始日由排程決定）
+  const mkHandle = side => {
+    const h = document.createElement('div');
+    h.className = 'bar-rz';
+    h.style.cssText = `position:absolute;top:0;bottom:0;width:7px;${side}:0;cursor:ew-resize;z-index:3`;
+    bar.appendChild(h);
+    return h;
+  };
+  const hr = mkHandle('right');
+  const hl = hasDeps ? null : mkHandle('left');
+  if (!hasDeps) bar.style.cursor = 'grab';
+
+  bar.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    const mode = e.target === hr ? 'r' : (hl && e.target === hl) ? 'l' : (hasDeps ? null : 'move');
+    if (!mode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const origLeft = parseFloat(bar.style.left);
+    const origW = parseFloat(bar.style.width);
+    let moved = false, delta = 0;
+    document.body.style.userSelect = 'none';
+
+    const onMove = ev => {
+      const dx = ev.clientX - startX;
+      if (!moved && Math.abs(dx) < 4) return;
+      moved = true;
+      hideTT();
+      delta = Math.round(dx / PPD);
+      if (mode === 'move') {
+        bar.style.left = (origLeft + delta * PPD) + 'px';
+      } else if (mode === 'r') {
+        bar.style.width = Math.max(PPD, origW + delta * PPD) + 'px';
+      } else {
+        const w2 = Math.max(PPD, origW - delta * PPD);
+        bar.style.left = (origLeft + origW - w2) + 'px';
+        bar.style.width = w2 + 'px';
+      }
+    };
+
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.userSelect = '';
+      if (!moved || !delta) { render(); return; }
+      pushHistory();
+      const shiftCal = (str, days) => { const d = new Date(str); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10); };
+      const snapFwd = str => { const d = new Date(str); while (isNonWorkday(d)) d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); };
+      const snapBack = str => { const d = new Date(str); while (isNonWorkday(d)) d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); };
+      const wd = task.wday || countWorkingDays(task.start, task.end);
+      // 依拖動方向吸附到工作日（往右跳到下個工作日、往左跳回上個工作日）
+      const snapDir = str => delta > 0 ? snapFwd(str) : snapBack(str);
+
+      if (mode === 'move') {
+        task.start = snapDir(shiftCal(task.start, delta));
+        task.end = addWorkingDays(task.start, wd);
+        task.pinStart = true;
+      } else if (mode === 'r') {
+        let ne = snapDir(shiftCal(task.end, delta));
+        if (ne < task.start) ne = task.start;
+        task.end = ne;
+        task.wday = countWorkingDays(task.start, task.end);
+      } else {
+        let ns = snapDir(shiftCal(task.start, delta));
+        if (ns > task.end) ns = snapBack(task.end);
+        task.start = ns;
+        task.wday = countWorkingDays(task.start, task.end);
+        task.pinStart = true;
+      }
+      scheduleTasks();
+      recalcProjEnd();
+      render();
+      saveToLS();
+      if (currentUser) saveToCloud();
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
 }
 
 function renderGroupBar(row, task, bounds) {
@@ -2468,6 +2558,49 @@ function renderMilestone(row, task) {
   d.addEventListener('mouseenter', e => showTT(e, task));
   d.addEventListener('mousemove', moveTT);
   d.addEventListener('mouseleave', hideTT);
+
+  // 拖移里程碑（無依賴時；有依賴的日期由排程決定）
+  const msDeps = (task.deps||[]).length || (task.sdeps||[]).length || (task.ffdeps||[]).length || (task.sfdeps||[]).length;
+  if (!isReadOnly && !msDeps) {
+    d.style.cursor = 'grab';
+    d.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const origLeft = parseFloat(d.style.left);
+      let moved = false, delta = 0;
+      document.body.style.userSelect = 'none';
+      const onMove = ev => {
+        const dx = ev.clientX - startX;
+        if (!moved && Math.abs(dx) < 4) return;
+        moved = true;
+        hideTT();
+        delta = Math.round(dx / PPD);
+        d.style.left = (origLeft + delta * PPD) + 'px';
+      };
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.userSelect = '';
+        if (!moved || !delta) { render(); return; }
+        pushHistory();
+        const nd = new Date(task.date);
+        nd.setDate(nd.getDate() + delta);
+        while (isNonWorkday(nd)) nd.setDate(nd.getDate() + (delta > 0 ? 1 : -1));
+        task.date = nd.toISOString().slice(0, 10);
+        task.pinStart = true;
+        scheduleTasks();
+        recalcProjEnd();
+        render();
+        saveToLS();
+        if (currentUser) saveToCloud();
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  }
+
   row.appendChild(d);
 
   // 基準線：里程碑原定日期（空心灰菱形）
