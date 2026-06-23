@@ -482,24 +482,27 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
 }
 
 /* ── BARS ── */
+/* ── Google Charts Gantt-inspired rounded bar style ── */
 .gantt-bar{
   position:absolute;
-  height:var(--barh);top:8px;
+  height:22px;top:7px;         /* taller bar, Google Charts ~62% of row */
+  border-radius:6px;           /* key: rounded corners */
   cursor:pointer;
-  z-index:2;overflow:visible;
-  transition:filter .1s,transform .1s;
+  z-index:2;overflow:hidden;   /* clip children to rounded rect */
+  transition:filter .12s,box-shadow .12s;
+  box-shadow:0 1px 3px rgba(0,0,0,.18);
 }
-.gantt-bar:hover{filter:brightness(1.08);transform:scaleY(1.06)}
-.gantt-bar.cp-critical{box-shadow:0 0 0 2.5px #EF4444;z-index:3}
-.gantt-bar.overdue{box-shadow:inset 3px 0 0 0 var(--red)}
+.gantt-bar:hover{filter:brightness(1.1);box-shadow:0 2px 8px rgba(0,0,0,.22)}
+.gantt-bar.cp-critical{box-shadow:0 0 0 2.5px #EF4444,0 2px 8px rgba(239,68,68,.25);z-index:3}
+.gantt-bar.overdue{box-shadow:inset 3px 0 0 0 var(--red),0 1px 3px rgba(0,0,0,.18)}
 .dep-pred .gantt-bar,.dep-pred .group-bar{box-shadow:0 0 0 2.5px #F59E0B!important;z-index:4}
 .dep-succ .gantt-bar,.dep-succ .group-bar{box-shadow:0 0 0 2.5px #3B82F6!important;z-index:4}
 .dep-pred .task-row,.dep-pred.task-row{background:rgba(245,158,11,.07)!important}
 .dep-succ .task-row,.dep-succ.task-row{background:rgba(59,130,246,.07)!important}
 .cp-mode .gantt-bar:not(.cp-critical){opacity:0.28;filter:grayscale(.3)}
 
-.bar-bg{position:absolute;inset:0;opacity:.88;}
-.bar-prog{position:absolute;top:0;left:0;bottom:0;z-index:1;opacity:.85;border-radius:3px 0 0 3px;pointer-events:none}
+.bar-bg{position:absolute;inset:0;opacity:.92;border-radius:6px;}
+.bar-prog{position:absolute;top:0;left:0;bottom:0;z-index:1;opacity:.35;border-radius:0;pointer-events:none;background:rgba(0,0,0,.25)}
 .baseline-bar{position:absolute;height:4px;border-radius:2px;background:var(--t4);opacity:.55;z-index:0;pointer-events:none}
 .wl-cell{position:absolute;top:6px;bottom:6px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--t1);font-weight:600}
 .bar-rz{border-radius:3px}
@@ -1175,6 +1178,106 @@ body.theme-dunhuang{
 .link-copy-btn{font-size:10px;padding:1px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--t3);cursor:pointer;flex-shrink:0}
 .link-copy-btn:hover{background:var(--s-hover)}
 
+/* ── WBS CODE ── */
+.wbs-code{font-size:10px;color:var(--t4);font-weight:600;margin-right:5px;letter-spacing:.3px;font-family:'Courier New',monospace;flex-shrink:0}
+body.show-wbs .wbs-code{display:inline}
+body:not(.show-wbs) .wbs-code{display:none}
+
+/* ── LAN PRESENCE BAR ── */
+.presence-bar{
+  display:flex;align-items:center;gap:6px;padding:0 10px;
+  border-left:1px solid var(--border);margin-left:4px;
+}
+.presence-avatar{
+  width:24px;height:24px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:700;color:#fff;
+  border:2px solid var(--surface);
+  position:relative;flex-shrink:0;cursor:default;
+}
+.presence-avatar .online-dot{
+  position:absolute;bottom:-1px;right:-1px;
+  width:7px;height:7px;border-radius:50%;
+  background:#10B981;border:1.5px solid var(--surface);
+}
+.presence-label{font-size:10px;color:var(--t3)}
+.lan-status{width:7px;height:7px;border-radius:50%;background:var(--border2);flex-shrink:0;transition:background .3s}
+.lan-status.connected{background:#10B981}
+.lan-status.connecting{background:#F59E0B;animation:pulse .8s ease infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── LANGUAGE SWITCHER ── */
+.lang-select{
+  height:28px;padding:0 8px;border:1px solid var(--border);border-radius:6px;
+  background:var(--surface);color:var(--t2);font-size:11px;
+  cursor:pointer;outline:none;font-family:inherit;
+}
+.lang-select:hover{background:var(--s-hover)}
+
+/* ── RESOURCE POOL MODAL ── */
+.resource-modal{max-width:720px;width:96vw}
+.rpool-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-height:60vh;overflow-y:auto}
+@media(max-width:600px){.rpool-grid{grid-template-columns:1fr}}
+.rpool-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px}
+.rpool-card-head{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.rpool-av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.rpool-name{font-size:13px;font-weight:700;color:var(--t1)}
+.rpool-meta{font-size:11px;color:var(--t3)}
+.rpool-load-bar{height:8px;border-radius:4px;background:var(--border);overflow:hidden;margin:6px 0 4px}
+.rpool-load-fill{height:100%;border-radius:4px;transition:width .6s}
+.rpool-load-label{font-size:10px;color:var(--t3);display:flex;justify-content:space-between}
+.rpool-task-list{margin-top:8px;display:flex;flex-direction:column;gap:4px;max-height:100px;overflow-y:auto}
+.rpool-task-item{display:flex;align-items:center;gap:7px;font-size:11px;padding:3px 0}
+.rpool-task-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.rpool-task-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t1)}
+.rpool-task-pct{font-size:10px;color:var(--t4);width:28px;text-align:right}
+.rpool-overload{color:#EF4444}
+.rpool-balanced{color:#10B981}
+.rpool-light{color:#F59E0B}
+
+/* ── KEYBOARD SHORTCUTS OVERLAY ── */
+.kbd-overlay{
+  position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.55);
+  display:none;align-items:center;justify-content:center;
+}
+.kbd-overlay.open{display:flex}
+.kbd-box{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;padding:28px 32px;
+  max-width:540px;width:96vw;
+  max-height:80vh;overflow-y:auto;
+  box-shadow:0 8px 40px rgba(0,0,0,.25);
+}
+.kbd-title{font-size:16px;font-weight:800;color:var(--t1);margin-bottom:18px}
+.kbd-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 24px}
+@media(max-width:480px){.kbd-grid{grid-template-columns:1fr}}
+.kbd-row{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border)}
+.kbd-row:last-child{border-bottom:none}
+.kbd-keys{display:flex;gap:4px;flex-shrink:0;min-width:90px}
+.kbd-key{
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:2px 7px;border-radius:5px;
+  background:var(--s2);border:1px solid var(--border2);
+  font-size:11px;font-weight:700;color:var(--t2);
+  font-family:'Courier New',monospace;min-width:20px;
+}
+.kbd-desc{font-size:12px;color:var(--t2)}
+
+/* ── LEFT PANEL CONTEXT MENU ── */
+.task-ctx-menu{
+  position:fixed;z-index:8000;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.14);
+  padding:4px 0;min-width:170px;
+}
+.task-ctx-item{
+  display:flex;align-items:center;gap:9px;
+  padding:8px 14px;font-size:12px;color:var(--t1);cursor:pointer;
+  transition:background .1s;
+}
+.task-ctx-item:hover{background:var(--s-hover)}
+.task-ctx-sep{height:1px;background:var(--border);margin:3px 0}
+
 /* ── PRINT / PDF EXPORT ── */
 #printHeader{display:none}
 @media print{
@@ -1322,6 +1425,21 @@ body.theme-dunhuang{
       <button class="settings-action" onclick="openThemePicker();closeSettings()">🎨 主題色彩</button>
     </div>
   </div>
+  <select class="lang-select" id="langSelect" onchange="setLang(this.value)" title="语言/Language">
+    <option value="zh-CN">简中</option>
+    <option value="zh-TW">繁中</option>
+    <option value="en">EN</option>
+    <option value="de">DE</option>
+    <option value="ja">日本語</option>
+    <option value="ko">한국어</option>
+  </select>
+  <button class="btn" onclick="toggleWBS()" id="wbsBtn" title="显示/隐藏WBS编号">WBS</button>
+  <button class="btn" onclick="openResourceModal()" title="资源池管理">👤 资源</button>
+  <button class="btn" onclick="openKbdOverlay()" title="键盘快捷键 (?)">⌨</button>
+  <div class="presence-bar" id="presenceBar" style="display:none">
+    <div class="lan-status" id="lanDot" title="局域网连接状态"></div>
+    <div id="presenceAvatars" style="display:flex;gap:2px"></div>
+  </div>
   <button class="btn" id="adminBtn" onclick="openAdminPanel()" title="管理員面板" style="display:none">👑 Admin</button>
   <div id="userDisplay"></div>
   <button class="btn" id="signOutBtn" onclick="signOut()" title="登出" style="display:none">登出</button>
@@ -1399,6 +1517,69 @@ body.theme-dunhuang{
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:16px">
       <button class="btn" onclick="closeAdminPanel()">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ KEYBOARD SHORTCUTS OVERLAY ═══════ -->
+<div class="kbd-overlay" id="kbdOverlay" onclick="closeKbdOverlay()">
+  <div class="kbd-box" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <div class="kbd-title">⌨ 键盘快捷键</div>
+      <button onclick="closeKbdOverlay()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--t3)">✕</button>
+    </div>
+    <div class="kbd-grid">
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">Ctrl</span><span class="kbd-key">Z</span></div><div class="kbd-desc">撤销</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">N</span></div><div class="kbd-desc">新增任务</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">T</span></div><div class="kbd-desc">跳至今天</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">D</span></div><div class="kbd-desc">日视图</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">W</span></div><div class="kbd-desc">周视图</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">M</span></div><div class="kbd-desc">月视图</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">+</span></div><div class="kbd-desc">放大时间轴</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">-</span></div><div class="kbd-desc">缩小时间轴</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">F</span></div><div class="kbd-desc">适应视窗</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">E</span></div><div class="kbd-desc">全部展开</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">C</span></div><div class="kbd-desc">全部折叠</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">R</span></div><div class="kbd-desc">资源视图</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">K</span></div><div class="kbd-desc">看板视图</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">B</span></div><div class="kbd-desc">仪表板</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">Ctrl</span><span class="kbd-key">P</span></div><div class="kbd-desc">打印/PDF</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">Esc</span></div><div class="kbd-desc">关闭弹窗</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">?</span></div><div class="kbd-desc">显示此帮助</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><span class="kbd-key">Alt</span><span class="kbd-key">W</span></div><div class="kbd-desc">切换WBS编号</div></div>
+    </div>
+    <div style="margin-top:16px;font-size:11px;color:var(--t4);text-align:center">右键点击任务行可打开更多操作菜单</div>
+  </div>
+</div>
+
+<!-- ═══════ TASK CONTEXT MENU ═══════ -->
+<div class="task-ctx-menu" id="taskCtxMenu" style="display:none">
+  <div class="task-ctx-item" onclick="ctxEditTask()">✏️ 编辑任务</div>
+  <div class="task-ctx-item" onclick="ctxAddBelow()">➕ 在下方新增</div>
+  <div class="task-ctx-item" onclick="ctxIndent()">→ 降一级</div>
+  <div class="task-ctx-item" onclick="ctxOutdent()">← 升一级</div>
+  <div class="task-ctx-sep"></div>
+  <div class="task-ctx-item" onclick="ctxAnnotate()">💬 添加批注</div>
+  <div class="task-ctx-item" onclick="ctxCopyLink()">🔗 复制文件链接</div>
+  <div class="task-ctx-sep"></div>
+  <div class="task-ctx-item" onclick="ctxSubmitApproval()">📋 提交审批</div>
+  <div class="task-ctx-sep"></div>
+  <div class="task-ctx-item" style="color:var(--red)" onclick="ctxDeleteTask()">🗑 删除任务</div>
+</div>
+
+<!-- ═══════ RESOURCE POOL MODAL ═══════ -->
+<div class="overlay" id="resourceOverlay" onclick="if(event.target===this)closeResourceModal()">
+  <div class="modal resource-modal" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeResourceModal()">✕</button>
+    <div class="modal-title">👤 资源池 — 负载均衡</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--t3)">负载阈值：</span>
+      <input type="number" id="rloadMax" value="5" min="1" max="20" style="width:52px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--t1);font-size:12px" onchange="renderResourcePool()"> 任务/人
+      <span style="font-size:11px;color:var(--t4)">（同期进行中任务数上限）</span>
+    </div>
+    <div class="rpool-grid" id="rpoolGrid"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-primary" onclick="closeResourceModal()">关闭</button>
     </div>
   </div>
 </div>
@@ -1716,18 +1897,18 @@ const AV_COLORS = {
   '維運團隊': '#D97706',
 };
 
-// 群組色盤：10 個視覺清晰的色彩，依序分配
+// 群組色盤：Google Charts Gantt 風格色系（飽和度適中，視覺清晰）
 const GROUP_PALETTE = [
-  '#5E6AD2', // indigo
-  '#10B981', // emerald
-  '#F59E0B', // amber
-  '#EF4444', // red
-  '#8B5CF6', // violet
-  '#3B82F6', // blue
-  '#EC4899', // pink
-  '#14B8A6', // teal
-  '#F97316', // orange
-  '#84CC16', // lime
+  '#4E79A7', // steel blue   — Google Charts Gantt primary
+  '#F28E2B', // tangerine
+  '#E15759', // tomato red
+  '#76B7B2', // sage teal
+  '#59A14F', // forest green
+  '#EDC948', // golden yellow
+  '#B07AA1', // mauve purple
+  '#FF9DA7', // blush pink
+  '#9C755F', // warm brown
+  '#BAB0AC', // warm grey
 ];
 
 function getNextGroupColor() {
@@ -2152,6 +2333,12 @@ function renderTaskPanel() {
     numSpan.textContent = rowIndex + 1;
     nc.appendChild(numSpan);
 
+    // WBS code (hidden via CSS unless body.show-wbs)
+    const wbsSpan = document.createElement('span');
+    wbsSpan.className = 'wbs-code';
+    wbsSpan.textContent = getWBSCode(task.id);
+    nc.appendChild(wbsSpan);
+
     const nm = document.createElement('span');
     nm.className = 'tname' + (task.type === 'group' ? ' bold' : '');
     nm.textContent = task.name;
@@ -2342,10 +2529,10 @@ function renderTaskPanel() {
     row.addEventListener('mouseenter', () => highlightRow(task.id, true));
     row.addEventListener('mouseleave', () => highlightRow(task.id, false));
 
-    // Right-click: open annotation chat for this task
+    // Right-click: context menu
     row.addEventListener('contextmenu', e => {
-      e.preventDefault();
-      if (typeof openTaskAnnotation === 'function') openTaskAnnotation(task);
+      if (!isReadOnly) showTaskCtxMenu(e, task.id);
+      else if (typeof openTaskAnnotation === 'function') { e.preventDefault(); openTaskAnnotation(task); }
     });
 
     // Approval badge inline on name cell
@@ -6217,6 +6404,10 @@ async function initApp() {
   render();
   setSyncDot(cloudOk ? 'ok' : (_guestMode ? 'off' : 'err'));
   setTimeout(scrollToToday, 120);
+  // Start LAN collaboration
+  try { initLAN(); } catch(e) {}
+  // Apply i18n after app loads
+  applyI18N();
   const adminBtn = document.getElementById('adminBtn');
   if (adminBtn) adminBtn.style.display = isAdmin() ? '' : 'none';
   if (_guestMode) {
@@ -6224,6 +6415,467 @@ async function initApp() {
     if (el) el.innerHTML = `<div title="訪客模式（本地）" style="width:26px;height:26px;border-radius:50%;background:var(--t4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700">訪</div>`;
     document.getElementById('signOutBtn').style.display = '';
   }
+}
+
+/* ═══════════════════════════════════════════
+   i18n — 国际化 (zh-CN / zh-TW / en / de / ja / ko)
+═══════════════════════════════════════════ */
+const I18N = {
+  'zh-CN': {
+    appName:'GanttPro — 项目甘特图', newTask:'＋ 新增任务', undo:'↩ 撤销', today:'📍 今天',
+    expandAll:'⊞ 全展开', collapseAll:'⊟ 全折叠',
+    gantt:'甘特图', milestone:'◆ 里程碑', workload:'工作量',
+    resource:'📅 资源', sprint:'🏃 看板', dashboard:'📊 仪表板',
+    day:'日', week:'周', month:'月',
+    export:'⬇ 导出', exportPng:'🖼 导出 PNG', exportPdf:'📄 打印/PDF',
+    exportGanttPdf:'📄 甘特图 PDF', exportCsv:'📊 导出 CSV',
+    exportExcel:'📊 导出 Excel', exportReport:'📝 项目报告/PPTX',
+    chat:'💬 聊天', settings:'⚙ 设置', dark:'🌙', signOut:'退出',
+    taskName:'任务名称', startDate:'开始日期', endDate:'结束日期',
+    workDays:'工作日', predecessor:'前置任务', done:'完成',
+    total:'共', tasks:'项任务',
+    collab:'👥 协作', shareBtn:'🔗',
+  },
+  'zh-TW': {
+    appName:'GanttPro — 專案甘特圖', newTask:'＋ 新增任務', undo:'↩ 復原', today:'📍 今日',
+    expandAll:'⊞ 全展開', collapseAll:'⊟ 全收合',
+    gantt:'甘特圖', milestone:'◆ 里程碑', workload:'工作量',
+    resource:'📅 資源', sprint:'🏃 看板', dashboard:'📊 儀表板',
+    day:'日', week:'週', month:'月',
+    export:'⬇ 匯出', exportPng:'🖼 匯出 PNG', exportPdf:'📄 列印/PDF',
+    exportGanttPdf:'📄 甘特圖 PDF', exportCsv:'📊 匯出 CSV',
+    exportExcel:'📊 匯出 Excel', exportReport:'📝 專案報告/PPTX',
+    chat:'💬 聊天', settings:'⚙ 設定', dark:'🌙', signOut:'登出',
+    taskName:'任務名稱', startDate:'開始日期', endDate:'結束日期',
+    workDays:'工作日', predecessor:'前置任務', done:'完成',
+    total:'共', tasks:'項任務',
+    collab:'👥 協作', shareBtn:'🔗',
+  },
+  'en': {
+    appName:'GanttPro — Project Planner', newTask:'＋ Add Task', undo:'↩ Undo', today:'📍 Today',
+    expandAll:'⊞ Expand All', collapseAll:'⊟ Collapse All',
+    gantt:'Gantt', milestone:'◆ Milestones', workload:'Workload',
+    resource:'📅 Resource', sprint:'🏃 Board', dashboard:'📊 Dashboard',
+    day:'D', week:'W', month:'M',
+    export:'⬇ Export', exportPng:'🖼 Export PNG', exportPdf:'📄 Print/PDF',
+    exportGanttPdf:'📄 Gantt PDF', exportCsv:'📊 Export CSV',
+    exportExcel:'📊 Export Excel', exportReport:'📝 Report / PPTX',
+    chat:'💬 Chat', settings:'⚙ Settings', dark:'🌙', signOut:'Sign Out',
+    taskName:'Task Name', startDate:'Start', endDate:'End',
+    workDays:'Days', predecessor:'Predecessor', done:'Done',
+    total:'Total', tasks:'tasks',
+    collab:'👥 Share', shareBtn:'🔗',
+  },
+  'de': {
+    appName:'GanttPro — Projektplan', newTask:'＋ Aufgabe hinzufügen', undo:'↩ Rückgängig', today:'📍 Heute',
+    expandAll:'⊞ Alle ausklappen', collapseAll:'⊟ Alle einklappen',
+    gantt:'Gantt', milestone:'◆ Meilensteine', workload:'Auslastung',
+    resource:'📅 Ressourcen', sprint:'🏃 Board', dashboard:'📊 Dashboard',
+    day:'T', week:'W', month:'M',
+    export:'⬇ Export', exportPng:'🖼 PNG exportieren', exportPdf:'📄 Drucken/PDF',
+    exportGanttPdf:'📄 Gantt PDF', exportCsv:'📊 CSV exportieren',
+    exportExcel:'📊 Excel exportieren', exportReport:'📝 Bericht/PPTX',
+    chat:'💬 Chat', settings:'⚙ Einstellungen', dark:'🌙', signOut:'Abmelden',
+    taskName:'Aufgabenname', startDate:'Startdatum', endDate:'Enddatum',
+    workDays:'Arbeitstage', predecessor:'Vorgänger', done:'Fertig',
+    total:'Gesamt', tasks:'Aufgaben',
+    collab:'👥 Teilen', shareBtn:'🔗',
+  },
+  'ja': {
+    appName:'GanttPro — プロジェクト管理', newTask:'＋ タスク追加', undo:'↩ 元に戻す', today:'📍 今日',
+    expandAll:'⊞ すべて展開', collapseAll:'⊟ すべて折りたたむ',
+    gantt:'ガント', milestone:'◆ マイルストーン', workload:'作業量',
+    resource:'📅 リソース', sprint:'🏃 ボード', dashboard:'📊 ダッシュボード',
+    day:'日', week:'週', month:'月',
+    export:'⬇ エクスポート', exportPng:'🖼 PNG出力', exportPdf:'📄 印刷/PDF',
+    exportGanttPdf:'📄 ガントPDF', exportCsv:'📊 CSV出力',
+    exportExcel:'📊 Excel出力', exportReport:'📝 レポート/PPTX',
+    chat:'💬 チャット', settings:'⚙ 設定', dark:'🌙', signOut:'ログアウト',
+    taskName:'タスク名', startDate:'開始日', endDate:'終了日',
+    workDays:'作業日', predecessor:'先行タスク', done:'完了',
+    total:'合計', tasks:'タスク',
+    collab:'👥 共有', shareBtn:'🔗',
+  },
+  'ko': {
+    appName:'GanttPro — 프로젝트 관리', newTask:'＋ 작업 추가', undo:'↩ 실행 취소', today:'📍 오늘',
+    expandAll:'⊞ 모두 펼치기', collapseAll:'⊟ 모두 접기',
+    gantt:'간트', milestone:'◆ 마일스톤', workload:'워크로드',
+    resource:'📅 리소스', sprint:'🏃 보드', dashboard:'📊 대시보드',
+    day:'일', week:'주', month:'월',
+    export:'⬇ 내보내기', exportPng:'🖼 PNG 내보내기', exportPdf:'📄 인쇄/PDF',
+    exportGanttPdf:'📄 간트 PDF', exportCsv:'📊 CSV 내보내기',
+    exportExcel:'📊 Excel 내보내기', exportReport:'📝 보고서/PPTX',
+    chat:'💬 채팅', settings:'⚙ 설정', dark:'🌙', signOut:'로그아웃',
+    taskName:'작업명', startDate:'시작일', endDate:'종료일',
+    workDays:'작업일', predecessor:'선행 작업', done:'완료',
+    total:'합계', tasks:'작업',
+    collab:'👥 공유', shareBtn:'🔗',
+  },
+};
+
+let _lang = localStorage.getItem('gp_lang') || 'zh-CN';
+
+function t(key) {
+  return (I18N[_lang] || I18N['zh-CN'])[key] || key;
+}
+
+function setLang(lang) {
+  _lang = lang;
+  localStorage.setItem('gp_lang', lang);
+  applyI18N();
+  render();
+}
+
+function applyI18N() {
+  const L = document.getElementById('langSelect');
+  if (L) L.value = _lang;
+  document.title = t('appName');
+  // Toolbar buttons
+  const map = {
+    '[onclick="openModal()"]': 'newTask',
+    '[id="undoBtn"]': 'undo',
+    '[onclick="scrollToToday()"]': 'today',
+    '[onclick="expandAll()"]': 'expandAll',
+    '[onclick="collapseAll()"]': 'collapseAll',
+    '[data-cv="gantt"]': 'gantt',
+    '[data-cv="milestone"]': 'milestone',
+    '[data-cv="workload"]': 'workload',
+    '[data-cv="resource"]': 'resource',
+    '[data-cv="sprint"]': 'sprint',
+    '[data-cv="dashboard"]': 'dashboard',
+    '[data-v="day"]': 'day',
+    '[data-v="week"]': 'week',
+    '[data-v="month"]': 'month',
+    '[onclick="toggleExportMenu()"]': 'export',
+    '[id="chatToggleBtn"]': 'chat',
+    '[id="darkBtn"]': 'dark',
+    '[id="signOutBtn"]': 'signOut',
+    '[id="collabBtn"]': 'collab',
+  };
+  Object.entries(map).forEach(([sel, key]) => {
+    const el = document.querySelector('.toolbar ' + sel);
+    if (el && I18N[_lang]?.[key]) el.textContent = t(key);
+  });
+  // Export panel items
+  const expMap = [
+    ['exportPng','exportPNG'],['exportPdf','exportPDF'],['exportGanttPdf','exportGanttPDF'],
+    ['exportCsv','exportCSV'],['exportExcel','exportExcel'],['exportReport','openReportModal'],
+  ];
+  document.querySelectorAll('#exportPanel .settings-action').forEach((el,i) => {
+    const key = ['exportPng','exportPdf','exportGanttPdf','exportCsv','exportExcel','exportReport'][i];
+    if (key && t(key) !== key) el.childNodes[el.childNodes.length-1].textContent = ' ' + t(key).replace(/^[^\s]+ /,'');
+  });
+  // Table headers
+  const thMap = [['任務名稱','taskName'],['任务名称','taskName'],['開始日期','startDate'],['开始日期','startDate'],
+    ['結束日期','endDate'],['结束日期','endDate'],['工作日','workDays'],['前置任務','predecessor'],['前置任务','predecessor'],['完成','done']];
+  document.querySelectorAll('.th').forEach(el => {
+    thMap.forEach(([cn, key]) => { if (el.textContent.trim() === cn) el.childNodes[0].textContent = t(key); });
+  });
+}
+
+/* ═══════════════════════════════════════════
+   WBS CODE DISPLAY
+═══════════════════════════════════════════ */
+let _showWBS = localStorage.getItem('gp_wbs') === '1';
+
+function toggleWBS() {
+  _showWBS = !_showWBS;
+  localStorage.setItem('gp_wbs', _showWBS ? '1' : '0');
+  document.body.classList.toggle('show-wbs', _showWBS);
+  document.getElementById('wbsBtn').classList.toggle('active', _showWBS);
+  render();
+}
+
+function getWBSCode(taskId) {
+  const task = taskById(taskId);
+  if (!task) return '';
+  // Build WBS like 1.2.3
+  const parts = [];
+  let cur = task;
+  while (cur) {
+    const siblings = tasks.filter(t => t.parent === cur.parent);
+    const idx = siblings.indexOf(cur) + 1;
+    parts.unshift(idx);
+    cur = taskById(cur.parent);
+  }
+  return parts.join('.');
+}
+
+/* ═══════════════════════════════════════════
+   KEYBOARD SHORTCUTS OVERLAY
+═══════════════════════════════════════════ */
+function openKbdOverlay() { document.getElementById('kbdOverlay').classList.add('open'); }
+function closeKbdOverlay() { document.getElementById('kbdOverlay').classList.remove('open'); }
+
+/* ═══════════════════════════════════════════
+   ENHANCED KEYBOARD HANDLER
+═══════════════════════════════════════════ */
+// Will be registered after DOMContentLoaded
+function setupKeyboard() {
+  document.addEventListener('keydown', e => {
+    const inInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT';
+    const ctrl = e.ctrlKey || e.metaKey;
+
+    if (ctrl && e.key === 'z') { e.preventDefault(); undo(); return; }
+    if (ctrl && e.key === 'p') { e.preventDefault(); exportPDF(); return; }
+    if (ctrl && e.key === 's') { e.preventDefault(); if (currentUser) saveToCloud(); return; }
+
+    if (inInput) return;
+
+    const key = e.key;
+    if (key === 'Escape') {
+      closeModal(); closeProjModal(); closeProjMenuOnly(); closeDeleteModal();
+      closeKbdOverlay(); closeResourceModal(); closeThemePicker(); closeWorkTimeModal(); closeReportModal();
+      hideTaskCtxMenu();
+      return;
+    }
+    if (key === '?') { openKbdOverlay(); return; }
+    if (key === 't' || key === 'T') { scrollToToday(); return; }
+    if (key === 'd') { setView('day'); return; }
+    if (key === 'w') { setView('week'); return; }
+    if (key === 'm') { setView('month'); return; }
+    if (key === 'n' || key === 'N') { openModal(); return; }
+    if (key === '+' || key === '=') { zoomIn(); return; }
+    if (key === '-') { zoomOut(); return; }
+    if (key === 'f' || key === 'F') { fitToFrame(); return; }
+    if (key === 'e' || key === 'E') { expandAll(); return; }
+    if (key === 'c' || key === 'C') { collapseAll(); return; }
+    if (key === 'r' || key === 'R') { setChartView('resource'); return; }
+    if (key === 'k' || key === 'K') { setChartView('sprint'); return; }
+    if (key === 'b' || key === 'B') { setChartView('dashboard'); return; }
+    if (key === 'g' || key === 'G') { setChartView('gantt'); return; }
+    if (e.altKey && key === 'w') { e.preventDefault(); toggleWBS(); return; }
+    if (e.altKey && key === 'c') { e.preventDefault(); toggleChat(); return; }
+  });
+}
+
+/* ═══════════════════════════════════════════
+   TASK RIGHT-CLICK CONTEXT MENU
+═══════════════════════════════════════════ */
+let _ctxTaskId = null;
+
+function showTaskCtxMenu(e, taskId) {
+  e.preventDefault();
+  _ctxTaskId = taskId;
+  const menu = document.getElementById('taskCtxMenu');
+  menu.style.display = 'block';
+  // Position: keep inside viewport
+  const x = Math.min(e.clientX, window.innerWidth - 190);
+  const y = Math.min(e.clientY, window.innerHeight - 220);
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+  setTimeout(() => document.addEventListener('click', hideTaskCtxMenu, { once: true }), 0);
+}
+function hideTaskCtxMenu() {
+  const m = document.getElementById('taskCtxMenu');
+  if (m) m.style.display = 'none';
+}
+function ctxEditTask() { hideTaskCtxMenu(); if (_ctxTaskId) openEditModal(_ctxTaskId); }
+function ctxAddBelow() { hideTaskCtxMenu(); if (_ctxTaskId) addTaskInline(_ctxTaskId); }
+function ctxIndent() { hideTaskCtxMenu(); if (_ctxTaskId) indentTask(_ctxTaskId); }
+function ctxOutdent() { hideTaskCtxMenu(); if (_ctxTaskId) outdentTask(_ctxTaskId); }
+function ctxAnnotate() { hideTaskCtxMenu(); if (_ctxTaskId) openTaskAnnotation(taskById(_ctxTaskId)); }
+function ctxCopyLink() {
+  hideTaskCtxMenu();
+  const t = taskById(_ctxTaskId);
+  if (t?.link) navigator.clipboard.writeText(t.link).then(() => {});
+}
+function ctxSubmitApproval() { hideTaskCtxMenu(); if (_ctxTaskId) { editingTaskId = _ctxTaskId; submitApproval(); } }
+function ctxDeleteTask() { hideTaskCtxMenu(); if (_ctxTaskId) confirmDeleteTask(_ctxTaskId); }
+
+/* ═══════════════════════════════════════════
+   LAN COLLABORATION (BroadcastChannel + WebSocket)
+═══════════════════════════════════════════ */
+let _bc = null;          // BroadcastChannel (same browser)
+let _ws = null;          // WebSocket (LAN)
+let _wsUrl = localStorage.getItem('gp_ws_url') || '';
+let _lanPeers = {};      // { peerId: { name, color, ts } }
+let _myPeerId = null;
+let _heartbeatTimer = null;
+
+function initLAN() {
+  _myPeerId = (currentUser?.uid || 'guest_') + '_' + Math.random().toString(36).slice(2, 7);
+
+  // BroadcastChannel for same-browser collaboration
+  if (typeof BroadcastChannel !== 'undefined') {
+    try {
+      _bc = new BroadcastChannel('ganttpro_lan');
+      _bc.onmessage = ev => handleLANMessage(ev.data, 'bc');
+    } catch(e) {}
+  }
+
+  // WebSocket for cross-device LAN (try auto-detected or user-configured URL)
+  tryLANWebSocket();
+
+  // Heartbeat every 5 seconds
+  _heartbeatTimer = setInterval(sendHeartbeat, 5000);
+  sendHeartbeat();
+}
+
+function tryLANWebSocket() {
+  // Auto-try localhost, then user-configured URL
+  const urls = ['ws://localhost:8765', 'ws://127.0.0.1:8765'];
+  if (_wsUrl && !urls.includes(_wsUrl)) urls.unshift(_wsUrl);
+
+  function tryNext(idx) {
+    if (idx >= urls.length) { updateLANStatus('off'); return; }
+    const url = urls[idx];
+    try {
+      const ws = new WebSocket(url);
+      ws.onopen = () => {
+        _ws = ws;
+        updateLANStatus('connected');
+        document.getElementById('presenceBar').style.display = '';
+        sendHeartbeat();
+      };
+      ws.onmessage = ev => {
+        try { handleLANMessage(JSON.parse(ev.data), 'ws'); } catch(e) {}
+      };
+      ws.onclose = () => {
+        if (_ws === ws) { _ws = null; updateLANStatus('off'); }
+        setTimeout(() => tryNext(idx + 1), 2000);
+      };
+      ws.onerror = () => { ws.close(); };
+    } catch(e) { setTimeout(() => tryNext(idx + 1), 500); }
+  }
+  updateLANStatus('connecting');
+  tryNext(0);
+}
+
+function handleLANMessage(msg, src) {
+  if (!msg || msg.peerId === _myPeerId) return;
+  if (msg.type === 'heartbeat') {
+    _lanPeers[msg.peerId] = { name: msg.name, color: msg.color, ts: Date.now() };
+    renderLANPresence();
+  } else if (msg.type === 'update') {
+    // Remote user changed data — reload from message payload
+    if (msg.projectId === currentProjId && msg.tasks) {
+      tasks = msg.tasks;
+      curProj().tasks = tasks;
+      scheduleTasks();
+      render();
+      showSyncToast && showSyncToast();
+    }
+  }
+}
+
+function sendLANMessage(msg) {
+  const full = { ...msg, peerId: _myPeerId };
+  if (_bc) try { _bc.postMessage(full); } catch(e) {}
+  if (_ws && _ws.readyState === WebSocket.OPEN) {
+    try { _ws.send(JSON.stringify(full)); } catch(e) {}
+  }
+}
+
+function sendHeartbeat() {
+  sendLANMessage({
+    type: 'heartbeat',
+    name: currentUser?.displayName || currentUser?.email || '访客',
+    color: avColor(currentUser?.displayName || ''),
+  });
+  // Prune stale peers (no heartbeat in 15s)
+  const now = Date.now();
+  Object.keys(_lanPeers).forEach(id => { if (now - _lanPeers[id].ts > 15000) delete _lanPeers[id]; });
+  renderLANPresence();
+}
+
+function broadcastUpdate() {
+  sendLANMessage({ type: 'update', projectId: currentProjId, tasks });
+}
+
+function renderLANPresence() {
+  const bar = document.getElementById('presenceBar');
+  const avatars = document.getElementById('presenceAvatars');
+  if (!avatars) return;
+  const peers = Object.values(_lanPeers);
+  if (peers.length === 0) { bar.style.display = 'none'; return; }
+  bar.style.display = '';
+  avatars.innerHTML = peers.slice(0, 6).map(p =>
+    `<div class="presence-avatar" style="background:${p.color}" title="${p.name}">
+      ${initials(p.name)}<span class="online-dot"></span>
+    </div>`
+  ).join('');
+}
+
+function updateLANStatus(state) {
+  const dot = document.getElementById('lanDot');
+  if (!dot) return;
+  dot.className = 'lan-status' + (state === 'connected' ? ' connected' : state === 'connecting' ? ' connecting' : '');
+  dot.title = state === 'connected' ? '局域网已连接' : state === 'connecting' ? '正在连接...' : '局域网未连接';
+}
+
+// Hook saveToCloud to also broadcast LAN update
+const _origSaveToCloud = saveToCloud;
+async function saveToCloud() {
+  await _origSaveToCloud();
+  broadcastUpdate();
+}
+
+/* ═══════════════════════════════════════════
+   RESOURCE POOL
+═══════════════════════════════════════════ */
+function openResourceModal() {
+  renderResourcePool();
+  document.getElementById('resourceOverlay').classList.add('open');
+}
+function closeResourceModal() {
+  document.getElementById('resourceOverlay').classList.remove('open');
+}
+
+function renderResourcePool() {
+  const grid = document.getElementById('rpoolGrid');
+  if (!grid) return;
+  const maxLoad = parseInt(document.getElementById('rloadMax')?.value || '5', 10);
+
+  // Gather all assignees across all projects
+  const allTasks = [];
+  projects.forEach(p => (p.tasks || []).forEach(t => allTasks.push({ ...t, projName: p.name })));
+
+  const assignees = [...new Set(allTasks.filter(t => t.assignee).map(t => t.assignee))];
+
+  if (!assignees.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;font-size:13px;color:var(--t3);padding:20px 0">尚未为任何任务分配负责人。</div>';
+    return;
+  }
+
+  grid.innerHTML = assignees.map(name => {
+    const myTasks = allTasks.filter(t => t.assignee === name && t.type === 'task');
+    const activeTasks = myTasks.filter(t => !t.done && t.start <= TODAY_STR && t.end >= TODAY_STR);
+    const pendingTasks = myTasks.filter(t => !t.done);
+    const doneTasks = myTasks.filter(t => t.done);
+    const loadPct = Math.min(Math.round(activeTasks.length / maxLoad * 100), 100);
+    const overloaded = activeTasks.length > maxLoad;
+    const loadColor = overloaded ? '#EF4444' : loadPct > 60 ? '#F59E0B' : '#10B981';
+    const loadClass = overloaded ? 'rpool-overload' : loadPct > 60 ? 'rpool-light' : 'rpool-balanced';
+    const loadLabel = overloaded ? `🔴 过载 (${activeTasks.length}/${maxLoad})` : loadPct > 60 ? `🟡 较忙 (${activeTasks.length}/${maxLoad})` : `🟢 正常 (${activeTasks.length}/${maxLoad})`;
+    const bg = avColor(name);
+
+    const taskItems = pendingTasks.slice(0, 5).map(t =>
+      `<div class="rpool-task-item">
+        <span class="rpool-task-dot" style="background:${t.color || '#5E6AD2'}"></span>
+        <span class="rpool-task-name" title="${t.name}${t.projName?' ['+t.projName+']':''}">${t.name}</span>
+        <span class="rpool-task-pct">${t.progress || 0}%</span>
+      </div>`
+    ).join('');
+
+    return `<div class="rpool-card">
+      <div class="rpool-card-head">
+        <div class="rpool-av" style="background:${bg}">${initials(name)}</div>
+        <div>
+          <div class="rpool-name">${name}</div>
+          <div class="rpool-meta">${myTasks.length}项任务 · ${doneTasks.length}项完成</div>
+        </div>
+      </div>
+      <div class="rpool-load-bar">
+        <div class="rpool-load-fill" style="width:${loadPct}%;background:${loadColor}"></div>
+      </div>
+      <div class="rpool-load-label">
+        <span class="${loadClass}">${loadLabel}</span>
+        <span>进行中: ${activeTasks.length}</span>
+      </div>
+      <div class="rpool-task-list">${taskItems || '<div style="font-size:11px;color:var(--t4)">无待办任务</div>'}</div>
+    </div>`;
+  }).join('');
 }
 
 /* ═══════════════════════════════════════════
@@ -7111,6 +7763,10 @@ function initWorkTimeSettings() {
 document.addEventListener('DOMContentLoaded', async () => {
   applyTheme(_activeTheme);
   initWorkTimeSettings();
+  applyI18N();
+  document.body.classList.toggle('show-wbs', _showWBS);
+  document.getElementById('wbsBtn').classList.toggle('active', _showWBS);
+  setupKeyboard();
   const urlParams = new URLSearchParams(location.search);
   const shareToken = urlParams.get('share');
 
