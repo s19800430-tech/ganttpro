@@ -2342,6 +2342,36 @@ function renderTaskPanel() {
     row.addEventListener('mouseenter', () => highlightRow(task.id, true));
     row.addEventListener('mouseleave', () => highlightRow(task.id, false));
 
+    // Right-click: open annotation chat for this task
+    row.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      if (typeof openTaskAnnotation === 'function') openTaskAnnotation(task);
+    });
+
+    // Approval badge inline on name cell
+    if (task.approval) {
+      const ab = document.createElement('span');
+      ab.className = `approval-badge ${task.approval}`;
+      ab.textContent = { pending:'⏳審批中', approved:'✔ 批准', rejected:'❌ 拒絕' }[task.approval] || '';
+      ab.style.marginLeft = '6px';
+      nc.appendChild(ab);
+    }
+
+    // Hyperlink indicator
+    if (task.link) {
+      const li = document.createElement('span');
+      li.title = '有文件連結（右鍵複製）';
+      li.textContent = '🔗';
+      li.style.cssText = 'font-size:10px;margin-left:4px;cursor:pointer;opacity:.7';
+      li.addEventListener('click', e => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(task.link).then(() => {
+          li.textContent = '✓'; setTimeout(() => li.textContent = '🔗', 1500);
+        });
+      });
+      nc.appendChild(li);
+    }
+
     body.appendChild(row);
   });
 
@@ -4349,24 +4379,28 @@ function isNonWorkday(d) {
   return isWeekend(d);
 }
 
+function _isNonWork(d) {
+  return typeof isNonWorkdayCustom === 'function' ? isNonWorkdayCustom(d) : isNonWorkday(d);
+}
+
 function subtractWorkingDays(endStr, days) {
   let d = new Date(endStr);
-  while (isNonWorkday(d)) d.setDate(d.getDate() - 1);
+  while (_isNonWork(d)) d.setDate(d.getDate() - 1);
   let count = 0;
   while (count < days) {
     d.setDate(d.getDate() - 1);
-    if (!isNonWorkday(d)) count++;
+    if (!_isNonWork(d)) count++;
   }
   return d.toISOString().slice(0, 10);
 }
 
 function addWorkingDays(startStr, days) {
   let d = new Date(startStr);
-  while (isNonWorkday(d)) d.setDate(d.getDate() + 1);
-  let count = 1; // inclusive: start is day 1
+  while (_isNonWork(d)) d.setDate(d.getDate() + 1);
+  let count = 1;
   while (count < days) {
     d.setDate(d.getDate() + 1);
-    if (!isNonWorkday(d)) count++;
+    if (!_isNonWork(d)) count++;
   }
   return d.toISOString().slice(0, 10);
 }
@@ -4374,7 +4408,7 @@ function addWorkingDays(startStr, days) {
 function nextWorkingDay(dateStr) {
   const d = new Date(dateStr);
   d.setDate(d.getDate() + 1);
-  while (isNonWorkday(d)) d.setDate(d.getDate() + 1);
+  while (_isNonWork(d)) d.setDate(d.getDate() + 1);
   return d.toISOString().slice(0, 10);
 }
 
@@ -4388,8 +4422,10 @@ function countWorkingDays(startStr, endStr) {
   let d = new Date(startStr);
   const end = new Date(endStr);
   let count = 0;
-  while (d <= end) { // inclusive: both start and end counted
-    if (!isNonWorkday(d)) count++;
+  while (d <= end) {
+    // Use custom work-day settings if available (set by working time modal)
+    const checker = typeof isNonWorkdayCustom === 'function' ? isNonWorkdayCustom : isNonWorkday;
+    if (!checker(d)) count++;
     d.setDate(d.getDate() + 1);
   }
   return Math.max(count, 1);
@@ -5390,7 +5426,7 @@ function isAdmin() { return currentUser?.email === ADMIN_EMAIL; }
 function updateReadOnly() {
   const cp = curProj();
   // Use !! to ensure boolean (avoid undefined causing toggle() to act as actual toggle)
-  isReadOnly = !!(_isShareLinkMode || (cp && cp._isShared && cp._permission === 'read'));
+  isReadOnly = !!(_isShareLinkMode || (cp && cp._isShared && (cp._permission === 'read' || cp._permission === 'viewer' || cp._permission === 'commenter')));
   document.body.classList.toggle('readonly', isReadOnly);
   const badge = document.querySelector('.readonly-badge');
   if (badge) badge.style.display = isReadOnly ? 'flex' : 'none';
@@ -5586,7 +5622,7 @@ function renderCollabModal() {
   list.innerHTML = _collabShares.map(s => `
     <div class="collab-share-item">
       <span class="ci-email" title="${s.shared_with_email}">${s.shared_with_email}</span>
-      <span class="ci-perm ${s.permission}">${s.permission === 'read' ? '唯讀' : '共同編輯'}</span>
+      <span class="role-badge ${getRoleClass(s.permission)}">${getRoleLabel(s.permission)}</span>
       <span class="ci-del" onclick="removeShare('${s.id}','${s.shared_with_email}')" title="移除">✕</span>
     </div>
   `).join('');
@@ -5844,7 +5880,7 @@ async function saveToCloud() {
       await db.collection('gantt_user_data').doc(currentUser.uid)
         .set({ data: state, updated_at: new Date().toISOString() }, { merge: true });
       setSyncDot('ok');
-    } else if (cp._isShared && cp._permission === 'edit') {
+    } else if (cp._isShared && (cp._permission === 'edit' || cp._permission === 'editor' || cp._permission === 'admin')) {
       const ownerSnap = await db.collection('gantt_user_data').doc(cp._ownerId).get();
       const ownerData = ownerSnap.data()?.data;
       if (!ownerData?.projects) { setSyncDot('err'); return; }
