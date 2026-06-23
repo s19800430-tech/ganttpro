@@ -6141,18 +6141,42 @@ function render() {
    FIREBASE
 ═══════════════════════════════════════════ */
 /* ── PouchDB 本地存储 ── */
-const _pdb = new PouchDB('ganttpro');
+let _pdb = null;
+try {
+  if (typeof PouchDB !== 'undefined') { _pdb = new PouchDB('ganttpro'); }
+} catch(e) { console.warn('[GanttPro] PouchDB init failed, using localStorage fallback', e); }
+
+const _lsStore = {
+  get(id) { try { const v = localStorage.getItem('_pdb_'+id); return v ? JSON.parse(v) : null; } catch(e) { return null; } },
+  put(doc) { try { localStorage.setItem('_pdb_'+doc._id, JSON.stringify(doc)); } catch(e) {} },
+};
+
 async function pdbGet(id) {
-  try { return await _pdb.get(id); } catch(e) { return null; }
+  if (_pdb) { try { return await _pdb.get(id); } catch(e) { return null; } }
+  return _lsStore.get(id);
 }
 async function pdbPut(doc) {
-  const existing = await pdbGet(doc._id);
-  if (existing) doc._rev = existing._rev;
-  try { return await _pdb.put(doc); } catch(e) { console.error('pdbPut', e); }
+  if (_pdb) {
+    const existing = await pdbGet(doc._id);
+    if (existing) doc._rev = existing._rev;
+    try { return await _pdb.put(doc); } catch(e) { console.error('pdbPut', e); }
+  } else { _lsStore.put(doc); }
 }
 async function pdbAllDocs(prefix) {
-  const res = await _pdb.allDocs({ include_docs:true, startkey:prefix, endkey:prefix+'\uffff' });
-  return res.rows.map(r => r.doc);
+  if (_pdb) {
+    try {
+      const res = await _pdb.allDocs({ include_docs:true, startkey:prefix, endkey:prefix+'\uffff' });
+      return res.rows.map(r => r.doc);
+    } catch(e) { return []; }
+  }
+  const results = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('_pdb_'+prefix)) {
+      try { results.push(JSON.parse(localStorage.getItem(k))); } catch(e) {}
+    }
+  }
+  return results;
 }
 let _myUpdate = false;
 let currentUser = null;
@@ -6459,7 +6483,22 @@ async function startLocal() {
   localStorage.setItem('gp_local_name', name);
   currentUser = { uid: 'local_' + name.replace(/\s+/g,'_'), displayName: name, email: null, photoURL: null };
   document.getElementById('loginScreen').style.display = 'none';
-  await initApp();
+  try {
+    await initApp();
+  } catch(e) {
+    console.error('[GanttPro] startLocal/initApp error:', e);
+    // Show app anyway with empty project
+    showApp();
+    updateUserDisplay();
+    projects = [createDefaultProject()];
+    currentProjId = projects[0].id;
+    tasks = [];
+    nextId = 1;
+    recalcProjEnd();
+    setupColResizers(); setupResizer(); updateProjUI();
+    render(); setSyncDot('off');
+    setTimeout(scrollToToday, 120);
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -8053,10 +8092,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   const _localName = localStorage.getItem('gp_local_name');
   if (_localName) {
     currentUser = { uid: 'local_' + _localName, displayName: _localName, email: null, photoURL: null };
-    await initApp();
+    try {
+      await initApp();
+    } catch(e) {
+      console.error('[GanttPro] initApp error:', e);
+      // Fallback: still show the app even if load fails
+      showApp();
+      updateUserDisplay();
+      if (!projects.length) projects = [createDefaultProject()];
+      currentProjId = currentProjId || projects[0]?.id;
+      tasks = curProj()?.tasks || [];
+      nextId = curProj()?.nextId || 1;
+      if (curProj()?.startDate) CHART_START = new Date(curProj().startDate);
+      recalcProjEnd();
+      setupColResizers(); setupResizer(); updateProjUI();
+      scheduleTasks(); render(); setSyncDot('err');
+      setTimeout(scrollToToday, 120);
+    }
   } else {
     // 首次使用：显示昵称输入界面
     document.getElementById('loginScreen').style.display = 'flex';
+    // Auto-focus the input
+    setTimeout(() => document.getElementById('localNameInput')?.focus(), 100);
   }
 });
 </script>
