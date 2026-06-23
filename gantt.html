@@ -13,6 +13,7 @@
 <script async src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script async src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <script async src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css" onload="this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css"></noscript>
 <style>
@@ -1341,6 +1342,8 @@ body:not(.show-wbs) .wbs-code{display:none}
   #chartScroll{overflow:visible!important;height:auto!important}
   canvas{max-width:100%!important}
   .sync-dot,.readonly-badge{display:none!important}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+  .gantt-bar,.bar-bg,.bar-fill{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 }
 </style>
 </head>
@@ -1399,95 +1402,188 @@ body:not(.show-wbs) .wbs-code{display:none}
 
 <!-- TOOLBAR -->
 <div class="toolbar" id="appToolbar" style="display:none">
-  <div class="logo">
-    <div class="logo-icon">G</div>
-    GanttPro
+  <!-- Row 1: Menubar -->
+  <div class="menubar">
+    <div class="logo">
+      <div class="logo-icon">G</div>
+      GanttPro
+    </div>
+    <div class="proj-selector" id="projSelector" onclick="toggleProjMenu(event)">
+      <div class="proj-sel-dot" id="projDot" style="background:#5E6AD2"></div>
+      <span class="proj-sel-name" id="projSelectorName">載入中…</span>
+      <span class="proj-sel-arrow">▾</span>
+      <div class="proj-menu" id="projMenu" onclick="event.stopPropagation()"></div>
+    </div>
+    <!-- File menu -->
+    <div class="menu-item" id="mi-file">
+      <button class="menu-btn" onclick="toggleMenu('fileMenu')">文件</button>
+      <div class="menu-dropdown" id="fileMenu">
+        <div class="menu-dd-item" onclick="openNewProjModal();closeAllMenus()"><span class="mi-icon">📄</span> 新建项目</div>
+        <div class="menu-dd-item" onclick="openProjModal();closeAllMenus()"><span class="mi-icon">📂</span> 打开项目</div>
+        <div class="menu-dd-sep"></div>
+        <div class="menu-dd-item" onclick="saveNow();closeAllMenus()"><span class="mi-icon">💾</span> 保存 <span class="mi-kbd">⌘S</span></div>
+        <div class="menu-dd-item" onclick="openVersionPanel();closeAllMenus()"><span class="mi-icon">🕐</span> 保存版本</div>
+        <div class="menu-dd-sep"></div>
+        <div class="menu-dd-item" onclick="exportPNG();closeAllMenus()"><span class="mi-icon">🖼</span> 导出 PNG</div>
+        <div class="menu-dd-item" onclick="exportPDF();closeAllMenus()"><span class="mi-icon">📄</span> 导出 PDF</div>
+        <div class="menu-dd-item" onclick="exportExcel();closeAllMenus()"><span class="mi-icon">📊</span> 导出 Excel</div>
+        <div class="menu-dd-item" onclick="openReportModal();closeAllMenus()"><span class="mi-icon">📊</span> 导出 PPTX</div>
+        <div class="menu-dd-item" onclick="exportCSV();closeAllMenus()"><span class="mi-icon">📋</span> 导出 CSV</div>
+      </div>
+    </div>
+    <!-- Edit menu -->
+    <div class="menu-item" id="mi-edit">
+      <button class="menu-btn" onclick="toggleMenu('editMenu')">编辑</button>
+      <div class="menu-dropdown" id="editMenu">
+        <div class="menu-dd-item" onclick="undo();closeAllMenus()"><span class="mi-icon">↩</span> 撤销 <span class="mi-kbd">⌘Z</span></div>
+        <div class="menu-dd-sep"></div>
+        <div class="menu-dd-item" onclick="openModal();closeAllMenus()"><span class="mi-icon">＋</span> 添加任务 <span class="mi-kbd">⌘↵</span></div>
+        <div class="menu-dd-item" onclick="openModal('milestone');closeAllMenus()"><span class="mi-icon">◆</span> 添加里程碑</div>
+        <div class="menu-dd-item" onclick="openModal('group');closeAllMenus()"><span class="mi-icon">▶</span> 添加群组</div>
+        <div class="menu-dd-sep"></div>
+        <div class="menu-dd-item" onclick="selectAll();closeAllMenus()"><span class="mi-icon">☑</span> 全选 <span class="mi-kbd">⌘A</span></div>
+        <div class="menu-dd-item" onclick="deleteSelected();closeAllMenus()"><span class="mi-icon">🗑</span> 删除所选</div>
+      </div>
+    </div>
+    <!-- View menu -->
+    <div class="menu-item" id="mi-view">
+      <button class="menu-btn" onclick="toggleMenu('viewMenu')">视图</button>
+      <div class="menu-dropdown" id="viewMenu">
+        <div class="menu-dd-item" onclick="setView('day');closeAllMenus()"><span class="mi-icon">📅</span> 日视图</div>
+        <div class="menu-dd-item" onclick="setView('week');closeAllMenus()"><span class="mi-icon">📅</span> 周视图</div>
+        <div class="menu-dd-item" onclick="setView('month');closeAllMenus()"><span class="mi-icon">📅</span> 月视图</div>
+        <div class="menu-dd-sep"></div>
+        <div class="menu-dd-item" onclick="zoomIn();closeAllMenus()"><span class="mi-icon">＋</span> 放大</div>
+        <div class="menu-dd-item" onclick="zoomOut();closeAllMenus()"><span class="mi-icon">－</span> 缩小</div>
+        <div class="menu-dd-item" onclick="fitToFrame();closeAllMenus()"><span class="mi-icon">⊞</span> 适合窗口</div>
+        <div class="menu-dd-sep"></div>
+        <div class="menu-dd-item has-check" id="vmBarDates" onclick="onSettingBarDatesChange();closeAllMenus()"><span class="mi-icon">📅</span> 显示 Bar 日期</div>
+        <div class="menu-dd-item has-check" id="vmBaseline" onclick="onSettingBaselineChange();closeAllMenus()"><span class="mi-icon">📐</span> 显示基准线</div>
+        <div class="menu-dd-item has-check" id="vmWBS" onclick="toggleWBS();closeAllMenus()"><span class="mi-icon">#</span> 显示 WBS</div>
+        <div class="menu-dd-sep"></div>
+        <div class="menu-dd-item" onclick="toggleDark();closeAllMenus()"><span class="mi-icon">🌙</span> 深色模式</div>
+      </div>
+    </div>
+    <!-- Insert menu -->
+    <div class="menu-item" id="mi-insert">
+      <button class="menu-btn" onclick="toggleMenu('insertMenu')">插入</button>
+      <div class="menu-dropdown" id="insertMenu">
+        <div class="menu-dd-item" onclick="openModal();closeAllMenus()"><span class="mi-icon">＋</span> 添加任务</div>
+        <div class="menu-dd-item" onclick="openModal('milestone');closeAllMenus()"><span class="mi-icon">◆</span> 添加里程碑</div>
+        <div class="menu-dd-item" onclick="openModal('group');closeAllMenus()"><span class="mi-icon">▶</span> 添加群组</div>
+        <div class="menu-dd-sep"></div>
+        <div class="menu-dd-item" onclick="setBaseline();closeAllMenus()"><span class="mi-icon">📐</span> 设定基准线</div>
+      </div>
+    </div>
+    <!-- Format menu -->
+    <div class="menu-item" id="mi-format">
+      <button class="menu-btn" onclick="toggleMenu('formatMenu')">格式</button>
+      <div class="menu-dropdown" id="formatMenu">
+        <div class="menu-dd-sub">箭头样式</div>
+        <div class="menu-dd-item has-check" id="fmArrowBezier" onclick="setArrowStyle('bezier');closeAllMenus()"><span class="mi-icon">〜</span> 贝塞尔曲线</div>
+        <div class="menu-dd-item has-check" id="fmArrowElbow" onclick="setArrowStyle('elbow');closeAllMenus()"><span class="mi-icon">⌐</span> 折线</div>
+        <div class="menu-dd-item has-check" id="fmArrowStraight" onclick="setArrowStyle('straight');closeAllMenus()"><span class="mi-icon">→</span> 直线</div>
+        <div class="menu-dd-sep"></div>
+        <div class="menu-dd-item" onclick="openArrowStyleModal();closeAllMenus()"><span class="mi-icon">🎨</span> 箭头颜色…</div>
+        <div class="menu-dd-sep"></div>
+        <div class="menu-dd-item" onclick="openThemePicker();closeAllMenus()"><span class="mi-icon">🎨</span> 主题色彩</div>
+        <div class="menu-dd-item" onclick="openWorkTimeModal();closeAllMenus()"><span class="mi-icon">🗓</span> 工作时间设置</div>
+      </div>
+    </div>
+    <!-- Collab menu -->
+    <div class="menu-item" id="mi-collab">
+      <button class="menu-btn" onclick="toggleMenu('collabMenu')">协作</button>
+      <div class="menu-dropdown" id="collabMenu">
+        <div class="menu-dd-item btn-owner-only" onclick="openCollabModal();closeAllMenus()"><span class="mi-icon">🔗</span> 分享项目</div>
+        <div class="menu-dd-item btn-owner-only" onclick="openCollabModal();closeAllMenus()"><span class="mi-icon">👥</span> 管理协作</div>
+        <div class="menu-dd-sep"></div>
+        <div class="menu-dd-item" onclick="openResourceModal();closeAllMenus()"><span class="mi-icon">👤</span> 资源池</div>
+        <div class="menu-dd-item" onclick="toggleChat();closeAllMenus()"><span class="mi-icon">💬</span> 聊天</div>
+      </div>
+    </div>
+    <!-- Help menu -->
+    <div class="menu-item" id="mi-help">
+      <button class="menu-btn" onclick="toggleMenu('helpMenu')">帮助</button>
+      <div class="menu-dropdown" id="helpMenu">
+        <div class="menu-dd-item" onclick="openKbdOverlay();closeAllMenus()"><span class="mi-icon">⌨</span> 键盘快捷键 <span class="mi-kbd">?</span></div>
+        <div class="menu-dd-item" onclick="startTour();closeAllMenus()"><span class="mi-icon">🚀</span> 入门引导</div>
+        <div class="menu-dd-sep"></div>
+        <div class="menu-dd-item" onclick="closeAllMenus()"><span class="mi-icon">ℹ</span> 关于</div>
+      </div>
+    </div>
+    <div style="flex:1"></div>
+    <div class="readonly-badge">👁 唯讀模式</div>
+    <button class="btn" id="adminBtn" onclick="openAdminPanel()" title="管理員面板" style="display:none">👑 Admin</button>
+    <div id="userDisplay"></div>
+    <button class="btn" id="signOutBtn" onclick="signOut()" title="登出" style="display:none">登出</button>
+    <div class="sync-dot" id="syncDot" title="雲端同步狀態"></div>
   </div>
-  <div class="proj-selector" id="projSelector" onclick="toggleProjMenu(event)">
-    <div class="proj-sel-dot" id="projDot" style="background:#5E6AD2"></div>
-    <span class="proj-sel-name" id="projSelectorName">載入中…</span>
-    <span class="proj-sel-arrow">▾</span>
-    <div class="proj-menu" id="projMenu" onclick="event.stopPropagation()"></div>
-  </div>
-  <button class="btn btn-owner-only proj-share-btn" onclick="openCollabModal()" title="共享此專案">🔗</button>
-  <div class="sep"></div>
-  <button class="btn btn-primary" onclick="openModal()" style="display:none">＋ 新增任務</button>
-  <button class="btn" id="undoBtn" onclick="undo()" title="復原 (⌘Z)" disabled>↩ 復原</button>
-  <button class="btn" onclick="scrollToToday()" title="跳至今日">📍 今日</button>
-  <button class="btn" onclick="expandAll()">⊞ 全展開</button>
-  <button class="btn" onclick="collapseAll()">⊟ 全收合</button>
-  <div class="spacer"></div>
-  <div class="btn-group" id="chartViewBtns">
-    <button class="btn active" data-cv="gantt" onclick="setChartView('gantt')">甘特圖</button>
-    <button class="btn" data-cv="milestone" onclick="setChartView('milestone')">◆ 里程碑</button>
-    <button class="btn" data-cv="workload" onclick="setChartView('workload')">工作量</button>
-    <button class="btn" data-cv="resource" onclick="setChartView('resource')">📅 資源</button>
-    <button class="btn" data-cv="sprint" onclick="setChartView('sprint')">🏃 看板</button>
-    <button class="btn" data-cv="dashboard" onclick="setChartView('dashboard')">📊 儀表板</button>
-  </div>
-  <div class="sep"></div>
-  <div class="btn-group" id="viewBtns">
-    <button class="btn" data-v="day" onclick="setView('day')">日</button>
-    <button class="btn active" data-v="week" onclick="setView('week')">週</button>
-    <button class="btn" data-v="month" onclick="setView('month')">月</button>
-  </div>
-  <button class="btn zoom-btn" onclick="zoomOut()" title="縮小">－</button>
-  <button class="btn zoom-btn" onclick="zoomIn()" title="放大">＋</button>
-  <button class="btn fit-btn" onclick="fitToFrame()" title="縮放至適合視窗"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4.5V1h3.5M8.5 1H12v3.5M12 8.5V12H8.5M4.5 12H1V8.5"/></svg></button>
-  <button class="btn" id="cpBtn" onclick="toggleCriticalPath()" title="顯示關鍵路徑">◆ 關鍵路徑</button>
-  <div class="settings-wrap" id="exportWrap">
-    <button class="btn" onclick="toggleExportMenu()" title="匯出">⬇ 匯出</button>
-    <div class="settings-panel" id="exportPanel">
-      <button class="settings-action" onclick="exportPNG();closeExportMenu()">🖼 匯出 PNG</button>
-      <button class="settings-action" onclick="exportPDF();closeExportMenu()">📄 列印/PDF</button>
-      <button class="settings-action" onclick="exportGanttPDF();closeExportMenu()">📄 甘特圖 PDF</button>
-      <button class="settings-action" onclick="exportCSV();closeExportMenu()">📊 匯出 CSV</button>
-      <button class="settings-action" onclick="exportExcel();closeExportMenu()">📊 匯出 Excel</button>
-      <button class="settings-action" onclick="openReportModal();closeExportMenu()">📝 專案報告 / PPTX</button>
+  <!-- Row 2: Quickbar -->
+  <div class="quickbar">
+    <button class="btn" id="undoBtn" onclick="undo()" title="復原 (⌘Z)" disabled>↩</button>
+    <div class="sep"></div>
+    <button class="btn" onclick="scrollToToday()" title="跳至今日">📍 今日</button>
+    <button class="btn" onclick="expandAll()" title="全展開">⊞</button>
+    <button class="btn" onclick="collapseAll()" title="全收合">⊟</button>
+    <div class="sep"></div>
+    <button class="btn zoom-btn" onclick="zoomOut()" title="縮小">－</button>
+    <button class="btn zoom-btn" onclick="zoomIn()" title="放大">＋</button>
+    <button class="btn fit-btn" onclick="fitToFrame()" title="縮放至適合視窗"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4.5V1h3.5M8.5 1H12v3.5M12 8.5V12H8.5M4.5 12H1V8.5"/></svg></button>
+    <div class="sep"></div>
+    <div class="btn-group" id="chartViewBtns">
+      <button class="btn active" data-cv="gantt" onclick="setChartView('gantt')">甘特圖</button>
+      <button class="btn" data-cv="milestone" onclick="setChartView('milestone')">◆ 里程碑</button>
+      <button class="btn" data-cv="workload" onclick="setChartView('workload')">工作量</button>
+      <button class="btn" data-cv="resource" onclick="setChartView('resource')">📅 資源</button>
+      <button class="btn" data-cv="sprint" onclick="setChartView('sprint')">🏃 看板</button>
+      <button class="btn" data-cv="dashboard" onclick="setChartView('dashboard')">📊 儀表板</button>
+    </div>
+    <div style="flex:1"></div>
+    <button class="btn" id="cpBtn" onclick="toggleCriticalPath()" title="顯示關鍵路徑">◆ 關鍵路徑</button>
+    <button class="btn" onclick="toggleWBS()" id="wbsBtn" title="显示/隐藏WBS编号">WBS</button>
+    <select class="lang-select" id="langSelect" onchange="setLang(this.value)" title="语言/Language">
+      <option value="zh-CN">简中</option>
+      <option value="zh-TW">繁中</option>
+      <option value="en">EN</option>
+      <option value="de">DE</option>
+      <option value="ja">日本語</option>
+      <option value="ko">한국어</option>
+    </select>
+    <div class="presence-bar" id="presenceBar" style="display:none">
+      <div class="lan-status" id="lanDot" title="局域网连接状态"></div>
+      <div id="presenceAvatars" style="display:flex;gap:2px"></div>
     </div>
   </div>
-  <button class="btn" onclick="toggleChat()" title="聊天與批注" id="chatToggleBtn">💬 聊天</button>
-  <div class="readonly-badge">👁 唯讀模式</div>
-  <button class="btn btn-owner-only" id="collabBtn" onclick="openCollabModal()" title="協作管理">👥 協作</button>
-  <button class="btn" id="darkBtn" onclick="toggleDark()" title="深色模式">🌙</button>
-  <div class="settings-wrap" id="settingsWrap">
-    <button class="btn" id="settingsBtn" onclick="toggleSettings()" title="設定">⚙ 設定</button>
-    <div class="settings-panel" id="settingsPanel">
-      <label class="settings-item">
-        <input type="checkbox" id="settingBarDates" checked onchange="onSettingBarDatesChange()">
-        顯示 Bar 日期
-      </label>
-      <label class="settings-item">
-        <input type="checkbox" id="settingBaseline" checked onchange="onSettingBaselineChange()">
-        顯示基準線
-      </label>
-      <div class="settings-sep"></div>
-      <button class="settings-action" onclick="setBaseline();closeSettings()">📐 設定基準線</button>
-      <button class="settings-action btn-owner-only" id="settingVersionBtn" onclick="openVersionPanel();closeSettings()">🕐 版本紀錄</button>
-      <div class="settings-sep"></div>
-      <button class="settings-action" onclick="openWorkTimeModal();closeSettings()">🗓 工作時間設定</button>
-      <button class="settings-action" onclick="openThemePicker();closeSettings()">🎨 主題色彩</button>
+</div>
+
+<!-- ARROW STYLE MODAL -->
+<div class="overlay" id="arrowStyleOverlay" onclick="if(event.target===this)closeArrowStyleModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:380px">
+    <button class="modal-close" onclick="closeArrowStyleModal()">✕</button>
+    <div class="modal-title">🎨 箭头样式设置</div>
+    <div class="form-row">
+      <label class="form-lbl">箭头样式</label>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="arrowStyleRadio" value="bezier"> 贝塞尔曲线（平滑）</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="arrowStyleRadio" value="elbow"> 折线（直角）</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="arrowStyleRadio" value="straight"> 直线</label>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-lbl">箭头颜色</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px">FS <input type="color" id="acFS" style="width:36px;height:28px;border:1px solid var(--border);border-radius:4px;padding:2px;cursor:pointer"></label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px">SS <input type="color" id="acSS" style="width:36px;height:28px;border:1px solid var(--border);border-radius:4px;padding:2px;cursor:pointer"></label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px">FF <input type="color" id="acFF" style="width:36px;height:28px;border:1px solid var(--border);border-radius:4px;padding:2px;cursor:pointer"></label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px">SF <input type="color" id="acSF" style="width:36px;height:28px;border:1px solid var(--border);border-radius:4px;padding:2px;cursor:pointer"></label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px">关键路径 <input type="color" id="acCP" style="width:36px;height:28px;border:1px solid var(--border);border-radius:4px;padding:2px;cursor:pointer"></label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeArrowStyleModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveArrowStyle()">保存</button>
     </div>
   </div>
-  <select class="lang-select" id="langSelect" onchange="setLang(this.value)" title="语言/Language">
-    <option value="zh-CN">简中</option>
-    <option value="zh-TW">繁中</option>
-    <option value="en">EN</option>
-    <option value="de">DE</option>
-    <option value="ja">日本語</option>
-    <option value="ko">한국어</option>
-  </select>
-  <button class="btn" onclick="toggleWBS()" id="wbsBtn" title="显示/隐藏WBS编号">WBS</button>
-  <button class="btn" onclick="openResourceModal()" title="资源池管理">👤 资源</button>
-  <button class="btn" onclick="openKbdOverlay()" title="键盘快捷键 (?)">⌨</button>
-  <div class="presence-bar" id="presenceBar" style="display:none">
-    <div class="lan-status" id="lanDot" title="局域网连接状态"></div>
-    <div id="presenceAvatars" style="display:flex;gap:2px"></div>
-  </div>
-  <button class="btn" id="adminBtn" onclick="openAdminPanel()" title="管理員面板" style="display:none">👑 Admin</button>
-  <div id="userDisplay"></div>
-  <button class="btn" id="signOutBtn" onclick="signOut()" title="登出" style="display:none">登出</button>
-  <div class="sync-dot" id="syncDot" title="雲端同步狀態"></div>
 </div>
 
 <!-- VERSION PANEL -->
@@ -1863,6 +1959,16 @@ body:not(.show-wbs) .wbs-code{display:none}
         <option value="approved">已批准</option>
         <option value="rejected">已拒絕</option>
       </select>
+    </div>
+    <div class="form-row" id="rowEvidence">
+      <label class="form-lbl">佐证链接</label>
+      <input class="form-ctrl" id="fEvidence" type="url" placeholder="https://… （进度佐证/附件链接）">
+    </div>
+    <div class="form-row" id="rowCosts" style="display:none">
+      <label class="form-lbl">计划成本</label>
+      <input class="form-ctrl" type="number" id="fPlannedCost" min="0" step="0.01" placeholder="0" style="width:100px">
+      <label class="form-lbl" style="margin-left:12px">实际成本</label>
+      <input class="form-ctrl" type="number" id="fActualCost" min="0" step="0.01" placeholder="0" style="width:100px">
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal()">取消</button>
@@ -2941,6 +3047,17 @@ function renderBar(row, task) {
     bar.appendChild(ed);
   }
 
+  if (task.evidence) {
+    const ev = document.createElement('a');
+    ev.href = task.evidence;
+    ev.target = '_blank';
+    ev.rel = 'noopener noreferrer';
+    ev.style.cssText = 'position:absolute;right:2px;top:50%;transform:translateY(-50%);font-size:10px;text-decoration:none;line-height:1;z-index:2';
+    ev.textContent = '🔗';
+    ev.onclick = e => e.stopPropagation();
+    bar.appendChild(ev);
+  }
+
   bar.addEventListener('mouseenter', e => { showTT(e, task); highlightDeps(task.id, true); });
   bar.addEventListener('mousemove', moveTT);
   bar.addEventListener('mouseleave', e => { hideTT(); highlightDeps(task.id, false); });
@@ -3281,9 +3398,18 @@ function renderArrows(canvas, rows, tw, th) {
         if (isNaN(sX)) return;
         const dx = (tX - sX) / 2;
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('d', `M ${sX} ${sY} C ${sX + Math.max(dx, 20)} ${sY}, ${tX - Math.max(dx, 20)} ${tY}, ${tX} ${tY}`);
+        let pathD_fs;
+        if (_arrowStyle === 'straight') {
+          pathD_fs = `M ${sX} ${sY} L ${tX} ${tY}`;
+        } else if (_arrowStyle === 'elbow') {
+          const midY_fs = (sY + tY) / 2;
+          pathD_fs = `M ${sX} ${sY} L ${sX} ${midY_fs} L ${tX} ${midY_fs} L ${tX} ${tY}`;
+        } else {
+          pathD_fs = `M ${sX} ${sY} C ${sX + Math.max(dx, 20)} ${sY}, ${tX - Math.max(dx, 20)} ${tY}, ${tX} ${tY}`;
+        }
+        path.setAttribute('d', pathD_fs);
         path.setAttribute('fill', 'none');
-        path.setAttribute('stroke', '#C4C8D8');
+        path.setAttribute('stroke', _arrowColors.FS);
         path.setAttribute('stroke-width', '1.5');
         path.setAttribute('stroke-dasharray', '5 3');
         path.setAttribute('marker-end', 'url(#ah)');
@@ -3312,7 +3438,7 @@ function renderArrows(canvas, rows, tw, th) {
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', pathD);
         path.setAttribute('fill', 'none');
-        path.setAttribute('stroke', '#EF4444');
+        path.setAttribute('stroke', _arrowColors.CP || '#EF4444');
         path.setAttribute('stroke-width', '2');
         path.setAttribute('stroke-linecap', 'round');
         path.setAttribute('stroke-linejoin', 'round');
@@ -3335,9 +3461,18 @@ function renderArrows(canvas, rows, tw, th) {
       if (isNaN(sX)) return;
       const dx = (tX - sX) / 2;
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', `M ${sX} ${sY} C ${sX + Math.max(dx, 20)} ${sY}, ${tX - Math.max(dx, 20)} ${tY}, ${tX} ${tY}`);
+      let pathD_ss;
+      if (_arrowStyle === 'straight') {
+        pathD_ss = `M ${sX} ${sY} L ${tX} ${tY}`;
+      } else if (_arrowStyle === 'elbow') {
+        const midY_ss = (sY + tY) / 2;
+        pathD_ss = `M ${sX} ${sY} L ${sX} ${midY_ss} L ${tX} ${midY_ss} L ${tX} ${tY}`;
+      } else {
+        pathD_ss = `M ${sX} ${sY} C ${sX + Math.max(dx, 20)} ${sY}, ${tX - Math.max(dx, 20)} ${tY}, ${tX} ${tY}`;
+      }
+      path.setAttribute('d', pathD_ss);
       path.setAttribute('fill', 'none');
-      path.setAttribute('stroke', '#F59E0B');
+      path.setAttribute('stroke', _arrowColors.SS);
       path.setAttribute('stroke-width', '1.5');
       path.setAttribute('stroke-dasharray', '4 3');
       path.setAttribute('marker-end', 'url(#ah-ss)');
@@ -3358,9 +3493,18 @@ function renderArrows(canvas, rows, tw, th) {
       const ffTX = task.type === 'milestone' ? dateToX(task.date) + PPD / 2 : dateToX(task.end) + PPD;
       const dx = (ffTX - sX) / 2;
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', `M ${sX} ${sY} C ${sX + Math.max(dx, 20)} ${sY}, ${ffTX - Math.max(dx, 20)} ${tY}, ${ffTX} ${tY}`);
+      let pathD_ff;
+      if (_arrowStyle === 'straight') {
+        pathD_ff = `M ${sX} ${sY} L ${ffTX} ${tY}`;
+      } else if (_arrowStyle === 'elbow') {
+        const midY_ff = (sY + tY) / 2;
+        pathD_ff = `M ${sX} ${sY} L ${sX} ${midY_ff} L ${ffTX} ${midY_ff} L ${ffTX} ${tY}`;
+      } else {
+        pathD_ff = `M ${sX} ${sY} C ${sX + Math.max(dx, 20)} ${sY}, ${ffTX - Math.max(dx, 20)} ${tY}, ${ffTX} ${tY}`;
+      }
+      path.setAttribute('d', pathD_ff);
       path.setAttribute('fill', 'none');
-      path.setAttribute('stroke', '#10B981');
+      path.setAttribute('stroke', _arrowColors.FF);
       path.setAttribute('stroke-width', '1.5');
       path.setAttribute('stroke-dasharray', '4 3');
       path.setAttribute('marker-end', 'url(#ah-ff)');
@@ -3616,6 +3760,8 @@ function toggleBarDates() {
 /* ── CRITICAL PATH ── */
 let showCriticalPath = false;
 let criticalTaskIds = new Set();
+let _arrowStyle = localStorage.getItem('gp_arrow_style') || 'bezier'; // bezier|elbow|straight
+let _arrowColors = JSON.parse(localStorage.getItem('gp_arrow_colors') || 'null') || {FS:'#C4C8D8',SS:'#F59E0B',FF:'#10B981',SF:'#8B5CF6',CP:'#EF4444'};
 
 function computeCriticalPath() {
   // ── 正確的 CPM 演算法 ──
@@ -4051,6 +4197,48 @@ function setBaseline() {
   if (currentUser) saveToCloud();
 }
 
+
+/* ── Google Sheets-style dropdown menus ── */
+function toggleMenu(id) {
+  const isOpen = document.getElementById(id).classList.contains('open');
+  closeAllMenus();
+  if (!isOpen) {
+    document.getElementById(id).classList.add('open');
+    const btn = document.getElementById(id).previousElementSibling;
+    if (btn) btn.classList.add('open');
+  }
+}
+function closeAllMenus() {
+  document.querySelectorAll('.menu-dropdown.open').forEach(el => el.classList.remove('open'));
+  document.querySelectorAll('.menu-btn.open').forEach(el => el.classList.remove('open'));
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.menu-item')) closeAllMenus();
+}, true);
+
+/* ── Arrow style customization ── */
+function setArrowStyle(style) {
+  _arrowStyle = style;
+  localStorage.setItem('gp_arrow_style', style);
+  ['Bezier','Elbow','Straight'].forEach(s => {
+    const el = document.getElementById('fmArrow' + s);
+    if (el) el.classList.toggle('checked', s.toLowerCase() === style);
+  });
+  if (typeof renderArrows === 'function') renderArrows();
+}
+function openArrowStyleModal() {
+  const existing = document.getElementById('arrowStyleOverlay');
+  if (existing) existing.remove();
+  const rows = [['FS','完成→开始'],['SS','开始→开始'],['FF','完成→完成'],['SF','开始→完成'],['CP','关键路径']];
+  const styleRows = ['bezier:贝塞尔曲线 〜','elbow:折线 ⌐','straight:直线 →'];
+  const html = '<div class="overlay" id="arrowStyleOverlay" onclick="if(event.target===this)this.remove()" style="display:flex;align-items:center;justify-content:center"><div class="modal" onclick="event.stopPropagation()" style="max-width:340px;width:100%"><button class="modal-close" onclick="document.getElementById('arrowStyleOverlay').remove()">✕</button><div class="modal-title">↗ 依赖箭头样式</div><div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">箭头形状</div>' +
+    styleRows.map(s => { const [v,l] = s.split(':'); return '<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer"><input type="radio" name="arrowStyle" value="' + v + '" ' + (_arrowStyle === v ? 'checked' : '') + ' onchange="setArrowStyle(this.value)"><span style="font-size:13px">' + l + '</span></label>'; }).join('') +
+    '</div><div><div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:8px">箭头颜色</div>' +
+    rows.map(([k,l]) => '<label style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><input type="color" value="' + _arrowColors[k] + '" style="width:32px;height:24px;border:none;cursor:pointer;border-radius:4px" onchange="_arrowColors[\''+k+'\'] = this.value; localStorage.setItem(\'gp_arrow_colors\', JSON.stringify(_arrowColors)); if(typeof renderArrows===\'function\') renderArrows()"><span style="font-size:12px;color:var(--t2)">' + l + ' (' + k + ')</span></label>').join('') +
+    '</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
 function toggleSettings() {
   const panel = document.getElementById('settingsPanel');
   panel.classList.toggle('open');
@@ -4204,6 +4392,7 @@ function updateModalForType() {
   document.getElementById('rowDone').style.display  = (isMs || isGrp) ? 'none' : 'flex';
   document.getElementById('rowDeps').style.display  = isGrp ? 'none' : '';
   document.getElementById('rowAssignee').style.display = isGrp ? 'none' : '';
+  document.getElementById('rowCosts').style.display = t === 'task' ? '' : 'none';
 }
 
 function setupDepsInputListener(excludeId) {
@@ -4298,6 +4487,9 @@ function openModal(unused, prefillDate) {
   document.getElementById('fDepsTip').textContent = '';
   document.getElementById('fProgress').value = 0;
   document.getElementById('fAssignee').value = '';
+  if (document.getElementById('fEvidence')) document.getElementById('fEvidence').value = '';
+  if (document.getElementById('fPlannedCost')) document.getElementById('fPlannedCost').value = '';
+  if (document.getElementById('fActualCost')) document.getElementById('fActualCost').value = '';
   populateModal();
   updateModalForType();
   document.getElementById('overlay').classList.add('open');
@@ -5306,6 +5498,67 @@ function updateProjUI() {
   document.getElementById('projDot').style.background = p.color;
   document.getElementById('sPeriod').textContent = `${p.startDate} — ${p.endDate}`;
   updateReadOnly();
+}
+
+function toggleMenu(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const wasOpen = el.classList.contains('open');
+  closeAllMenus();
+  if (!wasOpen) {
+    el.classList.add('open');
+    el.previousElementSibling && el.previousElementSibling.classList.add('open');
+  }
+}
+function closeAllMenus() {
+  document.querySelectorAll('.menu-dropdown.open').forEach(el => {
+    el.classList.remove('open');
+    if (el.previousElementSibling) el.previousElementSibling.classList.remove('open');
+  });
+}
+function saveNow() {
+  if (currentUser) saveToCloud();
+}
+function openNewProjModal() {
+  // Open project modal in new-project mode
+  if (typeof openProjModal === 'function') openProjModal();
+}
+function setArrowStyle(style) {
+  _arrowStyle = style;
+  localStorage.setItem('gp_arrow_style', style);
+  updateArrowStyleMenuChecks();
+  render();
+}
+function updateArrowStyleMenuChecks() {
+  ['bezier','elbow','straight'].forEach(s => {
+    const el = document.getElementById('fmArrow' + s.charAt(0).toUpperCase() + s.slice(1));
+    if (el) el.classList.toggle('checked', _arrowStyle === s);
+  });
+}
+function openArrowStyleModal() {
+  document.getElementById('arrowStyleOverlay').classList.add('open');
+  document.querySelector(`input[name="arrowStyleRadio"][value="${_arrowStyle}"]`).checked = true;
+  document.getElementById('acFS').value = _arrowColors.FS;
+  document.getElementById('acSS').value = _arrowColors.SS;
+  document.getElementById('acFF').value = _arrowColors.FF;
+  document.getElementById('acSF').value = _arrowColors.SF;
+  document.getElementById('acCP').value = _arrowColors.CP;
+}
+function closeArrowStyleModal() {
+  document.getElementById('arrowStyleOverlay').classList.remove('open');
+}
+function saveArrowStyle() {
+  _arrowStyle = document.querySelector('input[name="arrowStyleRadio"]:checked').value;
+  _arrowColors.FS = document.getElementById('acFS').value;
+  _arrowColors.SS = document.getElementById('acSS').value;
+  _arrowColors.FF = document.getElementById('acFF').value;
+  _arrowColors.SF = document.getElementById('acSF').value;
+  _arrowColors.CP = document.getElementById('acCP').value;
+  localStorage.setItem('gp_arrow_style', _arrowStyle);
+  localStorage.setItem('gp_arrow_colors', JSON.stringify(_arrowColors));
+  updateArrowStyleMenuChecks();
+  closeArrowStyleModal();
+  render();
 }
 
 function toggleProjMenu(e) {
@@ -6466,94 +6719,224 @@ async function initApp() {
 ═══════════════════════════════════════════ */
 const I18N = {
   'zh-CN': {
-    appName:'GanttPro — 项目甘特图', newTask:'＋ 新增任务', undo:'↩ 撤销', today:'📍 今天',
-    expandAll:'⊞ 全展开', collapseAll:'⊟ 全折叠',
+    appName:'GanttPro', newTask:'＋ 新增任务', undo:'撤销', today:'📍 今天',
+    expandAll:'全展开', collapseAll:'全折叠',
     gantt:'甘特图', milestone:'◆ 里程碑', workload:'工作量',
     resource:'📅 资源', sprint:'🏃 看板', dashboard:'📊 仪表板',
     day:'日', week:'周', month:'月',
-    export:'⬇ 导出', exportPng:'🖼 导出 PNG', exportPdf:'📄 打印/PDF',
+    exportPng:'🖼 导出 PNG', exportPdf:'📄 打印/PDF',
     exportGanttPdf:'📄 甘特图 PDF', exportCsv:'📊 导出 CSV',
     exportExcel:'📊 导出 Excel', exportReport:'📝 项目报告/PPTX',
-    chat:'💬 聊天', settings:'⚙ 设置', dark:'🌙', signOut:'退出',
+    chat:'💬 聊天', signOut:'退出',
     taskName:'任务名称', startDate:'开始日期', endDate:'结束日期',
     workDays:'工作日', predecessor:'前置任务', done:'完成',
     total:'共', tasks:'项任务',
     collab:'👥 协作', shareBtn:'🔗',
+    readOnly:'👁 只读模式', criticalPath:'◆ 关键路径', wbs:'WBS',
+    // Menus
+    mFile:'文件', mEdit:'编辑', mView:'视图', mFormat:'格式', mCollab:'协作', mHelp:'帮助',
+    mNewProj:'新建项目', mOpenProj:'打开项目', mSave:'保存', mSaveVer:'保存版本',
+    mUndo:'撤销', mAddTask:'添加任务', mAddMilestone:'添加里程碑', mAddGroup:'添加群组',
+    mSelectAll:'全选', mDelete:'删除所选', mSetBaseline:'设定基准线',
+    mDayView:'日视图', mWeekView:'周视图', mMonthView:'月视图',
+    mZoomIn:'放大', mZoomOut:'缩小', mFitWindow:'适合窗口',
+    mShowBarDates:'显示Bar日期', mShowBaseline:'显示基准线', mShowWBS:'显示WBS编号',
+    mScrollToday:'跳至今日', mExpandAll:'全部展开', mCollapseAll:'全部收起', mDarkMode:'深色模式',
+    mTheme:'主题色彩', mArrowStyle:'依赖箭头样式', mArrowColors:'箭头颜色…', mWorkTime:'工作时间设置',
+    mShare:'共享项目', mManageCollab:'协作管理', mResourcePool:'资源池', mChat:'聊天与批注',
+    mKbd:'键盘快捷键', mTour:'功能导览',
+    // Task modal
+    tProgress:'完成度 (%)', tEvidence:'凭证链接 (可选)', tCost:'计划成本', tActualCost:'实际成本',
+    tAssignee:'负责人', tColor:'颜色', tDeps:'前置任务 ID',
+    // Dashboard / EVM
+    evmTitle:'挣值分析 (EVM)', burndownTitle:'燃尽图',
+    bac:'BAC 预算', pv:'PV 计划值', ev:'EV 挣值', ac:'AC 实际成本',
+    spi:'SPI 进度绩效', cpi:'CPI 成本绩效', eac:'EAC 完工估算', sv:'SV 进度偏差', cv:'CV 成本偏差',
+    // Working time
+    wtTitle:'工作时间设置', wtTabWeek:'工作周', wtTabExcept:'例外日期', wtTabCalendar:'日历',
+    wtWorkDays:'工作日设置', wtShifts:'工作时段', wtHoursPerDay:'每日工作小时',
+    wtExceptions:'例外日期（节假日）', wtAddExcept:'添加例外', wtExceptName:'名称',
+    wtExceptFrom:'开始', wtExceptTo:'结束', wtRecurring:'每年重复',
   },
   'zh-TW': {
-    appName:'GanttPro — 專案甘特圖', newTask:'＋ 新增任務', undo:'↩ 復原', today:'📍 今日',
-    expandAll:'⊞ 全展開', collapseAll:'⊟ 全收合',
+    appName:'GanttPro', newTask:'＋ 新增任務', undo:'復原', today:'📍 今日',
+    expandAll:'全展開', collapseAll:'全收合',
     gantt:'甘特圖', milestone:'◆ 里程碑', workload:'工作量',
     resource:'📅 資源', sprint:'🏃 看板', dashboard:'📊 儀表板',
     day:'日', week:'週', month:'月',
-    export:'⬇ 匯出', exportPng:'🖼 匯出 PNG', exportPdf:'📄 列印/PDF',
+    exportPng:'🖼 匯出 PNG', exportPdf:'📄 列印/PDF',
     exportGanttPdf:'📄 甘特圖 PDF', exportCsv:'📊 匯出 CSV',
     exportExcel:'📊 匯出 Excel', exportReport:'📝 專案報告/PPTX',
-    chat:'💬 聊天', settings:'⚙ 設定', dark:'🌙', signOut:'登出',
+    chat:'💬 聊天', signOut:'登出',
     taskName:'任務名稱', startDate:'開始日期', endDate:'結束日期',
     workDays:'工作日', predecessor:'前置任務', done:'完成',
     total:'共', tasks:'項任務',
     collab:'👥 協作', shareBtn:'🔗',
+    readOnly:'👁 唯讀模式', criticalPath:'◆ 關鍵路徑', wbs:'WBS',
+    mFile:'檔案', mEdit:'編輯', mView:'檢視', mFormat:'格式', mCollab:'協作', mHelp:'說明',
+    mNewProj:'新建專案', mOpenProj:'開啟專案', mSave:'儲存', mSaveVer:'儲存版本',
+    mUndo:'復原', mAddTask:'新增任務', mAddMilestone:'新增里程碑', mAddGroup:'新增群組',
+    mSelectAll:'全選', mDelete:'刪除所選', mSetBaseline:'設定基準線',
+    mDayView:'日檢視', mWeekView:'週檢視', mMonthView:'月檢視',
+    mZoomIn:'放大', mZoomOut:'縮小', mFitWindow:'縮放至視窗',
+    mShowBarDates:'顯示Bar日期', mShowBaseline:'顯示基準線', mShowWBS:'顯示WBS編號',
+    mScrollToday:'跳至今日', mExpandAll:'全部展開', mCollapseAll:'全部收合', mDarkMode:'深色模式',
+    mTheme:'主題色彩', mArrowStyle:'依賴箭頭樣式', mArrowColors:'箭頭顏色…', mWorkTime:'工作時間設定',
+    mShare:'共享專案', mManageCollab:'協作管理', mResourcePool:'資源池', mChat:'聊天與批注',
+    mKbd:'鍵盤快捷鍵', mTour:'功能導覽',
+    tProgress:'完成度 (%)', tEvidence:'憑證連結 (選填)', tCost:'計畫成本', tActualCost:'實際成本',
+    tAssignee:'負責人', tColor:'顏色', tDeps:'前置任務 ID',
+    evmTitle:'實獲值分析 (EVM)', burndownTitle:'燃盡圖',
+    bac:'BAC 預算', pv:'PV 計畫值', ev:'EV 實獲值', ac:'AC 實際成本',
+    spi:'SPI 進度績效', cpi:'CPI 成本績效', eac:'EAC 完工估算', sv:'SV 進度偏差', cv:'CV 成本偏差',
+    wtTitle:'工作時間設定', wtTabWeek:'工作週', wtTabExcept:'例外日期', wtTabCalendar:'日曆',
+    wtWorkDays:'工作日設定', wtShifts:'工作時段', wtHoursPerDay:'每日工作小時',
+    wtExceptions:'例外日期（節假日）', wtAddExcept:'新增例外', wtExceptName:'名稱',
+    wtExceptFrom:'開始', wtExceptTo:'結束', wtRecurring:'每年重複',
   },
   'en': {
-    appName:'GanttPro — Project Planner', newTask:'＋ Add Task', undo:'↩ Undo', today:'📍 Today',
-    expandAll:'⊞ Expand All', collapseAll:'⊟ Collapse All',
+    appName:'GanttPro', newTask:'＋ Add Task', undo:'Undo', today:'📍 Today',
+    expandAll:'Expand All', collapseAll:'Collapse All',
     gantt:'Gantt', milestone:'◆ Milestones', workload:'Workload',
     resource:'📅 Resource', sprint:'🏃 Board', dashboard:'📊 Dashboard',
     day:'D', week:'W', month:'M',
-    export:'⬇ Export', exportPng:'🖼 Export PNG', exportPdf:'📄 Print/PDF',
+    exportPng:'🖼 Export PNG', exportPdf:'📄 Print/PDF',
     exportGanttPdf:'📄 Gantt PDF', exportCsv:'📊 Export CSV',
     exportExcel:'📊 Export Excel', exportReport:'📝 Report / PPTX',
-    chat:'💬 Chat', settings:'⚙ Settings', dark:'🌙', signOut:'Sign Out',
+    chat:'💬 Chat', signOut:'Sign Out',
     taskName:'Task Name', startDate:'Start', endDate:'End',
     workDays:'Days', predecessor:'Predecessor', done:'Done',
     total:'Total', tasks:'tasks',
     collab:'👥 Share', shareBtn:'🔗',
+    readOnly:'👁 Read Only', criticalPath:'◆ Critical Path', wbs:'WBS',
+    mFile:'File', mEdit:'Edit', mView:'View', mFormat:'Format', mCollab:'Share', mHelp:'Help',
+    mNewProj:'New Project', mOpenProj:'Open Project', mSave:'Save', mSaveVer:'Save Version',
+    mUndo:'Undo', mAddTask:'Add Task', mAddMilestone:'Add Milestone', mAddGroup:'Add Group',
+    mSelectAll:'Select All', mDelete:'Delete Selected', mSetBaseline:'Set Baseline',
+    mDayView:'Day View', mWeekView:'Week View', mMonthView:'Month View',
+    mZoomIn:'Zoom In', mZoomOut:'Zoom Out', mFitWindow:'Fit to Window',
+    mShowBarDates:'Show Bar Dates', mShowBaseline:'Show Baseline', mShowWBS:'Show WBS',
+    mScrollToday:'Scroll to Today', mExpandAll:'Expand All', mCollapseAll:'Collapse All', mDarkMode:'Dark Mode',
+    mTheme:'Theme Colors', mArrowStyle:'Dependency Arrow Style', mArrowColors:'Arrow Colors…', mWorkTime:'Working Time',
+    mShare:'Share Project', mManageCollab:'Manage Collaboration', mResourcePool:'Resource Pool', mChat:'Chat & Comments',
+    mKbd:'Keyboard Shortcuts', mTour:'Feature Tour',
+    tProgress:'Progress (%)', tEvidence:'Evidence Link (optional)', tCost:'Planned Cost', tActualCost:'Actual Cost',
+    tAssignee:'Assignee', tColor:'Color', tDeps:'Predecessor IDs',
+    evmTitle:'Earned Value Analysis (EVM)', burndownTitle:'Burndown Chart',
+    bac:'BAC Budget', pv:'PV Planned Value', ev:'EV Earned Value', ac:'AC Actual Cost',
+    spi:'SPI Schedule Perf.', cpi:'CPI Cost Perf.', eac:'EAC Est. at Completion', sv:'SV Schedule Var.', cv:'CV Cost Var.',
+    wtTitle:'Working Time Settings', wtTabWeek:'Work Week', wtTabExcept:'Exceptions', wtTabCalendar:'Calendar',
+    wtWorkDays:'Work Days', wtShifts:'Work Shifts', wtHoursPerDay:'Hours per Day',
+    wtExceptions:'Exceptions (Holidays)', wtAddExcept:'Add Exception', wtExceptName:'Name',
+    wtExceptFrom:'From', wtExceptTo:'To', wtRecurring:'Repeat Annually',
   },
   'de': {
-    appName:'GanttPro — Projektplan', newTask:'＋ Aufgabe hinzufügen', undo:'↩ Rückgängig', today:'📍 Heute',
-    expandAll:'⊞ Alle ausklappen', collapseAll:'⊟ Alle einklappen',
+    appName:'GanttPro', newTask:'＋ Aufgabe', undo:'Rückgängig', today:'📍 Heute',
+    expandAll:'Alle ausklappen', collapseAll:'Alle einklappen',
     gantt:'Gantt', milestone:'◆ Meilensteine', workload:'Auslastung',
     resource:'📅 Ressourcen', sprint:'🏃 Board', dashboard:'📊 Dashboard',
     day:'T', week:'W', month:'M',
-    export:'⬇ Export', exportPng:'🖼 PNG exportieren', exportPdf:'📄 Drucken/PDF',
-    exportGanttPdf:'📄 Gantt PDF', exportCsv:'📊 CSV exportieren',
-    exportExcel:'📊 Excel exportieren', exportReport:'📝 Bericht/PPTX',
-    chat:'💬 Chat', settings:'⚙ Einstellungen', dark:'🌙', signOut:'Abmelden',
+    exportPng:'🖼 PNG export', exportPdf:'📄 Drucken/PDF',
+    exportGanttPdf:'📄 Gantt PDF', exportCsv:'📊 CSV export',
+    exportExcel:'📊 Excel export', exportReport:'📝 Bericht/PPTX',
+    chat:'💬 Chat', signOut:'Abmelden',
     taskName:'Aufgabenname', startDate:'Startdatum', endDate:'Enddatum',
     workDays:'Arbeitstage', predecessor:'Vorgänger', done:'Fertig',
     total:'Gesamt', tasks:'Aufgaben',
     collab:'👥 Teilen', shareBtn:'🔗',
+    readOnly:'👁 Nur Lesen', criticalPath:'◆ Kritischer Pfad', wbs:'WBS',
+    mFile:'Datei', mEdit:'Bearbeiten', mView:'Ansicht', mFormat:'Format', mCollab:'Freigabe', mHelp:'Hilfe',
+    mNewProj:'Neues Projekt', mOpenProj:'Projekt öffnen', mSave:'Speichern', mSaveVer:'Version speichern',
+    mUndo:'Rückgängig', mAddTask:'Aufgabe hinzufügen', mAddMilestone:'Meilenstein', mAddGroup:'Gruppe',
+    mSelectAll:'Alles auswählen', mDelete:'Ausgewählte löschen', mSetBaseline:'Basis setzen',
+    mDayView:'Tagesansicht', mWeekView:'Wochenansicht', mMonthView:'Monatsansicht',
+    mZoomIn:'Vergrößern', mZoomOut:'Verkleinern', mFitWindow:'Fenster anpassen',
+    mShowBarDates:'Balken-Daten', mShowBaseline:'Basis zeigen', mShowWBS:'WBS anzeigen',
+    mScrollToday:'Heute', mExpandAll:'Alle ausklappen', mCollapseAll:'Alle einklappen', mDarkMode:'Dunkel',
+    mTheme:'Design', mArrowStyle:'Pfeilstil', mArrowColors:'Pfeilfarben…', mWorkTime:'Arbeitszeit',
+    mShare:'Projekt teilen', mManageCollab:'Zusammenarbeit', mResourcePool:'Ressourcen', mChat:'Chat',
+    mKbd:'Tastenkürzel', mTour:'Tour',
+    tProgress:'Fortschritt (%)', tEvidence:'Nachweislink (opt.)', tCost:'Geplante Kosten', tActualCost:'Ist-Kosten',
+    tAssignee:'Zuständig', tColor:'Farbe', tDeps:'Vorgänger-IDs',
+    evmTitle:'Earned Value Analyse', burndownTitle:'Burndown-Diagramm',
+    bac:'BAC Budget', pv:'PV Planwert', ev:'EV Fertigstellungswert', ac:'AC Ist-Kosten',
+    spi:'SPI Terminleistung', cpi:'CPI Kostenleistung', eac:'EAC Gesamtkosten', sv:'SV Terminabweich.', cv:'CV Kostenabweich.',
+    wtTitle:'Arbeitszeiteinstellungen', wtTabWeek:'Arbeitswoche', wtTabExcept:'Ausnahmen', wtTabCalendar:'Kalender',
+    wtWorkDays:'Arbeitstage', wtShifts:'Arbeitszeiten', wtHoursPerDay:'Stunden/Tag',
+    wtExceptions:'Ausnahmen (Feiertage)', wtAddExcept:'Ausnahme hinzufügen', wtExceptName:'Name',
+    wtExceptFrom:'Von', wtExceptTo:'Bis', wtRecurring:'Jährlich wiederholen',
   },
   'ja': {
-    appName:'GanttPro — プロジェクト管理', newTask:'＋ タスク追加', undo:'↩ 元に戻す', today:'📍 今日',
-    expandAll:'⊞ すべて展開', collapseAll:'⊟ すべて折りたたむ',
+    appName:'GanttPro', newTask:'＋ タスク追加', undo:'元に戻す', today:'📍 今日',
+    expandAll:'すべて展開', collapseAll:'すべて折りたたむ',
     gantt:'ガント', milestone:'◆ マイルストーン', workload:'作業量',
     resource:'📅 リソース', sprint:'🏃 ボード', dashboard:'📊 ダッシュボード',
     day:'日', week:'週', month:'月',
-    export:'⬇ エクスポート', exportPng:'🖼 PNG出力', exportPdf:'📄 印刷/PDF',
+    exportPng:'🖼 PNG出力', exportPdf:'📄 印刷/PDF',
     exportGanttPdf:'📄 ガントPDF', exportCsv:'📊 CSV出力',
     exportExcel:'📊 Excel出力', exportReport:'📝 レポート/PPTX',
-    chat:'💬 チャット', settings:'⚙ 設定', dark:'🌙', signOut:'ログアウト',
+    chat:'💬 チャット', signOut:'ログアウト',
     taskName:'タスク名', startDate:'開始日', endDate:'終了日',
     workDays:'作業日', predecessor:'先行タスク', done:'完了',
     total:'合計', tasks:'タスク',
     collab:'👥 共有', shareBtn:'🔗',
+    readOnly:'👁 閲覧のみ', criticalPath:'◆ クリティカルパス', wbs:'WBS',
+    mFile:'ファイル', mEdit:'編集', mView:'表示', mFormat:'書式', mCollab:'共有', mHelp:'ヘルプ',
+    mNewProj:'新規プロジェクト', mOpenProj:'プロジェクトを開く', mSave:'保存', mSaveVer:'バージョン保存',
+    mUndo:'元に戻す', mAddTask:'タスクを追加', mAddMilestone:'マイルストーン追加', mAddGroup:'グループ追加',
+    mSelectAll:'すべて選択', mDelete:'選択削除', mSetBaseline:'ベースライン設定',
+    mDayView:'日表示', mWeekView:'週表示', mMonthView:'月表示',
+    mZoomIn:'拡大', mZoomOut:'縮小', mFitWindow:'ウィンドウに合わせる',
+    mShowBarDates:'バー日付表示', mShowBaseline:'ベースライン表示', mShowWBS:'WBS表示',
+    mScrollToday:'今日へ移動', mExpandAll:'すべて展開', mCollapseAll:'すべて折りたたむ', mDarkMode:'ダークモード',
+    mTheme:'テーマカラー', mArrowStyle:'依存矢印スタイル', mArrowColors:'矢印の色…', mWorkTime:'作業時間設定',
+    mShare:'プロジェクト共有', mManageCollab:'コラボ管理', mResourcePool:'リソースプール', mChat:'チャット・注釈',
+    mKbd:'キーボードショートカット', mTour:'ガイドツアー',
+    tProgress:'進捗 (%)', tEvidence:'証拠リンク (任意)', tCost:'計画コスト', tActualCost:'実際コスト',
+    tAssignee:'担当者', tColor:'カラー', tDeps:'先行タスクID',
+    evmTitle:'アーンドバリュー分析 (EVM)', burndownTitle:'バーンダウンチャート',
+    bac:'BAC 予算', pv:'PV 計画値', ev:'EV アーンド値', ac:'AC 実コスト',
+    spi:'SPI 進捗効率', cpi:'CPI コスト効率', eac:'EAC 完成時総コスト', sv:'SV 進捗差異', cv:'CV コスト差異',
+    wtTitle:'作業時間設定', wtTabWeek:'作業週', wtTabExcept:'例外', wtTabCalendar:'カレンダー',
+    wtWorkDays:'作業日', wtShifts:'作業時間帯', wtHoursPerDay:'1日の作業時間',
+    wtExceptions:'例外（休日）', wtAddExcept:'例外を追加', wtExceptName:'名称',
+    wtExceptFrom:'開始', wtExceptTo:'終了', wtRecurring:'毎年繰り返す',
   },
   'ko': {
-    appName:'GanttPro — 프로젝트 관리', newTask:'＋ 작업 추가', undo:'↩ 실행 취소', today:'📍 오늘',
-    expandAll:'⊞ 모두 펼치기', collapseAll:'⊟ 모두 접기',
+    appName:'GanttPro', newTask:'＋ 작업 추가', undo:'실행 취소', today:'📍 오늘',
+    expandAll:'모두 펼치기', collapseAll:'모두 접기',
     gantt:'간트', milestone:'◆ 마일스톤', workload:'워크로드',
     resource:'📅 리소스', sprint:'🏃 보드', dashboard:'📊 대시보드',
     day:'일', week:'주', month:'월',
-    export:'⬇ 내보내기', exportPng:'🖼 PNG 내보내기', exportPdf:'📄 인쇄/PDF',
+    exportPng:'🖼 PNG 내보내기', exportPdf:'📄 인쇄/PDF',
     exportGanttPdf:'📄 간트 PDF', exportCsv:'📊 CSV 내보내기',
     exportExcel:'📊 Excel 내보내기', exportReport:'📝 보고서/PPTX',
-    chat:'💬 채팅', settings:'⚙ 설정', dark:'🌙', signOut:'로그아웃',
+    chat:'💬 채팅', signOut:'로그아웃',
     taskName:'작업명', startDate:'시작일', endDate:'종료일',
     workDays:'작업일', predecessor:'선행 작업', done:'완료',
     total:'합계', tasks:'작업',
     collab:'👥 공유', shareBtn:'🔗',
+    readOnly:'👁 읽기 전용', criticalPath:'◆ 임계 경로', wbs:'WBS',
+    mFile:'파일', mEdit:'편집', mView:'보기', mFormat:'서식', mCollab:'공유', mHelp:'도움말',
+    mNewProj:'새 프로젝트', mOpenProj:'프로젝트 열기', mSave:'저장', mSaveVer:'버전 저장',
+    mUndo:'실행 취소', mAddTask:'작업 추가', mAddMilestone:'마일스톤 추가', mAddGroup:'그룹 추가',
+    mSelectAll:'모두 선택', mDelete:'선택 삭제', mSetBaseline:'기준선 설정',
+    mDayView:'일 보기', mWeekView:'주 보기', mMonthView:'월 보기',
+    mZoomIn:'확대', mZoomOut:'축소', mFitWindow:'창에 맞추기',
+    mShowBarDates:'바 날짜 표시', mShowBaseline:'기준선 표시', mShowWBS:'WBS 표시',
+    mScrollToday:'오늘로 이동', mExpandAll:'모두 펼치기', mCollapseAll:'모두 접기', mDarkMode:'다크 모드',
+    mTheme:'테마 색상', mArrowStyle:'종속 화살표 스타일', mArrowColors:'화살표 색상…', mWorkTime:'작업 시간 설정',
+    mShare:'프로젝트 공유', mManageCollab:'협업 관리', mResourcePool:'리소스 풀', mChat:'채팅 및 메모',
+    mKbd:'키보드 단축키', mTour:'기능 투어',
+    tProgress:'진행률 (%)', tEvidence:'증거 링크 (선택)', tCost:'계획 비용', tActualCost:'실제 비용',
+    tAssignee:'담당자', tColor:'색상', tDeps:'선행 작업 ID',
+    evmTitle:'획득 가치 분석 (EVM)', burndownTitle:'번다운 차트',
+    bac:'BAC 예산', pv:'PV 계획값', ev:'EV 획득값', ac:'AC 실제 비용',
+    spi:'SPI 일정 성과', cpi:'CPI 비용 성과', eac:'EAC 완료 추정', sv:'SV 일정 편차', cv:'CV 비용 편차',
+    wtTitle:'작업 시간 설정', wtTabWeek:'작업 주', wtTabExcept:'예외', wtTabCalendar:'캘린더',
+    wtWorkDays:'작업일', wtShifts:'작업 시간대', wtHoursPerDay:'일 작업 시간',
+    wtExceptions:'예외 (휴일)', wtAddExcept:'예외 추가', wtExceptName:'이름',
+    wtExceptFrom:'시작', wtExceptTo:'종료', wtRecurring:'매년 반복',
   },
 };
 
@@ -6574,41 +6957,44 @@ function applyI18N() {
   const L = document.getElementById('langSelect');
   if (L) L.value = _lang;
   document.title = t('appName');
-  // Toolbar buttons
-  const map = {
-    '[onclick="openModal()"]': 'newTask',
-    '[id="undoBtn"]': 'undo',
-    '[onclick="scrollToToday()"]': 'today',
-    '[onclick="expandAll()"]': 'expandAll',
-    '[onclick="collapseAll()"]': 'collapseAll',
-    '[data-cv="gantt"]': 'gantt',
-    '[data-cv="milestone"]': 'milestone',
-    '[data-cv="workload"]': 'workload',
-    '[data-cv="resource"]': 'resource',
-    '[data-cv="sprint"]': 'sprint',
-    '[data-cv="dashboard"]': 'dashboard',
-    '[data-v="day"]': 'day',
-    '[data-v="week"]': 'week',
-    '[data-v="month"]': 'month',
-    '[onclick="toggleExportMenu()"]': 'export',
-    '[id="chatToggleBtn"]': 'chat',
-    '[id="darkBtn"]': 'dark',
-    '[id="signOutBtn"]': 'signOut',
-    '[id="collabBtn"]': 'collab',
-  };
-  Object.entries(map).forEach(([sel, key]) => {
-    const el = document.querySelector('.toolbar ' + sel);
-    if (el && I18N[_lang]?.[key]) el.textContent = t(key);
+
+  // Helper: set element text if found
+  function setText(sel, key, scope) {
+    const el = (scope || document).querySelector(sel);
+    const val = t(key);
+    if (el && val !== key) el.textContent = val;
+  }
+
+  // Chart view buttons (quickbar)
+  const cvMap = {gantt:'gantt',milestone:'milestone',workload:'workload',resource:'resource',sprint:'sprint',dashboard:'dashboard'};
+  Object.entries(cvMap).forEach(([cv, key]) => {
+    const el = document.querySelector('[data-cv="' + cv + '"]');
+    if (el) el.textContent = t(key);
   });
-  // Export panel items
-  const expMap = [
-    ['exportPng','exportPNG'],['exportPdf','exportPDF'],['exportGanttPdf','exportGanttPDF'],
-    ['exportCsv','exportCSV'],['exportExcel','exportExcel'],['exportReport','openReportModal'],
+  // Time scale buttons
+  const vMap = {day:'day',week:'week',month:'month'};
+  Object.entries(vMap).forEach(([v, key]) => {
+    const el = document.querySelector('[data-v="' + v + '"]');
+    if (el) el.textContent = t(key);
+  });
+
+  // Menu bar labels (File/Edit/View…)
+  const menuBtnMap = [
+    ['#mi-file .menu-btn','mFile'],['#mi-edit .menu-btn','mEdit'],['#mi-view .menu-btn','mView'],
+    ['#mi-format .menu-btn','mFormat'],['#mi-collab .menu-btn','mCollab'],['#mi-help .menu-btn','mHelp'],
   ];
-  document.querySelectorAll('#exportPanel .settings-action').forEach((el,i) => {
-    const key = ['exportPng','exportPdf','exportGanttPdf','exportCsv','exportExcel','exportReport'][i];
-    if (key && t(key) !== key) el.childNodes[el.childNodes.length-1].textContent = ' ' + t(key).replace(/^[^\s]+ /,'');
-  });
+  menuBtnMap.forEach(([sel, key]) => setText(sel, key));
+
+  // Readonly badge
+  const rb = document.querySelector('.readonly-badge');
+  if (rb) rb.textContent = t('readOnly');
+  // Sign out
+  setText('#signOutBtn', 'signOut');
+  // Critical path btn
+  setText('#cpBtn', 'criticalPath');
+  // WBS btn
+  setText('#wbsBtn', 'wbs');
+
   // Table headers
   const thMap = [['任務名稱','taskName'],['任务名称','taskName'],['開始日期','startDate'],['开始日期','startDate'],
     ['結束日期','endDate'],['结束日期','endDate'],['工作日','workDays'],['前置任務','predecessor'],['前置任务','predecessor'],['完成','done']];
@@ -7373,6 +7759,86 @@ function renderDashboard() {
       `).join('');
     })()}
   </div>`;
+
+  // EVM calculation
+  const evmTasks = allTasks.filter(t => t.start && t.end);
+  let BAC = 0, PV = 0, EV = 0, AC = 0;
+  evmTasks.forEach(t => {
+    const cost = parseFloat(t.plannedCost) || 1;
+    BAC += cost;
+    const tStart = new Date(t.start), tEnd = new Date(t.end);
+    const totalDays = Math.max(1, (tEnd - tStart) / 86400000);
+    const elapsedDays = Math.max(0, Math.min(totalDays, (TODAY - tStart) / 86400000));
+    PV += cost * (elapsedDays / totalDays);
+    const pct = t.done ? 100 : (t.progress || 0);
+    EV += cost * pct / 100;
+    AC += parseFloat(t.actualCost) || (cost * pct / 100);
+  });
+  const SPI = PV > 0 ? EV / PV : 1;
+  const CPI = AC > 0 ? EV / AC : 1;
+  const EAC = CPI > 0 ? BAC / CPI : BAC;
+  const SV = EV - PV;
+  const CV = EV - AC;
+  const fmtN = v => v.toFixed(2);
+  const fmtM = v => (v >= 1000 ? (v/1000).toFixed(1)+'k' : v.toFixed(0));
+  const spiColor = SPI >= 1 ? '#10B981' : '#EF4444';
+  const cpiColor = CPI >= 1 ? '#10B981' : '#EF4444';
+  const svColor = SV >= 0 ? '#10B981' : '#EF4444';
+  const cvColor = CV >= 0 ? '#10B981' : '#EF4444';
+
+  // Burndown data
+  const proj = curProj();
+  const pStart = proj?.startDate ? new Date(proj.startDate) : (evmTasks.length ? new Date(Math.min(...evmTasks.map(t=>new Date(t.start)))) : TODAY);
+  const pEnd = proj?.endDate ? new Date(proj.endDate) : (evmTasks.length ? new Date(Math.max(...evmTasks.map(t=>new Date(t.end)))) : TODAY);
+  const totalSpan = Math.max(1, (pEnd - pStart) / 86400000);
+  const todaySpan = Math.min(totalSpan, Math.max(0, (TODAY - pStart) / 86400000));
+  const chartW = 400, chartH = 180, padL = 36, padB = 24, padT = 12, padR = 16;
+  const innerW = chartW - padL - padR, innerH = chartH - padT - padB;
+  const totalTaskCount = allTasks.length || 1;
+  function bdX(dayOffset) { return padL + (dayOffset / totalSpan) * innerW; }
+  function bdY(remaining) { return padT + (1 - remaining / totalTaskCount) * innerH; }
+  const actualPoints = [];
+  for (let d = 0; d <= Math.ceil(todaySpan); d++) {
+    const dt = new Date(pStart); dt.setDate(dt.getDate() + d);
+    const dtStr = toStr(dt);
+    const remaining = allTasks.filter(t => !t.done || (t.end && t.end > dtStr)).length;
+    actualPoints.push([bdX(d), bdY(remaining)]);
+  }
+  const actualPath = actualPoints.map((p,i) => (i===0?'M ':'L ')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+
+  el.innerHTML += `
+  <div class="dash-section">
+    <div class="dash-section-title">📊 挣值管理 (EVM)</div>
+    <div class="dash-grid" style="grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
+      <div class="kpi-card" style="padding:10px"><div class="kpi-label">PV 计划价值</div><div class="kpi-value" style="font-size:18px">${fmtM(PV)}</div></div>
+      <div class="kpi-card" style="padding:10px"><div class="kpi-label">EV 挣值</div><div class="kpi-value" style="font-size:18px">${fmtM(EV)}</div></div>
+      <div class="kpi-card" style="padding:10px"><div class="kpi-label">AC 实际成本</div><div class="kpi-value" style="font-size:18px">${fmtM(AC)}</div></div>
+      <div class="kpi-card" style="padding:10px"><div class="kpi-label">BAC 完工预算</div><div class="kpi-value" style="font-size:18px">${fmtM(BAC)}</div></div>
+    </div>
+    <div class="dash-grid" style="grid-template-columns:repeat(5,1fr);gap:10px">
+      <div class="kpi-card" style="padding:10px"><div class="kpi-label">SPI 进度绩效</div><div class="kpi-value" style="font-size:18px;color:${spiColor}">${fmtN(SPI)}</div></div>
+      <div class="kpi-card" style="padding:10px"><div class="kpi-label">CPI 成本绩效</div><div class="kpi-value" style="font-size:18px;color:${cpiColor}">${fmtN(CPI)}</div></div>
+      <div class="kpi-card" style="padding:10px"><div class="kpi-label">EAC 完工估算</div><div class="kpi-value" style="font-size:18px">${fmtM(EAC)}</div></div>
+      <div class="kpi-card" style="padding:10px"><div class="kpi-label">SV 进度偏差</div><div class="kpi-value" style="font-size:18px;color:${svColor}">${fmtM(SV)}</div></div>
+      <div class="kpi-card" style="padding:10px"><div class="kpi-label">CV 成本偏差</div><div class="kpi-value" style="font-size:18px;color:${cvColor}">${fmtM(CV)}</div></div>
+    </div>
+  </div>
+
+  <div class="dash-section">
+    <div class="dash-section-title">📉 燃尽图</div>
+    <svg width="${chartW}" height="${chartH}" style="display:block;overflow:visible">
+      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+innerH}" stroke="var(--border2)" stroke-width="1"/>
+      <line x1="${padL}" y1="${padT+innerH}" x2="${padL+innerW}" y2="${padT+innerH}" stroke="var(--border2)" stroke-width="1"/>
+      <line x1="${bdX(0)}" y1="${bdY(totalTaskCount)}" x2="${bdX(totalSpan)}" y2="${bdY(0)}" stroke="#9CA3AF" stroke-width="1.5" stroke-dasharray="5 3"/>
+      ${actualPoints.length > 1 ? `<path d="${actualPath}" fill="none" stroke="#5E6AD2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+      <circle cx="${bdX(todaySpan)}" cy="${padT}" r="3" fill="var(--red)" opacity="0.6"/>
+      <text x="${padL-4}" y="${padT+4}" font-size="10" fill="var(--t4)" text-anchor="end">${totalTaskCount}</text>
+      <text x="${padL-4}" y="${padT+innerH}" font-size="10" fill="var(--t4)" text-anchor="end">0</text>
+      <text x="${padL}" y="${padT+innerH+14}" font-size="10" fill="var(--t4)">${proj?.startDate||''}</text>
+      <text x="${padL+innerW}" y="${padT+innerH+14}" font-size="10" fill="var(--t4)" text-anchor="end">${proj?.endDate||''}</text>
+      <text x="${padL+innerW/2}" y="${padT-2}" font-size="10" fill="var(--t3)" text-anchor="middle">— 理想  — 实际</text>
+    </svg>
+  </div>`;
 }
 
 /* ═══════════════════════════════════════════
@@ -7564,6 +8030,18 @@ function exportExcel() {
 
   const proj = curProj();
   XLSX.writeFile(wb, `GanttPro-${proj?.name||'export'}-${TODAY_STR}.xlsx`);
+  // Also export Gantt chart as PNG if html2canvas is available
+  if (typeof html2canvas !== 'undefined') {
+    const ganttEl = document.getElementById('ganttWrap') || document.querySelector('.chart-canvas') || document.getElementById('chartCanvas');
+    if (ganttEl) {
+      html2canvas(ganttEl, {scale:1, useCORS:true, backgroundColor: '#ffffff'}).then(canvas => {
+        const link = document.createElement('a');
+        link.href = canvas.toDataURL('image/png');
+        link.download = `GanttPro-${proj?.name||'export'}-${TODAY_STR}-chart.png`;
+        link.click();
+      });
+    }
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -7744,11 +8222,19 @@ async function exportPPTX() {
 ═══════════════════════════════════════════ */
 // Patch openModal and openEditModal to handle link/approval fields
 const _origOpenModal = openModal;
-function openModal(unused, prefillDate) {
-  _origOpenModal(unused, prefillDate);
+function openModal(typeOrUnused, prefillDate) {
+  _origOpenModal(typeOrUnused, prefillDate);
   document.getElementById('fLink').value = '';
   document.getElementById('fApproval').value = '';
+  document.getElementById('fEvidence').value = '';
+  document.getElementById('fPlannedCost').value = '';
+  document.getElementById('fActualCost').value = '';
   document.getElementById('modal-approval-btn').style.display = 'none';
+  // If a type string was passed, set the type select and update modal
+  if (typeOrUnused === 'milestone' || typeOrUnused === 'group') {
+    const fType = document.getElementById('fType');
+    if (fType) { fType.value = typeOrUnused; updateModalForType(); }
+  }
 }
 
 const _origOpenEditModal = openEditModal;
@@ -7758,6 +8244,9 @@ function openEditModal(taskId) {
   if (task) {
     document.getElementById('fLink').value = task.link || '';
     document.getElementById('fApproval').value = task.approval || '';
+    document.getElementById('fEvidence').value = task.evidence || '';
+    document.getElementById('fPlannedCost').value = task.plannedCost || '';
+    document.getElementById('fActualCost').value = task.actualCost || '';
     const canApprove = isAdmin() || (curProj() && !curProj()._isShared);
     document.getElementById('modal-approval-btn').style.display = (task.approval === 'pending' && canApprove) ? '' : 'none';
   }
@@ -7781,6 +8270,12 @@ function submitTask() {
   if (t) {
     if (link) t.link = link; else delete t.link;
     if (approval) t.approval = approval; else delete t.approval;
+    const evidence = document.getElementById('fEvidence')?.value?.trim();
+    if (evidence) t.evidence = evidence; else delete t.evidence;
+    const plannedCost = parseFloat(document.getElementById('fPlannedCost')?.value) || 0;
+    const actualCost = parseFloat(document.getElementById('fActualCost')?.value) || 0;
+    if (plannedCost) t.plannedCost = plannedCost; else delete t.plannedCost;
+    if (actualCost) t.actualCost = actualCost; else delete t.actualCost;
     if (currentUser) saveToCloud();
   }
 }
@@ -7805,6 +8300,9 @@ function initWorkTimeSettings() {
    INIT
 ═══════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async () => {
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.menu-item')) closeAllMenus();
+  });
   applyTheme(_activeTheme);
   initWorkTimeSettings();
   applyI18N();
