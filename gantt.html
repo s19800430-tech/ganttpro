@@ -1359,9 +1359,17 @@ body:not(.show-wbs) .wbs-code{display:none}
     <p class="login-subtitle">專案甘特圖管理工具</p>
 
     <!-- 登入狀態檢查中（Firebase session 恢復前的過渡畫面） -->
-    <div id="authChecking" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:18px 0;color:var(--t3);font-size:13px">
-      <span style="display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite"></span>
-      檢查登入狀態…
+    <div id="authChecking" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:100%;padding:18px 0;color:var(--t3);font-size:13px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite"></span>
+        檢查登入狀態…
+      </div>
+      <!-- 开发模式：本地环境显示跳过按钮，2秒后自动出现 -->
+      <div id="devSkipRow" style="display:none;margin-top:6px">
+        <button onclick="devSkipLogin()" style="font-size:11px;padding:4px 12px;background:var(--s-hover);border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--t3)">
+          🛠 开发模式：跳过登录
+        </button>
+      </div>
     </div>
 
     <!-- 登入面板 -->
@@ -6662,6 +6670,39 @@ function showApp() {
   document.getElementById('main').style.display = 'flex';
 }
 
+/* ── 开发模式：本地跳过登录 ── */
+function devSkipLogin() {
+  // 用本地存储中的数据直接进入 app，不需要 Firebase auth
+  currentUser = { uid: 'dev-local', email: 'dev@localhost', displayName: '开发模式', photoURL: null };
+  _appInitialized = true;
+  showApp();
+  // 显示简单开发标识
+  const ud = document.getElementById('userDisplay');
+  if (ud) ud.innerHTML = '<div title="开发模式" style="width:26px;height:26px;border-radius:50%;background:#f59e0b;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700">DEV</div>';
+  // 从 localStorage 加载数据
+  const saved = localStorage.getItem('gantt_local_data');
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      projects = data.projects || projects;
+      currentProjId = data.currentProjId || (projects[0] && projects[0].id);
+    } catch(e) {}
+  }
+  if (!projects.length) projects = [{ id: 'local-1', name: '本地项目', tasks: [], startDate: new Date().toISOString().slice(0,10), endDate: '' }];
+  currentProjId = currentProjId || projects[0].id;
+  tasks = curProj().tasks || [];
+  nextId = curProj().nextId || 100;
+  CHART_START = curProj().startDate ? new Date(curProj().startDate) : new Date();
+  recalcProjEnd();
+  setupColResizers();
+  setupResizer();
+  updateProjUI();
+  scheduleTasks();
+  render();
+  setSyncDot('off');
+  setTimeout(scrollToToday, 120);
+}
+
 function updateUserDisplay() {
   if (!currentUser) return;
   const name = currentUser.displayName || currentUser.email || '';
@@ -8350,6 +8391,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
   // 保險：Firebase 無回應（離線、被擋）時 4 秒後仍顯示登入按鈕
   const authFallback = setTimeout(() => { if (!_appInitialized) revealLogin(); }, 4000);
+  // 开发模式：本地环境 2 秒后在检查中界面显示"跳过登录"按钮
+  const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname === '';
+  if (isLocal) {
+    setTimeout(() => {
+      if (!_appInitialized) {
+        const devRow = document.getElementById('devSkipRow');
+        if (devRow) devRow.style.display = 'block';
+      }
+    }, 2000);
+  }
 
   auth.onAuthStateChanged(async (user) => {
     if (_appInitialized) return;
