@@ -1731,10 +1731,22 @@ body:not(.show-wbs) .wbs-code{display:none}
       </div>
     </div>
     <div class="wtime-section">
-      <div class="wtime-section-title">額外非工作日</div>
+      <div class="wtime-section-title">每日工作時段</div>
+      <div style="display:flex;flex-direction:column;gap:8px" id="shiftList"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+        <input type="time" id="shiftStartInput" value="09:00" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg);color:var(--t1)">
+        <span style="font-size:12px;color:var(--t3)">至</span>
+        <input type="time" id="shiftEndInput" value="18:00" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg);color:var(--t1)">
+        <button class="btn btn-primary" onclick="addWorkShift()" style="font-size:12px;padding:4px 10px">＋ 新增時段</button>
+      </div>
+      <div style="font-size:11px;color:var(--t4);margin-top:4px">支援多個時段（如上午9-12、下午13-18）</div>
+    </div>
+    <div class="wtime-section">
+      <div class="wtime-section-title">額外非工作日 / 假日</div>
       <div class="wtime-nonwork-list" id="customNonWorkList"></div>
       <div class="wtime-add-row">
         <input type="date" id="customNonWorkInput">
+        <input type="text" id="customNonWorkLabel" placeholder="假日名稱（可選）" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--bg);color:var(--t1);width:130px">
         <button class="btn btn-primary" onclick="addCustomNonWorkDay()">＋ 新增</button>
       </div>
     </div>
@@ -2746,7 +2758,7 @@ function renderChartHeader() {
       const x = dateToX(ds);
       const dow = d.getDay();
       const hol = getHoliday(ds);
-      const off = isNonWorkday(ds);
+      const off = _isNonWork(ds);
       const isTdy = ds === TODAY_STR;
       const el = document.createElement('div');
       const dayColor = isTdy ? '' : hol ? ' day-sun' : dow === 6 ? ' day-sat' : dow === 0 ? ' day-sun' : ' day-weekday';
@@ -2877,7 +2889,7 @@ function renderChartBody() {
       const daysOffset = Math.floor(clickX / PPD);
       const d = new Date(CHART_START);
       d.setDate(d.getDate() + daysOffset);
-      while (isNonWorkday(d)) d.setDate(d.getDate() + 1);
+      while (_isNonWork(d)) d.setDate(d.getDate() + 1);
       const dateStr = d.toISOString().slice(0, 10);
       openModal(null, dateStr);
     });
@@ -2908,7 +2920,7 @@ function renderGrid(canvas, tw, th) {
     let d = new Date(CHART_START);
     while (d <= CHART_END) {
       const x = dateToX(toStr(d));
-      const off = isNonWorkday(d);
+      const off = _isNonWork(d);
       const l = document.createElement('div');
       l.className = 'grid-line' + (off ? ' grid-wknd' : '');
       l.style.cssText = `left:${x}px;height:${th}px`;
@@ -2943,7 +2955,7 @@ function getWorkingSegs(startStr, endStr) {
   const segs = [];
   let d = new Date(startStr), end = new Date(endStr), segS = null;
   while (d < end) {
-    const isOff = isNonWorkday(d);
+    const isOff = _isNonWork(d);
     if (!isOff && !segS) segS = d.toISOString().slice(0, 10);
     else if (isOff && segS) { segs.push({s: segS, e: d.toISOString().slice(0, 10)}); segS = null; }
     d.setDate(d.getDate() + 1);
@@ -2956,7 +2968,7 @@ function getWorkingSegs(startStr, endStr) {
 function prevWorkingDay(endStr) {
   const d = new Date(endStr);
   d.setDate(d.getDate() - 1);
-  while (isNonWorkday(d)) d.setDate(d.getDate() - 1);
+  while (_isNonWork(d)) d.setDate(d.getDate() - 1);
   return d.toISOString().slice(0, 10);
 }
 
@@ -3103,8 +3115,8 @@ function attachBarDrag(bar, task) {
       if (!moved || !delta) { render(); return; }
       pushHistory();
       const shiftCal = (str, days) => { const d = new Date(str); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10); };
-      const snapFwd = str => { const d = new Date(str); while (isNonWorkday(d)) d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); };
-      const snapBack = str => { const d = new Date(str); while (isNonWorkday(d)) d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); };
+      const snapFwd = str => { const d = new Date(str); while (_isNonWork(d)) d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); };
+      const snapBack = str => { const d = new Date(str); while (_isNonWork(d)) d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); };
       const wd = task.wday || countWorkingDays(task.start, task.end);
       // 依拖動方向吸附到工作日（往右跳到下個工作日、往左跳回上個工作日）
       const snapDir = str => delta > 0 ? snapFwd(str) : snapBack(str);
@@ -3277,7 +3289,7 @@ function renderMilestone(row, task) {
         pushHistory();
         const nd = new Date(task.date);
         nd.setDate(nd.getDate() + delta);
-        while (isNonWorkday(nd)) nd.setDate(nd.getDate() + (delta > 0 ? 1 : -1));
+        while (_isNonWork(nd)) nd.setDate(nd.getDate() + (delta > 0 ? 1 : -1));
         task.date = nd.toISOString().slice(0, 10);
         task.pinStart = true;
         scheduleTasks();
@@ -3629,7 +3641,7 @@ function computeWorkload() {
     let d = new Date(t.start);
     const end = new Date(t.end);
     while (d <= end) {
-      if (!isNonWorkday(d)) {
+      if (!_isNonWork(d)) {
         const k = d.toISOString().slice(0, 10);
         rec.days.set(k, (rec.days.get(k) || 0) + 1);
       }
@@ -4776,7 +4788,7 @@ function isNonWorkday(d) {
 }
 
 function _isNonWork(d) {
-  return typeof isNonWorkdayCustom === 'function' ? isNonWorkdayCustom(d) : isNonWorkday(d);
+  return typeof isNonWorkdayCustom === 'function' ? isNonWorkdayCustom(d) : _isNonWork(d);
 }
 
 function subtractWorkingDays(endStr, days) {
@@ -5220,18 +5232,18 @@ function scheduleTasks() {
           if (sfStart > rawStart) rawStart = sfStart;
         }
         let s = new Date(rawStart);
-        while (isNonWorkday(s)) s.setDate(s.getDate() + 1);
+        while (_isNonWork(s)) s.setDate(s.getDate() + 1);
         task.start = s.toISOString().slice(0, 10);
         task.end   = addWorkingDays(task.start, task.wday || 1);
       } else { // milestone
         let best = latestFsEnd || latestSsStart || null;
         if (best) {
           let d = new Date(best);
-          while (isNonWorkday(d)) d.setDate(d.getDate() + 1);
+          while (_isNonWork(d)) d.setDate(d.getDate() + 1);
           task.date = d.toISOString().slice(0, 10);
         } else if (!(task.pinStart && task.date)) {
           let d = new Date(projStart);
-          while (isNonWorkday(d)) d.setDate(d.getDate() + 1);
+          while (_isNonWork(d)) d.setDate(d.getDate() + 1);
           task.date = d.toISOString().slice(0, 10);
         }
       }
@@ -7176,7 +7188,8 @@ function applyLogoTheme(hex) {
 ═══════════════════════════════════════════ */
 // Custom work days (0=Sun,1=Mon,...,6=Sat). Default Mon-Fri.
 let _customWorkDays = JSON.parse(localStorage.getItem('gp_workdays') || '[1,2,3,4,5]');
-let _customNonWorkDays = JSON.parse(localStorage.getItem('gp_nonworkdays') || '[]'); // extra non-work dates
+let _customNonWorkDays = JSON.parse(localStorage.getItem('gp_nonworkdays') || '[]'); // [{date,label}] or [dateStr]
+let _workShifts = JSON.parse(localStorage.getItem('gp_workshifts') || 'null') || [{start:'09:00',end:'18:00'}];
 
 function openWorkTimeModal() {
   // Sync checkboxes
@@ -7184,6 +7197,7 @@ function openWorkTimeModal() {
     cb.checked = _customWorkDays.includes(Number(cb.dataset.dow));
   });
   renderCustomNonWorkList();
+  renderShiftList();
   document.getElementById('workTimeOverlay').classList.add('open');
 }
 function closeWorkTimeModal() {
@@ -7197,6 +7211,33 @@ function updateWorkDays() {
   localStorage.setItem('gp_workdays', JSON.stringify(_customWorkDays));
   render();
 }
+function addCustomNonWorkDay() {
+  const v = document.getElementById('customNonWorkInput').value;
+  const label = (document.getElementById('customNonWorkLabel')?.value || '').trim();
+  if (!v) return;
+  const entry = label ? { date: v, label } : v;
+  const dateKey = typeof entry === 'string' ? entry : entry.date;
+  const existing = _customNonWorkDays.find(x => (typeof x === 'string' ? x : x.date) === dateKey);
+  if (!existing) {
+    _customNonWorkDays.push(entry);
+    _customNonWorkDays.sort((a, b) => {
+      const da = typeof a === 'string' ? a : a.date;
+      const db = typeof b === 'string' ? b : b.date;
+      return da < db ? -1 : 1;
+    });
+    localStorage.setItem('gp_nonworkdays', JSON.stringify(_customNonWorkDays));
+    renderCustomNonWorkList();
+    render();
+  }
+  document.getElementById('customNonWorkInput').value = '';
+  if (document.getElementById('customNonWorkLabel')) document.getElementById('customNonWorkLabel').value = '';
+}
+function removeCustomNonWorkDay(d) {
+  _customNonWorkDays = _customNonWorkDays.filter(x => (typeof x === 'string' ? x : x.date) !== d);
+  localStorage.setItem('gp_nonworkdays', JSON.stringify(_customNonWorkDays));
+  renderCustomNonWorkList();
+  render();
+}
 function renderCustomNonWorkList() {
   const el = document.getElementById('customNonWorkList');
   if (!el) return;
@@ -7204,34 +7245,58 @@ function renderCustomNonWorkList() {
     el.innerHTML = '<div style="font-size:11px;color:var(--t4);padding:4px 0">尚無自訂非工作日</div>';
     return;
   }
-  el.innerHTML = _customNonWorkDays.map(d =>
-    `<div class="wtime-nonwork-item">${d}<button onclick="removeCustomNonWorkDay('${d}')">✕</button></div>`
+  el.innerHTML = _customNonWorkDays.map(x => {
+    const d = typeof x === 'string' ? x : x.date;
+    const lbl = typeof x === 'string' ? '' : (x.label || '');
+    return `<div class="wtime-nonwork-item">${d}${lbl ? ' <span style="color:var(--t3);font-size:11px">(${lbl})</span>' : ''}<button onclick="removeCustomNonWorkDay('${d}')">✕</button></div>`;
+  }).join('');
+}
+function renderShiftList() {
+  const el = document.getElementById('shiftList');
+  if (!el) return;
+  el.innerHTML = _workShifts.map((s, i) =>
+    `<div style="display:flex;align-items:center;gap:8px;font-size:13px">
+      <span style="color:var(--t3)">時段 ${i+1}:</span>
+      <strong style="color:var(--t1)">${s.start} – ${s.end}</strong>
+      <span style="color:var(--t4);font-size:11px">(${calcShiftHours(s.start,s.end)}h)</span>
+      ${_workShifts.length > 1 ? `<button onclick="removeWorkShift(${i})" style="background:none;border:none;color:var(--t4);cursor:pointer;font-size:14px;padding:0 4px">✕</button>` : ''}
+    </div>`
   ).join('');
 }
-function addCustomNonWorkDay() {
-  const v = document.getElementById('customNonWorkInput').value;
-  if (!v) return;
-  if (!_customNonWorkDays.includes(v)) {
-    _customNonWorkDays.push(v);
-    _customNonWorkDays.sort();
-    localStorage.setItem('gp_nonworkdays', JSON.stringify(_customNonWorkDays));
-    renderCustomNonWorkList();
-    render();
-  }
-  document.getElementById('customNonWorkInput').value = '';
+function calcShiftHours(start, end) {
+  const [sh,sm] = start.split(':').map(Number);
+  const [eh,em] = end.split(':').map(Number);
+  return ((eh*60+em - sh*60-sm) / 60).toFixed(1);
 }
-function removeCustomNonWorkDay(d) {
-  _customNonWorkDays = _customNonWorkDays.filter(x => x !== d);
-  localStorage.setItem('gp_nonworkdays', JSON.stringify(_customNonWorkDays));
-  renderCustomNonWorkList();
-  render();
+function addWorkShift() {
+  const s = document.getElementById('shiftStartInput')?.value;
+  const e = document.getElementById('shiftEndInput')?.value;
+  if (!s || !e || s >= e) { alert('請輸入有效的時段（結束時間必須晚於開始時間）'); return; }
+  // Check overlap
+  for (const sh of _workShifts) {
+    if (!(e <= sh.start || s >= sh.end)) { alert('時段與現有時段重疊'); return; }
+  }
+  _workShifts.push({ start: s, end: e });
+  _workShifts.sort((a, b) => a.start < b.start ? -1 : 1);
+  localStorage.setItem('gp_workshifts', JSON.stringify(_workShifts));
+  renderShiftList();
+}
+function removeWorkShift(i) {
+  _workShifts.splice(i, 1);
+  localStorage.setItem('gp_workshifts', JSON.stringify(_workShifts));
+  renderShiftList();
+}
+function getTotalWorkHoursPerDay() {
+  return _workShifts.reduce((sum, s) => sum + parseFloat(calcShiftHours(s.start, s.end)), 0);
 }
 
 // Override isNonWorkday to respect custom settings
 const _origIsNonWorkday = isNonWorkday;
 function isNonWorkdayCustom(d) {
   const ds = typeof d === 'string' ? d : toStr(d);
-  if (_customNonWorkDays.includes(ds)) return true;
+  // Support both string entries and {date, label} objects
+  const isInList = _customNonWorkDays.some(x => (typeof x === 'string' ? x : x.date) === ds);
+  if (isInList) return true;
   const dt = typeof d === 'string' ? new Date(d + 'T00:00:00') : d;
   const dow = dt.getDay();
   if (!_customWorkDays.includes(dow)) return true;
