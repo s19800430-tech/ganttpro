@@ -8300,9 +8300,6 @@ function initWorkTimeSettings() {
    INIT
 ═══════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async () => {
-  document.addEventListener('click', e => {
-    if (!e.target.closest('.menu-item')) closeAllMenus();
-  });
   applyTheme(_activeTheme);
   initWorkTimeSettings();
   applyI18N();
