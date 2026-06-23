@@ -10,8 +10,11 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<script async src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"></script>
+<link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css" onload="this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css"></noscript>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
@@ -64,19 +67,60 @@ body.dark{
   --t4:#4E5168;
 }
 
-/* ── TOOLBAR ── */
+/* ── APP BAR (Google Sheets 2-row style) ── */
 .toolbar{
-  height:var(--toolbar);
   background:var(--surface);
   border-bottom:1px solid var(--border);
-  display:flex;
-  align-items:center;
-  padding:0 16px;
-  gap:8px;
   flex-shrink:0;
   z-index:100;
   box-shadow:0 1px 4px rgba(0,0,0,.06);
+  display:flex;flex-direction:column;
+  --toolbar:72px;   /* extend height for 2 rows */
 }
+.menubar{
+  height:38px;display:flex;align-items:center;
+  padding:0 12px;gap:2px;border-bottom:1px solid var(--border);
+}
+.quickbar{
+  height:34px;display:flex;align-items:center;
+  padding:0 12px;gap:4px;overflow-x:auto;
+}
+.quickbar::-webkit-scrollbar{height:0}
+
+/* ── MENU ITEMS (File/Edit/View…) ── */
+.menu-item{
+  position:relative;
+}
+.menu-btn{
+  height:28px;padding:0 10px;border-radius:5px;
+  border:none;background:transparent;
+  color:var(--t2);font-size:12px;font-weight:500;
+  cursor:pointer;white-space:nowrap;font-family:inherit;
+  display:inline-flex;align-items:center;gap:4px;
+  transition:background .1s;
+}
+.menu-btn:hover,.menu-btn.open{background:var(--s-hover)}
+.menu-dropdown{
+  position:absolute;top:calc(100% + 4px);left:0;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.15);
+  min-width:190px;padding:4px 0;z-index:9999;
+  display:none;
+}
+.menu-dropdown.open{display:block}
+.menu-dd-item{
+  display:flex;align-items:center;gap:10px;
+  padding:7px 14px;font-size:12px;color:var(--t1);
+  cursor:pointer;transition:background .1s;white-space:nowrap;
+}
+.menu-dd-item:hover{background:var(--s-hover)}
+.menu-dd-item .mi-icon{width:16px;text-align:center;flex-shrink:0;font-size:13px}
+.menu-dd-item .mi-kbd{margin-left:auto;font-size:10px;color:var(--t4);font-family:'Courier New',monospace}
+.menu-dd-sep{height:1px;background:var(--border);margin:3px 0}
+.menu-dd-sub{font-size:10px;color:var(--t4);padding:4px 14px 2px;text-transform:uppercase;letter-spacing:.4px}
+/* arrow indicator for items with sub-menu */
+.menu-dd-item.has-check::before{content:'✓';width:16px;margin-right:2px;font-size:11px;color:var(--accent);opacity:0}
+.menu-dd-item.has-check.checked::before{opacity:1}
 
 .logo{
   font-size:15px;
