@@ -7,9 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>GanttPro — 專案甘特圖</title>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pouchdb@9.0.0/dist/pouchdb.min.js"></script>
 <script async src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script async src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <script async src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"></script>
@@ -1356,54 +1354,21 @@ body:not(.show-wbs) .wbs-code{display:none}
       <div class="login-logo-icon">G</div>
       GanttPro
     </div>
-    <p class="login-subtitle">專案甘特圖管理工具</p>
-
-    <!-- 登入狀態檢查中（Firebase session 恢復前的過渡畫面） -->
-    <div id="authChecking" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:100%;padding:18px 0;color:var(--t3);font-size:13px">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite"></span>
-        檢查登入狀態…
-      </div>
-      <!-- 开发模式：本地环境显示跳过按钮，2秒后自动出现 -->
-      <div id="devSkipRow" style="display:none;margin-top:6px">
-        <button onclick="devSkipLogin()" style="font-size:11px;padding:4px 12px;background:var(--s-hover);border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--t3)">
-          🛠 开发模式：跳过登录
-        </button>
-      </div>
-    </div>
-
-    <!-- 登入面板 -->
-    <div id="loginPanel" style="display:none;flex-direction:column;align-items:center;gap:16px;width:100%">
-      <button class="google-btn" onclick="signInWithGoogle()">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-          <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908C16.658 14.083 17.64 11.775 17.64 9.2z" fill="#4285F4"/>
-          <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/>
-          <path d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.039l3.007-2.332z" fill="#FBBC05"/>
-          <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
-        </svg>
-        使用 Google 帳號登入
+    <p class="login-subtitle" style="text-align:center;color:var(--t3);font-size:13px;margin:4px 0 12px">
+      本地项目管理，数据存储在浏览器中
+    </p>
+    <div style="display:flex;flex-direction:column;gap:10px;width:100%">
+      <input id="localNameInput" type="text" placeholder="请输入您的昵称" maxlength="30" autofocus
+        style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--t1);font-family:inherit;outline:none;box-sizing:border-box"
+        onkeydown="if(event.key==='Enter')startLocal()">
+      <button onclick="startLocal()"
+        style="padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+        开始使用 →
       </button>
-      <p id="loginError" style="color:#e53;font-size:13px;text-align:center;margin:0;display:none"></p>
-      <div style="display:flex;align-items:center;gap:8px;width:100%">
-        <hr style="flex:1;border:none;border-top:1px solid var(--border)">
-        <span style="font-size:11px;color:var(--t4)">或</span>
-        <hr style="flex:1;border:none;border-top:1px solid var(--border)">
-      </div>
-      <button onclick="signInAsGuest()" style="width:100%;padding:10px 0;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--t2);font-size:13px;font-family:inherit;cursor:pointer;transition:background .15s" onmouseover="this.style.background='var(--s-hover)'" onmouseout="this.style.background='transparent'">
-        本地模式（不同步雲端）
-      </button>
-    </div>
-
-    <!-- 註冊面板（新用戶 Google 登入後顯示） -->
-    <div id="registerPanel" style="display:none;flex-direction:column;align-items:center;gap:16px;width:100%">
-      <p style="color:var(--t2);font-size:13px;text-align:center;margin:0">歡迎使用 GanttPro！請填寫暱稱完成註冊</p>
-      <input id="registerNickname" type="text" placeholder="請輸入暱稱（最多 20 字）" maxlength="20"
-        onkeydown="if(event.key==='Enter')submitRegister()"
-        style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;
-               background:var(--bg);color:var(--t1);font-size:13px;font-family:inherit;
-               box-sizing:border-box;outline:none">
-      <button class="google-btn" style="width:100%;justify-content:center" onclick="submitRegister()">完成註冊</button>
-      <p id="registerError" style="color:#e53;font-size:13px;text-align:center;margin:0;display:none"></p>
+      <p style="font-size:11px;color:var(--t4);text-align:center;margin:0;line-height:1.5">
+        📦 数据保存在本地 IndexedDB，无需联网<br>
+        清除浏览器数据前请先导出备份
+      </p>
     </div>
   </div>
 </div>
@@ -4239,7 +4204,7 @@ function openArrowStyleModal() {
   if (existing) existing.remove();
   const rows = [['FS','完成→开始'],['SS','开始→开始'],['FF','完成→完成'],['SF','开始→完成'],['CP','关键路径']];
   const styleRows = ['bezier:贝塞尔曲线 〜','elbow:折线 ⌐','straight:直线 →'];
-  const html = '<div class="overlay" id="arrowStyleOverlay" onclick="if(event.target===this)this.remove()" style="display:flex;align-items:center;justify-content:center"><div class="modal" onclick="event.stopPropagation()" style="max-width:340px;width:100%"><button class="modal-close" onclick="document.getElementById('arrowStyleOverlay').remove()">✕</button><div class="modal-title">↗ 依赖箭头样式</div><div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">箭头形状</div>' +
+  const html = '<div class="overlay" id="arrowStyleOverlay" onclick="if(event.target===this)this.remove()" style="display:flex;align-items:center;justify-content:center"><div class="modal" onclick="event.stopPropagation()" style="max-width:340px;width:100%"><button class="modal-close" onclick="document.getElementById(\'arrowStyleOverlay\').remove()">✕</button><div class="modal-title">↗ 依赖箭头样式</div><div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">箭头形状</div>' +
     styleRows.map(s => { const [v,l] = s.split(':'); return '<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer"><input type="radio" name="arrowStyle" value="' + v + '" ' + (_arrowStyle === v ? 'checked' : '') + ' onchange="setArrowStyle(this.value)"><span style="font-size:13px">' + l + '</span></label>'; }).join('') +
     '</div><div><div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:8px">箭头颜色</div>' +
     rows.map(([k,l]) => '<label style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><input type="color" value="' + _arrowColors[k] + '" style="width:32px;height:24px;border:none;cursor:pointer;border-radius:4px" onchange="_arrowColors[\''+k+'\'] = this.value; localStorage.setItem(\'gp_arrow_colors\', JSON.stringify(_arrowColors)); if(typeof renderArrows===\'function\') renderArrows()"><span style="font-size:12px;color:var(--t2)">' + l + ' (' + k + ')</span></label>').join('') +
@@ -5813,27 +5778,7 @@ function submitProject() {
 /* ═══════════════════════════════════════════
    SCROLL SYNC
 ═══════════════════════════════════════════ */
-function setupSync() {
-  const tb = document.getElementById('taskBody');
-  const cs = document.getElementById('chartScroll');
-  let syncing = false;
-
-  tb.addEventListener('scroll', () => {
-    if (syncing) return;
-    syncing = true;
-    cs.scrollTop = tb.scrollTop;
-    syncing = false;
-  });
-  cs.addEventListener('scroll', () => {
-    if (syncing) return;
-    syncing = true;
-    const maxTb = Math.max(0, tb.scrollHeight - tb.clientHeight);
-    const clamped = Math.min(cs.scrollTop, maxTb);
-    if (cs.scrollTop !== clamped) cs.scrollTop = clamped;
-    tb.scrollTop = clamped;
-    syncing = false;
-  });
-}
+function setupSync() { /* local mode: no server */ }
 
 /* ═══════════════════════════════════════════
    COLUMN RESIZER
@@ -5990,75 +5935,9 @@ function exportPDF() {
 ═══════════════════════════════════════════ */
 let _sharedChannels = [];
 
-async function loadSharedProjects() {
-  if (!currentUser) return;
-  try {
-    const snap = await db.collection('gantt_project_shares')
-      .where('shared_with_email', '==', currentUser.email).get();
-    if (snap.empty) return;
+async function loadSharedProjects() { /* local mode: no server */ }
 
-    const byOwner = {};
-    snap.forEach(doc => {
-      const s = doc.data();
-      if (!byOwner[s.owner_id]) byOwner[s.owner_id] = [];
-      byOwner[s.owner_id].push(s);
-    });
-
-    for (const [ownerId, ownerShares] of Object.entries(byOwner)) {
-      const ownerSnap = await db.collection('gantt_user_data').doc(ownerId).get();
-      const ownerData = ownerSnap.data()?.data;
-      if (!ownerData?.projects) continue;
-
-      ownerShares.forEach(share => {
-        const proj = ownerData.projects.find(p => p.id == share.project_id);
-        if (!proj) return;
-        if (projects.find(p => p.id === proj.id && p._isShared)) return;
-        projects.push({
-          ...JSON.parse(JSON.stringify(proj)),
-          _isShared: true,
-          _ownerId: ownerId,
-          _permission: share.permission
-        });
-      });
-    }
-
-    setupSharedRealtime(Object.keys(byOwner));
-  } catch(e) { console.error('loadSharedProjects:', e); }
-}
-
-function setupSharedRealtime(ownerIds) {
-  _sharedChannels.forEach(unsub => unsub());
-  _sharedChannels = [];
-
-  ownerIds.forEach(ownerId => {
-    let skipFirst = true;
-    const unsub = db.collection('gantt_user_data').doc(ownerId)
-      .onSnapshot(async () => {
-        if (skipFirst) { skipFirst = false; return; }
-        const ownerSnap = await db.collection('gantt_user_data').doc(ownerId).get();
-        const ownerData = ownerSnap.data()?.data;
-        if (!ownerData?.projects) return;
-        projects = projects.map(p => {
-          if (p._isShared && p._ownerId === ownerId) {
-            const fresh = ownerData.projects.find(op => op.id === p.id);
-            if (fresh) return { ...fresh, _isShared: true, _ownerId: ownerId, _permission: p._permission };
-          }
-          return p;
-        });
-        if (curProj()?._ownerId === ownerId) {
-          tasks = curProj().tasks;
-          nextId = curProj().nextId;
-          scheduleTasks();
-          recalcProjEnd();
-        }
-        saveToLS();
-        updateProjUI();
-        render();
-        showSyncToast();
-      });
-    _sharedChannels.push(unsub);
-  });
-}
+function setupSharedRealtime(ownerIds) { /* local mode */ }
 
 /* ═══════════════════════════════════════════
    COLLABORATION — COLLAB MODAL
@@ -6094,16 +5973,7 @@ async function onCollabProjChange() {
   await refreshCollabList();
 }
 
-async function refreshCollabList() {
-  const sel = document.getElementById('collabProjSelect');
-  const projId = sel ? sel.value : (curProj()?.id);
-  if (!projId) return;
-  const snap = await db.collection('gantt_project_shares')
-    .where('project_id', '==', String(projId))
-    .where('owner_id', '==', currentUser.uid).get();
-  _collabShares = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  renderCollabModal();
-}
+async function refreshCollabList() { /* local mode */ }
 
 function renderCollabModal() {
   const list = document.getElementById('collabShareList');
@@ -6120,48 +5990,9 @@ function renderCollabModal() {
   `).join('');
 }
 
-async function addShare() {
-  const emailInput = document.getElementById('collabEmailInput');
-  const email = (emailInput.value || '').trim().toLowerCase();
-  const perm  = document.getElementById('collabPermSelect').value;
-  const msgEl = document.getElementById('collabMsg');
+async function addShare() { console.log("Local mode: collaboration features require server"); }
 
-  const showMsg = (txt, ok) => {
-    msgEl.textContent = txt;
-    msgEl.style.color = ok ? '#0a0' : '#E53';
-    msgEl.style.display = 'block';
-  };
-
-  msgEl.style.display = 'none';
-
-  if (!email || !email.includes('@')) { showMsg('請輸入有效的 Gmail 帳號'); return; }
-  if (currentUser && email === currentUser.email) { showMsg('不能分享給自己'); return; }
-
-  try {
-    const sel = document.getElementById('collabProjSelect');
-    const projId = sel?.value;
-    if (!projId) { showMsg('請先選擇專案'); return; }
-
-    const docId = `${projId}_${email.replace(/[.@]/g,'_')}`;
-    await db.collection('gantt_project_shares').doc(docId).set({
-      project_id: String(projId),
-      owner_id: currentUser.uid,
-      shared_with_email: email,
-      permission: perm
-    });
-    showMsg('✓ 已成功加入', true);
-    emailInput.value = '';
-    await refreshCollabList();
-  } catch(e) {
-    showMsg('加入失敗：' + e.message);
-  }
-}
-
-async function removeShare(shareId, email) {
-  if (!confirm(`確定要移除 ${email} 的存取權限嗎？`)) return;
-  await db.collection('gantt_project_shares').doc(shareId).delete();
-  await refreshCollabList();
-}
+async function removeShare(shareId, email) { console.log("Local mode: collaboration features require server"); }
 
 /* ═══════════════════════════════════════════
    ADMIN PANEL
@@ -6176,37 +6007,9 @@ function closeAdminPanel() {
   document.getElementById('adminOverlay').classList.remove('open');
 }
 
-async function loadAdminUsers() {
-  const tbody = document.getElementById('adminUserList');
-  tbody.innerHTML = '<tr><td colspan="5" style="color:var(--t3);text-align:center;padding:16px">載入中…</td></tr>';
-  try {
-    const snap = await db.collection('gantt_allowed_users').orderBy('added_at', 'asc').get();
-    const data = snap.docs.map(d => d.data());
-    document.getElementById('adminUserCount').textContent = `（${data.length} 人）`;
-    tbody.innerHTML = data.map(u => {
-      const delBtn = u.is_admin ? '' : `<button class="btn" style="font-size:11px;padding:3px 8px;color:#E53;border-color:#E53" onclick="deleteUser('${u.email}')">刪除</button>`;
-      const dateStr = u.added_at ? new Date(u.added_at).toLocaleDateString('zh-TW') : '—';
-      return `<tr>
-        <td>${u.name || '—'}</td>
-        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${u.email}">${u.email}</td>
-        <td>${u.is_admin ? '管理員' : '用戶'}</td>
-        <td style="color:var(--t3)">${dateStr}</td>
-        <td>${delBtn}</td>
-      </tr>`;
-    }).join('');
-  } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="5" style="color:#E53;text-align:center">載入失敗：${e.message}</td></tr>`;
-  }
-}
+async function loadAdminUsers() { console.log("Local mode: collaboration features require server"); }
 
-async function deleteUser(email) {
-  if (!isAdmin()) return;
-  if (!confirm(`確定要刪除用戶 ${email}？此操作無法復原。`)) return;
-  try {
-    await db.collection('gantt_allowed_users').doc(email).delete();
-    await loadAdminUsers();
-  } catch(e) { alert('刪除失敗：' + e.message); }
-}
+async function deleteUser(email) { console.log("Local mode: collaboration features require server"); }
 
 function copyShareLink() {
   const val = document.getElementById('shareLinkInput').value;
@@ -6337,20 +6140,22 @@ function render() {
 /* ═══════════════════════════════════════════
    FIREBASE
 ═══════════════════════════════════════════ */
-const FB_CONFIG = {
-  apiKey: "AIzaSyA3PDiLdRhHKlGGmkT-iY7L5bTZrsSCyhY",
-  authDomain: "ganttpro-819d1.firebaseapp.com",
-  projectId: "ganttpro-819d1",
-  storageBucket: "ganttpro-819d1.firebasestorage.app",
-  messagingSenderId: "68574649003",
-  appId: "1:68574649003:web:94692e4f75bacf7669b5ee"
-};
-firebase.initializeApp(FB_CONFIG);
-const auth = firebase.auth();
-const db = firebase.firestore();
+/* ── PouchDB 本地存储 ── */
+const _pdb = new PouchDB('ganttpro');
+async function pdbGet(id) {
+  try { return await _pdb.get(id); } catch(e) { return null; }
+}
+async function pdbPut(doc) {
+  const existing = await pdbGet(doc._id);
+  if (existing) doc._rev = existing._rev;
+  try { return await _pdb.put(doc); } catch(e) { console.error('pdbPut', e); }
+}
+async function pdbAllDocs(prefix) {
+  const res = await _pdb.allDocs({ include_docs:true, startkey:prefix, endkey:prefix+'\uffff' });
+  return res.rows.map(r => r.doc);
+}
 let _myUpdate = false;
 let currentUser = null;
-let _guestMode = false;
 let _appInitialized = false;
 
 function setSyncDot(state) {
@@ -6361,64 +6166,53 @@ function setSyncDot(state) {
 }
 
 async function saveToCloud() {
-  if (!currentUser) return;
+  if (isReadOnly) return;
   setSyncDot('saving');
   try {
     if (curProj()) curProj().nextId = nextId;
-    const cp = curProj();
-
-    if (!cp) {
-      const state = { projects: [], currentProjId: null, nextProjId };
-      await db.collection('gantt_user_data').doc(currentUser.uid)
-        .set({ data: state, updated_at: new Date().toISOString() }, { merge: true });
-      setSyncDot('ok');
-    } else if (cp._isShared && (cp._permission === 'edit' || cp._permission === 'editor' || cp._permission === 'admin')) {
-      const ownerSnap = await db.collection('gantt_user_data').doc(cp._ownerId).get();
-      const ownerData = ownerSnap.data()?.data;
-      if (!ownerData?.projects) { setSyncDot('err'); return; }
-      const ownerProjects = ownerData.projects.map(p =>
-        p.id === cp.id ? { ...cp, _isShared: undefined, _ownerId: undefined, _permission: undefined } : p
-      );
-      await db.collection('gantt_user_data').doc(cp._ownerId)
-        .update({ data: { ...ownerData, projects: ownerProjects }, updated_at: new Date().toISOString() });
-      setSyncDot('ok');
-    } else if (!cp._isShared) {
-      const ownProjects = projects.filter(p => !p._isShared);
-      const state = { projects: ownProjects, currentProjId, nextProjId };
-      _myUpdate = true;
-      await db.collection('gantt_user_data').doc(currentUser.uid)
-        .set({ data: state, updated_at: new Date().toISOString() }, { merge: true });
-      setTimeout(() => _myUpdate = false, 1000);
-      setSyncDot('ok');
-    }
+    const uid = currentUser?.uid || 'local';
+    await pdbPut({
+      _id: 'userdata_' + uid,
+      projects,
+      currentProjId,
+      nextProjId,
+      savedAt: new Date().toISOString()
+    });
+    // Also mirror to localStorage as backup
+    try { localStorage.setItem('gantt_local_backup', JSON.stringify({ projects, currentProjId, nextProjId })); } catch(e) {}
+    setSyncDot('ok');
+    if (typeof broadcastUpdate === 'function') broadcastUpdate();
   } catch(e) {
+    console.error('saveToCloud error:', e);
     setSyncDot('err');
   }
 }
 
 async function loadFromCloud() {
-  if (!currentUser) return false;
   try {
-    const snap = await db.collection('gantt_user_data').doc(currentUser.uid).get();
-    if (!snap.exists || !snap.data()?.data) return false;
-    const s = snap.data().data;
-    projects   = s.projects || [];
-    nextProjId = s.nextProjId ?? 1;
-    if (!projects.length) {
-      // User intentionally cleared all projects
-      currentProjId = null;
-      tasks = [];
-      nextId = 1;
+    const uid = currentUser?.uid || 'local';
+    const doc = await pdbGet('userdata_' + uid);
+    if (doc && doc.projects?.length) {
+      projects   = doc.projects;
+      nextProjId = doc.nextProjId ?? 1;
+      currentProjId = (doc.currentProjId && projects.find(p => p.id === doc.currentProjId))
+        ? doc.currentProjId : projects[0].id;
+      tasks  = curProj()?.tasks || [];
+      nextId = curProj()?.nextId || 1;
+      if (curProj()?.startDate) CHART_START = new Date(curProj().startDate);
+      if (curProj()?.endDate)   CHART_END   = new Date(curProj().endDate);
       return true;
     }
-    currentProjId = (s.currentProjId && projects.find(p => p.id === s.currentProjId))
-      ? s.currentProjId : projects[0].id;
-    tasks  = curProj().tasks;
-    nextId = curProj().nextId;
-    CHART_START = new Date(curProj().startDate);
-    CHART_END   = new Date(curProj().endDate);
-    return true;
-  } catch(e) { return false; }
+    return false;
+  } catch(e) { console.error('loadFromCloud error:', e); return false; }
+}
+
+function createDefaultProject() {
+  const today = new Date();
+  const start = today.toISOString().slice(0, 10);
+  const endD = new Date(today); endD.setMonth(endD.getMonth() + 3);
+  const end = endD.toISOString().slice(0, 10);
+  return { id: 'proj_' + Date.now(), name: '我的项目', tasks: [], startDate: start, endDate: end, nextId: 1, color: '#5E6AD2' };
 }
 
 function _encodeData(obj) {
@@ -6442,50 +6236,24 @@ function _decodeData(b64) {
 }
 
 async function loadShareFromCloud(token) {
-  // 優先從 URL hash 讀取（不受 Supabase RLS 限制）
-  const hashMatch = location.hash.match(/[#&]d=([^&]*)/);
-  const hashData = hashMatch ? hashMatch[1] : null;
-  if (hashData) {
-    const obj = _decodeData(hashData);
-    if (obj) return obj;
-  }
+  // Local mode: try to load shared project from PouchDB
   try {
-    const snap = await db.collection('gantt_shares').doc(token).get();
-    return (snap.exists && snap.data()?.project_data) ? snap.data().project_data : null;
-  } catch(e) { return null; }
+    const doc = await pdbGet('share_' + token);
+    if (doc && doc.project_data) return doc.project_data;
+  } catch(e) {}
+  return null;
 }
 
 function saveShareToCloud(token, project) {
-  // 編碼專案資料供 URL hash 傳遞
   const encoded = _encodeData(project);
-  if (currentUser) {
-    try {
-      db.collection('gantt_shares').doc(token).set({
-        token, owner_id: currentUser.uid,
-        project_data: JSON.parse(JSON.stringify(project))
-      });
-    } catch(e) {}
-  }
+  // Save to PouchDB for local share link support
+  try { pdbPut({ _id: 'share_' + token, token, project_data: JSON.parse(JSON.stringify(project)), createdAt: new Date().toISOString() }); } catch(e) {}
   return encoded;
 }
 
 let _realtimeUnsub = null;
 
-function setupRealtime() {
-  if (!currentUser) return;
-  if (_realtimeUnsub) _realtimeUnsub();
-  let skipFirst = true;
-  _realtimeUnsub = db.collection('gantt_user_data').doc(currentUser.uid)
-    .onSnapshot(async () => {
-      if (skipFirst) { skipFirst = false; return; }
-      if (_myUpdate) return;
-      const ok = await loadFromCloud();
-      if (ok) {
-        if (projects.length) { scheduleTasks(); recalcProjEnd(); }
-        saveToLS(); updateProjUI(); render(); showSyncToast();
-      }
-    });
-}
+function setupRealtime() { /* local mode: no server */ }
 
 function showSyncToast() {
   let t = document.getElementById('syncToast');
@@ -6595,73 +6363,23 @@ function mergeDefaultProjects() {
 /* ═══════════════════════════════════════════
    AUTH
 ═══════════════════════════════════════════ */
-async function signInWithGoogle() {
-  document.getElementById('loginError').style.display = 'none';
-  try {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    await auth.signInWithPopup(provider);
-  } catch(e) {
-    if (e.code !== 'auth/popup-closed-by-user') alert('登入失敗：' + e.message);
-  }
-}
+async function signInWithGoogle() { startLocal(); }
 
 async function signInAsGuest() {
-  _guestMode = true;
+  false = true;
   await initApp();
   setSyncDot('local');
 }
 
-async function checkAuthorized() {
-  if (!currentUser) return false;
-  const snap = await db.collection('gantt_allowed_users').doc(currentUser.email).get();
-  if (!snap.exists) {
-    document.getElementById('loginScreen').style.display = 'flex';
-    document.getElementById('loginPanel').style.display = 'none';
-    document.getElementById('registerPanel').style.display = 'flex';
-    document.getElementById('registerNickname').focus();
-    return false;
-  }
-  return true;
-}
+async function checkAuthorized() { return true; }
 
-async function submitRegister() {
-  const nickname = document.getElementById('registerNickname').value.trim();
-  const errEl = document.getElementById('registerError');
-  if (!nickname) {
-    errEl.textContent = '請填寫暱稱';
-    errEl.style.display = '';
-    return;
-  }
-  errEl.style.display = 'none';
-  try {
-    await db.collection('gantt_allowed_users').doc(currentUser.email).set({
-      email: currentUser.email, name: nickname,
-      is_admin: false, added_at: new Date().toISOString()
-    });
-    document.getElementById('registerPanel').style.display = 'none';
-    document.getElementById('loginPanel').style.display = 'flex';
-    await initApp();
-  } catch(e) {
-    errEl.textContent = '註冊失敗：' + e.message;
-    errEl.style.display = '';
-  }
-}
+async function submitRegister() { /* local mode */ }
 
 async function signOut() {
-  if (!_guestMode) await auth.signOut();
-  currentUser = null;
-  _guestMode = false;
-  _appInitialized = false;
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('loginPanel').style.display = 'flex';
-  document.getElementById('registerPanel').style.display = 'none';
-  document.getElementById('registerNickname').value = '';
-  document.getElementById('registerError').style.display = 'none';
-  document.getElementById('loginError').style.display = 'none';
-  document.getElementById('appToolbar').style.display = 'none';
-  document.getElementById('main').style.display = 'none';
-  document.getElementById('userDisplay').innerHTML = '';
-  document.getElementById('signOutBtn').style.display = 'none';
+  if (confirm('清除本地登录信息并重新设置昵称？')) {
+    localStorage.removeItem('gp_local_name');
+    location.reload();
+  }
 }
 
 function showApp() {
@@ -6670,38 +6388,6 @@ function showApp() {
   document.getElementById('main').style.display = 'flex';
 }
 
-/* ── 开发模式：本地跳过登录 ── */
-function devSkipLogin() {
-  // 用本地存储中的数据直接进入 app，不需要 Firebase auth
-  currentUser = { uid: 'dev-local', email: 'dev@localhost', displayName: '开发模式', photoURL: null };
-  _appInitialized = true;
-  showApp();
-  // 显示简单开发标识
-  const ud = document.getElementById('userDisplay');
-  if (ud) ud.innerHTML = '<div title="开发模式" style="width:26px;height:26px;border-radius:50%;background:#f59e0b;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700">DEV</div>';
-  // 从 localStorage 加载数据
-  const saved = localStorage.getItem('gantt_local_data');
-  if (saved) {
-    try {
-      const data = JSON.parse(saved);
-      projects = data.projects || projects;
-      currentProjId = data.currentProjId || (projects[0] && projects[0].id);
-    } catch(e) {}
-  }
-  if (!projects.length) projects = [{ id: 'local-1', name: '本地项目', tasks: [], startDate: new Date().toISOString().slice(0,10), endDate: '' }];
-  currentProjId = currentProjId || projects[0].id;
-  tasks = curProj().tasks || [];
-  nextId = curProj().nextId || 100;
-  CHART_START = curProj().startDate ? new Date(curProj().startDate) : new Date();
-  recalcProjEnd();
-  setupColResizers();
-  setupResizer();
-  updateProjUI();
-  scheduleTasks();
-  render();
-  setSyncDot('off');
-  setTimeout(scrollToToday, 120);
-}
 
 function updateUserDisplay() {
   if (!currentUser) return;
@@ -6718,41 +6404,62 @@ function updateUserDisplay() {
 async function initApp() {
   if (_appInitialized) return;
   _appInitialized = true;
-  // Clear header immediately before showing app, preventing cached name flash
   const _nameEl = document.getElementById('projSelectorName');
   if (_nameEl) _nameEl.textContent = '';
   showApp();
   updateUserDisplay();
-  // Clear hardcoded demo data before cloud load to prevent flash
   projects = [];
   currentProjId = null;
   tasks = [];
+  setSyncDot('saving');
+  // Load from PouchDB, fallback to localStorage backup, then create default
   const cloudOk = await loadFromCloud();
-  if (!cloudOk) loadFromLS();
-  await loadSharedProjects();
-  setupSync();
+  if (!cloudOk) {
+    // Try localStorage backup
+    try {
+      const bk = localStorage.getItem('gantt_local_backup');
+      if (bk) {
+        const s = JSON.parse(bk);
+        if (s.projects?.length) {
+          projects = s.projects;
+          currentProjId = s.currentProjId || projects[0].id;
+          nextProjId = s.nextProjId ?? 1;
+          tasks = curProj()?.tasks || [];
+          nextId = curProj()?.nextId || 1;
+        }
+      }
+    } catch(e) {}
+  }
+  if (!projects.length) {
+    projects = [createDefaultProject()];
+    currentProjId = projects[0].id;
+    await saveToCloud();
+  }
+  tasks = curProj()?.tasks || [];
+  nextId = curProj()?.nextId || 1;
+  if (curProj()?.startDate) CHART_START = new Date(curProj().startDate);
+  recalcProjEnd();
   setupColResizers();
   setupResizer();
-  setupRealtime();
   updateProjUI();
-  if (projects.length) {
-    scheduleTasks();
-    recalcProjEnd();
-  }
+  scheduleTasks();
   render();
-  setSyncDot(cloudOk ? 'ok' : (_guestMode ? 'off' : 'err'));
+  setSyncDot('ok');
   setTimeout(scrollToToday, 120);
-  // Start LAN collaboration
   try { initLAN(); } catch(e) {}
-  // Apply i18n after app loads
   applyI18N();
-  const adminBtn = document.getElementById('adminBtn');
-  if (adminBtn) adminBtn.style.display = isAdmin() ? '' : 'none';
-  if (_guestMode) {
-    const el = document.getElementById('userDisplay');
-    if (el) el.innerHTML = `<div title="訪客模式（本地）" style="width:26px;height:26px;border-radius:50%;background:var(--t4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700">訪</div>`;
-    document.getElementById('signOutBtn').style.display = '';
-  }
+  // Auto-save every 60s
+  setInterval(() => { if (!isReadOnly) saveToCloud(); }, 60000);
+}
+
+async function startLocal() {
+  const input = document.getElementById('localNameInput');
+  const name = (input?.value || '').trim();
+  if (!name) { if (input) { input.focus(); input.style.borderColor = '#ef4444'; } return; }
+  localStorage.setItem('gp_local_name', name);
+  currentUser = { uid: 'local_' + name.replace(/\s+/g,'_'), displayName: name, email: null, photoURL: null };
+  document.getElementById('loginScreen').style.display = 'none';
+  await initApp();
 }
 
 /* ═══════════════════════════════════════════
@@ -7275,12 +6982,7 @@ function updateLANStatus(state) {
   dot.title = state === 'connected' ? '局域网已连接' : state === 'connecting' ? '正在连接...' : '局域网未连接';
 }
 
-// Hook saveToCloud to also broadcast LAN update
-const _origSaveToCloud = saveToCloud;
-async function saveToCloud() {
-  await _origSaveToCloud();
-  broadcastUpdate();
-}
+// LAN broadcast is now built into saveToCloud()
 
 /* ═══════════════════════════════════════════
    RESOURCE POOL
@@ -7537,7 +7239,7 @@ let _annotTask = null;
 function toggleChat() {
   const panel = document.getElementById('chatPanel');
   const isHidden = panel.classList.toggle('hidden');
-  if (!isHidden && currentUser && !_guestMode) {
+  if (!isHidden && currentUser && !false) {
     subscribeChat();
   }
   document.getElementById('chatToggleBtn').classList.toggle('active', !isHidden);
@@ -7551,22 +7253,13 @@ function switchChatTab(tab) {
 }
 
 function subscribeChat() {
-  if (_chatUnsub) { _chatUnsub(); _chatUnsub = null; }
-  if (!currentUser || !currentProjId) return;
-  const col = db.collection('gantt_chat')
-    .doc(String(currentProjId))
-    .collection('messages')
-    .orderBy('ts', 'asc')
-    .limitToLast(100);
-  _chatUnsub = col.onSnapshot(snap => {
-    const msgs = [];
-    snap.forEach(d => msgs.push({ id: d.id, ...d.data() }));
-    renderChatMessages(msgs.filter(m => _chatTab === 'annot' ? m.taskId : !m.taskId));
-  });
+  // Local mode: load chat messages from localStorage
+  const msgs = JSON.parse(localStorage.getItem('gp_chat_' + currentProjId) || '[]');
+  renderChatMessages(msgs);
 }
 
 function loadChatMessages() {
-  if (currentUser && !_guestMode) subscribeChat();
+  if (currentUser && !false) subscribeChat();
 }
 
 function renderChatMessages(msgs) {
@@ -7646,48 +7339,22 @@ function getProjectMembers() {
 }
 
 async function sendChatMessage() {
-  const inp = document.getElementById('chatInput');
-  const text = inp.value.trim();
-  if (!text) return;
-  hideMentionDropdown();
-  inp.value = '';
-  const msg = {
-    text,
-    uid: currentUser?.uid || 'guest',
-    displayName: currentUser?.displayName || '訪客',
-    ts: firebase.firestore.FieldValue.serverTimestamp(),
-  };
-  if (_chatTab === 'annot' && _annotTask) {
-    msg.taskId = _annotTask.id;
-    msg.taskName = _annotTask.name;
-  }
-  if (!currentUser || _guestMode) {
-    // Local preview only
-    renderChatMessages([{ ...msg, ts: { toMillis: () => Date.now() } }]);
-    return;
-  }
-  try {
-    await db.collection('gantt_chat')
-      .doc(String(currentProjId))
-      .collection('messages')
-      .add(msg);
-  } catch(e) { console.warn('chat send error', e); }
+  // local: save to localStorage
+  if (!text || !text.trim()) return;
+  const key = 'gp_chat_' + (currentProjId||'default');
+  const msgs = JSON.parse(localStorage.getItem(key) || '[]');
+  msgs.push({ id: Date.now().toString(), text: text.trim(), author: currentUser?.displayName || '我', ts: new Date().toISOString() });
+  localStorage.setItem(key, JSON.stringify(msgs.slice(-300)));
+  if (typeof subscribeChat === 'function') subscribeChat();
 }
 
 async function sendSystemMessage(text) {
-  if (!currentUser || _guestMode) return;
-  try {
-    await db.collection('gantt_chat')
-      .doc(String(currentProjId))
-      .collection('messages')
-      .add({
-        text,
-        uid: 'system',
-        displayName: '系統',
-        ts: firebase.firestore.FieldValue.serverTimestamp(),
-        system: true,
-      });
-  } catch(e) {}
+  if (!currentUser) return;
+  const key = 'gp_chat_' + (currentProjId||'default');
+  const msgs = JSON.parse(localStorage.getItem(key) || '[]');
+  msgs.push({ id: Date.now().toString(), text, author: '系统', ts: new Date().toISOString(), system: true });
+  localStorage.setItem(key, JSON.stringify(msgs.slice(-300)));
+  if (typeof subscribeChat === 'function') subscribeChat();
 }
 
 function openTaskAnnotation(task) {
@@ -8116,7 +7783,7 @@ function exportGanttPDF() {
   <h1>${proj?.name||'甘特圖'}</h1>
   <p>${proj?.startDate||''} — ${proj?.endDate||''} &nbsp;|&nbsp; 任務 ${taskCount} 項 &nbsp;|&nbsp; 里程碑 ${msCount} 項 &nbsp;|&nbsp; 匯出時間 ${TODAY_STR}</p>
   <img src="${dataUrl}">
-  <script>window.onload=()=>window.print()<\/script>
+  <\x3Cscript>window.onload=()=>window.print()<\/script>
   </body></html>`);
   win.document.close();
 }
@@ -8382,57 +8049,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // Auth-required mode
-  const revealLogin = () => {
-    const chk = document.getElementById('authChecking');
-    const panel = document.getElementById('loginPanel');
-    if (chk) chk.style.display = 'none';
-    if (panel && document.getElementById('registerPanel').style.display === 'none') panel.style.display = 'flex';
-  };
-
-  // 如果 Firebase 根本没加载成功，立即跳本地模式
-  if (typeof firebase === 'undefined' || typeof auth === 'undefined') {
-    console.warn('[GanttPro] Firebase unavailable, switching to local mode');
-    devSkipLogin();
-    return;
+  // 本地模式：检查是否已设置昵称
+  const _localName = localStorage.getItem('gp_local_name');
+  if (_localName) {
+    currentUser = { uid: 'local_' + _localName, displayName: _localName, email: null, photoURL: null };
+    await initApp();
+  } else {
+    // 首次使用：显示昵称输入界面
+    document.getElementById('loginScreen').style.display = 'flex';
   }
-
-  // 保險：Firebase 無回應（離線、被擋）時 2 秒後直接進本地模式
-  const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname === '' || location.protocol === 'file:';
-  const authFallback = setTimeout(() => {
-    if (!_appInitialized) {
-      if (isLocal) {
-        // 本地开发：直接跳过，不卡登录
-        devSkipLogin();
-      } else {
-        revealLogin();
-      }
-    }
-  }, isLocal ? 1500 : 4000);
-
-  // 开发模式：立即显示跳过按钮（无需等待）
-  if (isLocal) {
-    const devRow = document.getElementById('devSkipRow');
-    if (devRow) devRow.style.display = 'block';
-  }
-
-  auth.onAuthStateChanged(async (user) => {
-    if (_appInitialized) return;
-    clearTimeout(authFallback);
-    if (user) {
-      // 既有 session：直接進入 app，不顯示登入按鈕
-      currentUser = user;
-      const authorized = await checkAuthorized();
-      if (authorized) await initApp();
-      // 未授權時 checkAuthorized 已切換到註冊面板，這裡只需把檢查中提示收掉
-      if (!_appInitialized) {
-        const chk = document.getElementById('authChecking');
-        if (chk) chk.style.display = 'none';
-      }
-    } else {
-      revealLogin();
-    }
-  });
 });
 </script>
 </body>
