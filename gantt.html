@@ -10,6 +10,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
@@ -959,6 +961,220 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 .admin-del-btn:hover{background:#FEF2F2}
 .dark .admin-del-btn:hover{background:#450A0A}
 
+/* ══════════════════════════════════════════
+   THEMES — 6 colour palettes
+══════════════════════════════════════════ */
+/* Morandi: muted, dusty, desaturated */
+body.theme-morandi{
+  --accent:#8E9E9B;--accent-bg:#EAF0EF;
+  --bg:#F4F2EF;--surface:#FAFAF8;--s2:#F0EDE8;--s-hover:#E9E5DF;
+  --border:#D8D2CA;--border2:#C2BAB0;
+  --t1:#3D3530;--t2:#6B6158;--t3:#9A8F85;--t4:#BCB3A8;
+  --bar1:#A0B0AD;--bar2:#C4B5AC;--bar3:#B8BFAA;--bar4:#C5A99B;
+}
+/* Mondrian: primary red/blue/yellow on white */
+body.theme-mondrian{
+  --accent:#D32F2F;--accent-bg:#FFEBEE;
+  --bg:#F5F5F5;--surface:#FFFFFF;--s2:#FAFAFA;--s-hover:#F0F0F0;
+  --border:#E0E0E0;--border2:#BDBDBD;
+  --t1:#1A1A1A;--t2:#333333;--t3:#666666;--t4:#999999;
+  --bar1:#D32F2F;--bar2:#1565C0;--bar3:#F9A825;--bar4:#2E7D32;
+}
+/* Memphis: bold, geometric, 80s neon */
+body.theme-memphis{
+  --accent:#FF3366;--accent-bg:#FFF0F4;
+  --bg:#FFF9F0;--surface:#FFFFFF;--s2:#FFF5E8;--s-hover:#FFE8D6;
+  --border:#F5C6A0;--border2:#F0A070;
+  --t1:#1A0A2E;--t2:#3D2060;--t3:#7A4D9E;--t4:#B490D0;
+  --bar1:#FF3366;--bar2:#33CCFF;--bar3:#FFDD00;--bar4:#00CC99;
+}
+/* Rococo: pastel pink/gold ornate */
+body.theme-rococo{
+  --accent:#C08060;--accent-bg:#FDF5EE;
+  --bg:#FEF6F0;--surface:#FFFCFA;--s2:#FCF0E8;--s-hover:#F8E8DC;
+  --border:#EDD5C0;--border2:#DEC0A5;
+  --t1:#3D2010;--t2:#6B4030;--t3:#9A7060;--t4:#C4A090;
+  --bar1:#D4907A;--bar2:#C8A86C;--bar3:#B8C0A0;--bar4:#A09DC8;
+}
+/* Macaron: soft pastel candy */
+body.theme-macaron{
+  --accent:#F472B6;--accent-bg:#FDF2F8;
+  --bg:#FFF0FB;--surface:#FFFFFF;--s2:#FDE8F5;--s-hover:#FAD0ED;
+  --border:#F5C0E0;--border2:#EEA0D0;
+  --t1:#1F0A18;--t2:#4A1535;--t3:#8B4070;--t4:#C48AAA;
+  --bar1:#F472B6;--bar2:#A78BFA;--bar3:#34D399;--bar4:#FBBF24;
+}
+/* Dunhuang: cave mural gold/ochre/vermilion */
+body.theme-dunhuang{
+  --accent:#C0792A;--accent-bg:#FDF3E3;
+  --bg:#F5EDD8;--surface:#FDF8EE;--s2:#F0E4CC;--s-hover:#E8D5B0;
+  --border:#D4BC88;--border2:#C0A060;
+  --t1:#2A1505;--t2:#5C3010;--t3:#9A6830;--t4:#C4A060;
+  --bar1:#C0792A;--bar2:#8B3A0F;--bar3:#1A6B5C;--bar4:#8B6B20;
+}
+
+/* ── THEME PICKER ── */
+.theme-picker-wrap{position:relative}
+.theme-swatch-row{display:flex;gap:6px;padding:10px 14px;flex-wrap:wrap}
+.theme-swatch{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .1s,border-color .1s;flex-shrink:0}
+.theme-swatch:hover{transform:scale(1.15)}
+.theme-swatch.active{border-color:var(--accent)}
+.theme-logo-upload{display:flex;align-items:center;gap:8px;padding:6px 14px 10px;border-top:1px solid var(--border);font-size:11px;color:var(--t3)}
+.theme-logo-upload input{display:none}
+.theme-logo-btn{font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface);cursor:pointer;color:var(--t2)}
+.theme-logo-btn:hover{background:var(--s-hover)}
+
+/* ── CHAT PANEL ── */
+.chat-panel{
+  width:300px;min-width:260px;max-width:400px;
+  background:var(--surface);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;
+  transition:width .2s;
+  position:relative;
+}
+.chat-panel.hidden{display:none}
+.chat-header{
+  height:var(--toolbar);display:flex;align-items:center;
+  padding:0 14px;gap:8px;border-bottom:1px solid var(--border);
+  font-size:13px;font-weight:600;color:var(--t1);flex-shrink:0;
+}
+.chat-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);flex-shrink:0}
+.chat-tab{flex:1;padding:8px 0;text-align:center;font-size:12px;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:color .15s}
+.chat-tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.chat-messages{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
+.chat-msg{display:flex;flex-direction:column;gap:2px;animation:fadeUp .2s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.chat-msg-meta{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--t4)}
+.chat-msg-av{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0}
+.chat-msg-body{font-size:12px;color:var(--t1);background:var(--s2);border-radius:10px;padding:6px 10px;line-height:1.5;max-width:100%;word-break:break-word}
+.chat-msg-body .mention{color:var(--accent);font-weight:600}
+.chat-msg.own .chat-msg-body{background:var(--accent-bg)}
+.chat-input-wrap{padding:8px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+.chat-input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--t1);font-size:12px;font-family:inherit;resize:none;outline:none;line-height:1.4;min-height:56px}
+.chat-input:focus{border-color:var(--accent)}
+.chat-send-row{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.chat-mention-btn{font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface);cursor:pointer;color:var(--t3)}
+.chat-mention-btn:hover{background:var(--s-hover)}
+.chat-send-btn{padding:5px 14px;border-radius:7px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.chat-send-btn:hover{opacity:.9}
+.chat-mention-dropdown{position:absolute;bottom:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:140px;overflow-y:auto;z-index:200}
+.chat-mention-item{padding:7px 12px;font-size:12px;color:var(--t1);cursor:pointer;display:flex;align-items:center;gap:7px}
+.chat-mention-item:hover{background:var(--s-hover)}
+
+/* annotation badge on task bars */
+.annot-badge{position:absolute;top:-4px;right:-4px;width:14px;height:14px;border-radius:50%;background:#F59E0B;color:#fff;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;pointer-events:none}
+
+/* ── APPROVAL / STATUS BADGE ── */
+.approval-badge{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:8px;font-size:10px;font-weight:600}
+.approval-badge.pending{background:#FEF3C7;color:#92400E}
+.approval-badge.approved{background:#D1FAE5;color:#065F46}
+.approval-badge.rejected{background:#FEE2E2;color:#991B1B}
+.dark .approval-badge.pending{background:#451A03;color:#FCD34D}
+.dark .approval-badge.approved{background:#022C22;color:#6EE7B7}
+.dark .approval-badge.rejected{background:#450A0A;color:#FCA5A5}
+
+/* ── RBAC ROLE BADGES ── */
+.role-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600}
+.role-badge.admin{background:#EEF0FF;color:#3730A3}
+.role-badge.editor{background:#D1FAE5;color:#065F46}
+.role-badge.viewer{background:#F3F4F6;color:#374151}
+.role-badge.commenter{background:#FEF3C7;color:#92400E}
+.dark .role-badge.admin{background:#1E1B4B;color:#A5B4FC}
+.dark .role-badge.editor{background:#022C22;color:#6EE7B7}
+
+/* ── DASHBOARD PANEL ── */
+#dashboardView{
+  position:absolute;inset:0;background:var(--bg);overflow-y:auto;
+  padding:24px;display:none;z-index:10;
+}
+#dashboardView.active{display:block}
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:24px}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:6px}
+.kpi-label{font-size:11px;color:var(--t3);font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+.kpi-value{font-size:28px;font-weight:800;color:var(--t1);line-height:1}
+.kpi-sub{font-size:11px;color:var(--t4)}
+.kpi-bar{height:4px;border-radius:2px;background:var(--border);margin-top:6px;overflow:hidden}
+.kpi-bar-fill{height:100%;border-radius:2px;background:var(--accent);transition:width .6s ease}
+.dash-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:16px}
+.dash-section-title{font-size:13px;font-weight:700;color:var(--t1);margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.health-ring-wrap{display:flex;align-items:center;gap:24px}
+.health-table{flex:1;font-size:12px}
+.health-table td{padding:4px 0}
+.health-table td:first-child{color:var(--t3);padding-right:12px}
+.health-table td:last-child{font-weight:600;color:var(--t1)}
+.proj-health-bar{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.proj-health-bar:last-child{border-bottom:none}
+.phb-name{flex:1;font-size:12px;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phb-track{flex:2;height:8px;border-radius:4px;background:var(--border);overflow:hidden}
+.phb-fill{height:100%;border-radius:4px;transition:width .6s}
+.phb-pct{font-size:11px;color:var(--t3);width:36px;text-align:right}
+
+/* ── SPRINT / AGILE VIEW ── */
+#sprintView{
+  position:absolute;inset:0;background:var(--bg);overflow-y:auto;
+  padding:16px;display:none;z-index:10;
+}
+#sprintView.active{display:block}
+.sprint-board{display:flex;gap:12px;min-height:400px}
+.sprint-col{flex:1;min-width:200px;background:var(--surface);border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:column;max-height:calc(100vh - 140px)}
+.sprint-col-head{padding:10px 14px;font-size:12px;font-weight:700;color:var(--t2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.sprint-col-count{font-size:10px;padding:1px 7px;border-radius:8px;background:var(--s2);color:var(--t4)}
+.sprint-col-body{flex:1;overflow-y:auto;padding:8px}
+.sprint-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:border-color .12s,box-shadow .12s}
+.sprint-card:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.sprint-card-name{font-size:12px;font-weight:600;color:var(--t1);margin-bottom:5px}
+.sprint-card-meta{font-size:10px;color:var(--t4);display:flex;align-items:center;gap:8px}
+.sprint-card-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sprint-card-progress{height:3px;border-radius:2px;background:var(--border);margin-top:6px;overflow:hidden}
+.sprint-card-progress-fill{height:100%;border-radius:2px;background:#10B981}
+
+/* ── RESOURCE CALENDAR ── */
+#resourceCalView{
+  position:absolute;inset:0;background:var(--bg);overflow:auto;
+  display:none;z-index:10;
+}
+#resourceCalView.active{display:block}
+.rcal-wrap{display:flex;flex-direction:column;min-width:900px}
+.rcal-header{display:flex;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5}
+.rcal-name-col{width:160px;min-width:160px;padding:10px 14px;font-size:11px;font-weight:700;color:var(--t3);border-right:1px solid var(--border);flex-shrink:0}
+.rcal-day-cell{flex:1;min-width:32px;text-align:center;padding:6px 2px;font-size:10px;color:var(--t3);border-right:1px solid var(--border)}
+.rcal-day-cell.weekend{background:var(--s2)}
+.rcal-day-cell.today{background:var(--accent-bg);color:var(--accent);font-weight:700}
+.rcal-row{display:flex;border-bottom:1px solid var(--border)}
+.rcal-row-name{width:160px;min-width:160px;padding:8px 14px;font-size:12px;color:var(--t1);border-right:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:7px}
+.rcal-row-cell{flex:1;min-width:32px;border-right:1px solid var(--border);position:relative;min-height:40px}
+.rcal-row-cell.weekend{background:var(--s2)}
+.rcal-task-chip{position:absolute;inset:3px;border-radius:4px;font-size:9px;color:#fff;display:flex;align-items:center;padding:0 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer}
+
+/* ── WORKING TIME MODAL ── */
+.wtime-modal{max-width:480px}
+.wtime-section{margin-bottom:20px}
+.wtime-section-title{font-size:12px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px}
+.wday-check-row{display:flex;gap:8px;flex-wrap:wrap}
+.wday-chip{display:flex;align-items:center;gap:5px;padding:5px 12px;border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:12px;color:var(--t2);transition:background .12s,border-color .12s}
+.wday-chip input{width:13px;height:13px;accent-color:var(--accent)}
+.wday-chip:hover{background:var(--s-hover)}
+.wtime-nonwork-list{display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto}
+.wtime-nonwork-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--t1)}
+.wtime-nonwork-item button{background:none;border:none;color:var(--t4);cursor:pointer;font-size:14px;padding:0 4px}
+.wtime-nonwork-item button:hover{color:var(--red)}
+.wtime-add-row{display:flex;gap:8px;margin-top:8px}
+.wtime-add-row input{flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--t1);font-size:12px;font-family:inherit;outline:none}
+.wtime-add-row input:focus{border-color:var(--accent)}
+
+/* ── REPORT MODAL ── */
+.report-modal{max-width:680px;width:95vw}
+.report-toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.report-md-area{width:100%;min-height:280px;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--t1);font-family:'Courier New',monospace;font-size:12px;line-height:1.6;resize:vertical;outline:none}
+.report-md-area:focus{border-color:var(--accent)}
+.report-export-row{display:flex;gap:8px;margin-top:12px;justify-content:flex-end;flex-wrap:wrap}
+
+/* ── HYPERLINK FIELD ── */
+.link-cell{display:flex;align-items:center;gap:5px;font-size:11px}
+.link-cell a,.link-cell span.link-text{color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.link-copy-btn{font-size:10px;padding:1px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--t3);cursor:pointer;flex-shrink:0}
+.link-copy-btn:hover{background:var(--s-hover)}
+
 /* ── PRINT / PDF EXPORT ── */
 #printHeader{display:none}
 @media print{
@@ -1058,6 +1274,9 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
     <button class="btn active" data-cv="gantt" onclick="setChartView('gantt')">甘特圖</button>
     <button class="btn" data-cv="milestone" onclick="setChartView('milestone')">◆ 里程碑</button>
     <button class="btn" data-cv="workload" onclick="setChartView('workload')">工作量</button>
+    <button class="btn" data-cv="resource" onclick="setChartView('resource')">📅 資源</button>
+    <button class="btn" data-cv="sprint" onclick="setChartView('sprint')">🏃 看板</button>
+    <button class="btn" data-cv="dashboard" onclick="setChartView('dashboard')">📊 儀表板</button>
   </div>
   <div class="sep"></div>
   <div class="btn-group" id="viewBtns">
@@ -1070,13 +1289,17 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   <button class="btn fit-btn" onclick="fitToFrame()" title="縮放至適合視窗"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4.5V1h3.5M8.5 1H12v3.5M12 8.5V12H8.5M4.5 12H1V8.5"/></svg></button>
   <button class="btn" id="cpBtn" onclick="toggleCriticalPath()" title="顯示關鍵路徑">◆ 關鍵路徑</button>
   <div class="settings-wrap" id="exportWrap">
-    <button class="btn" onclick="toggleExportMenu()" title="匯出圖檔">⬇ 匯出</button>
+    <button class="btn" onclick="toggleExportMenu()" title="匯出">⬇ 匯出</button>
     <div class="settings-panel" id="exportPanel">
       <button class="settings-action" onclick="exportPNG();closeExportMenu()">🖼 匯出 PNG</button>
-      <button class="settings-action" onclick="exportPDF();closeExportMenu()">📄 匯出 PDF</button>
-      <button class="settings-action" onclick="exportCSV();closeExportMenu()">📊 匯出 CSV (Excel)</button>
+      <button class="settings-action" onclick="exportPDF();closeExportMenu()">📄 列印/PDF</button>
+      <button class="settings-action" onclick="exportGanttPDF();closeExportMenu()">📄 甘特圖 PDF</button>
+      <button class="settings-action" onclick="exportCSV();closeExportMenu()">📊 匯出 CSV</button>
+      <button class="settings-action" onclick="exportExcel();closeExportMenu()">📊 匯出 Excel</button>
+      <button class="settings-action" onclick="openReportModal();closeExportMenu()">📝 專案報告 / PPTX</button>
     </div>
   </div>
+  <button class="btn" onclick="toggleChat()" title="聊天與批注" id="chatToggleBtn">💬 聊天</button>
   <div class="readonly-badge">👁 唯讀模式</div>
   <button class="btn btn-owner-only" id="collabBtn" onclick="openCollabModal()" title="協作管理">👥 協作</button>
   <button class="btn" id="darkBtn" onclick="toggleDark()" title="深色模式">🌙</button>
@@ -1094,6 +1317,9 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
       <div class="settings-sep"></div>
       <button class="settings-action" onclick="setBaseline();closeSettings()">📐 設定基準線</button>
       <button class="settings-action btn-owner-only" id="settingVersionBtn" onclick="openVersionPanel();closeSettings()">🕐 版本紀錄</button>
+      <div class="settings-sep"></div>
+      <button class="settings-action" onclick="openWorkTimeModal();closeSettings()">🗓 工作時間設定</button>
+      <button class="settings-action" onclick="openThemePicker();closeSettings()">🎨 主題色彩</button>
     </div>
   </div>
   <button class="btn" id="adminBtn" onclick="openAdminPanel()" title="管理員面板" style="display:none">👑 Admin</button>
@@ -1143,8 +1369,10 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
     <div class="collab-add-row">
       <input id="collabEmailInput" type="email" placeholder="輸入對方的 Gmail 帳號" onkeydown="if(event.key==='Enter')addShare()">
       <select id="collabPermSelect">
-        <option value="read">唯讀</option>
-        <option value="edit">共同編輯</option>
+        <option value="viewer">唯讀</option>
+        <option value="commenter">批注者</option>
+        <option value="editor">共同編輯</option>
+        <option value="admin">管理員</option>
       </select>
       <button class="btn btn-primary" onclick="addShare()">加入</button>
     </div>
@@ -1175,6 +1403,73 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   </div>
 </div>
 
+<!-- ═══════ THEME PICKER MODAL ═══════ -->
+<div class="overlay" id="themeOverlay" onclick="closeThemePicker()">
+  <div class="modal wtime-modal" onclick="event.stopPropagation()" style="max-width:360px">
+    <button class="modal-close" onclick="closeThemePicker()">✕</button>
+    <div class="modal-title">🎨 主題色彩</div>
+    <div class="theme-swatch-row" id="themeSwatchRow"></div>
+    <div class="theme-logo-upload">
+      <span>從 Logo 提取色彩：</span>
+      <label class="theme-logo-btn">上傳 Logo
+        <input type="file" accept="image/*" onchange="extractLogoColors(this)">
+      </label>
+      <span id="logoColorPreview" style="display:flex;gap:4px;margin-left:4px"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ WORKING TIME MODAL ═══════ -->
+<div class="overlay" id="workTimeOverlay" onclick="closeWorkTimeModal()">
+  <div class="modal wtime-modal" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeWorkTimeModal()">✕</button>
+    <div class="modal-title">🗓 工作時間設定</div>
+    <div class="wtime-section">
+      <div class="wtime-section-title">工作日</div>
+      <div class="wday-check-row">
+        <label class="wday-chip"><input type="checkbox" data-dow="1" onchange="updateWorkDays()"> 一</label>
+        <label class="wday-chip"><input type="checkbox" data-dow="2" onchange="updateWorkDays()"> 二</label>
+        <label class="wday-chip"><input type="checkbox" data-dow="3" onchange="updateWorkDays()"> 三</label>
+        <label class="wday-chip"><input type="checkbox" data-dow="4" onchange="updateWorkDays()"> 四</label>
+        <label class="wday-chip"><input type="checkbox" data-dow="5" onchange="updateWorkDays()"> 五</label>
+        <label class="wday-chip"><input type="checkbox" data-dow="6" onchange="updateWorkDays()"> 六</label>
+        <label class="wday-chip"><input type="checkbox" data-dow="0" onchange="updateWorkDays()"> 日</label>
+      </div>
+    </div>
+    <div class="wtime-section">
+      <div class="wtime-section-title">額外非工作日</div>
+      <div class="wtime-nonwork-list" id="customNonWorkList"></div>
+      <div class="wtime-add-row">
+        <input type="date" id="customNonWorkInput">
+        <button class="btn btn-primary" onclick="addCustomNonWorkDay()">＋ 新增</button>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-primary" onclick="closeWorkTimeModal()">完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ REPORT / PPTX MODAL ═══════ -->
+<div class="overlay" id="reportOverlay" onclick="if(event.target===this)closeReportModal()">
+  <div class="modal report-modal" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeReportModal()">✕</button>
+    <div class="modal-title">📝 專案報告</div>
+    <div class="report-toolbar">
+      <button class="btn" onclick="generateMdReport()">⟳ 重新生成</button>
+      <select id="reportProjSelect" class="btn" style="cursor:pointer" onchange="generateMdReport()">
+        <option value="current">當前專案</option>
+        <option value="all">全部專案</option>
+      </select>
+    </div>
+    <textarea class="report-md-area" id="reportMdArea" placeholder="生成中…" spellcheck="false"></textarea>
+    <div class="report-export-row">
+      <button class="btn" onclick="copyMdReport()">📋 複製 Markdown</button>
+      <button class="btn btn-primary" onclick="exportPPTX()">📊 匯出 PPTX</button>
+    </div>
+  </div>
+</div>
+
 <!-- PRINT HEADER (visible only when printing) -->
 <div id="printHeader">
   <h2 id="printProjName"></h2>
@@ -1184,7 +1479,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 <!-- MAIN -->
 <div class="main" id="main" style="display:none">
   <!-- Left: Task Panel -->
-  <div class="task-panel" id="taskPanel">
+  <div class="task-panel" id="taskPanel" style="position:relative">
     <div class="task-thead">
       <div class="task-thead-r">
         <span class="th" style="text-align:center">#</span>
@@ -1214,10 +1509,37 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   <div class="resizer" id="resizer"></div>
 
   <!-- Right: Chart Panel -->
-  <div class="chart-panel" id="chartPanel">
+  <div class="chart-panel" id="chartPanel" style="position:relative">
     <div class="chart-scroll" id="chartScroll">
       <div class="chart-head" id="chartHead"></div>
       <div class="chart-canvas" id="chartCanvas"></div>
+    </div>
+    <!-- Dashboard View (overlays chart) -->
+    <div id="dashboardView"></div>
+    <!-- Sprint/Kanban View -->
+    <div id="sprintView"></div>
+    <!-- Resource Calendar View -->
+    <div id="resourceCalView"></div>
+  </div>
+
+  <!-- Chat Panel -->
+  <div class="chat-panel hidden" id="chatPanel">
+    <div class="chat-header">
+      <span>💬 聊天與批注</span>
+      <button onclick="toggleChat()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--t3);font-size:16px">✕</button>
+    </div>
+    <div class="chat-tabs">
+      <div class="chat-tab active" onclick="switchChatTab('chat')" id="chatTabChat">聊天</div>
+      <div class="chat-tab" onclick="switchChatTab('annot')" id="chatTabAnnot">批注</div>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input-wrap" style="position:relative">
+      <div class="chat-mention-dropdown" id="mentionDropdown" style="display:none"></div>
+      <textarea class="chat-input" id="chatInput" placeholder="輸入訊息，@ 提及成員…" rows="3" onkeydown="onChatKeyDown(event)" oninput="onChatInput(event)"></textarea>
+      <div class="chat-send-row">
+        <button class="chat-mention-btn" onclick="insertMention()">@ 提及</button>
+        <button class="chat-send-btn" onclick="sendChatMessage()">傳送</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1301,8 +1623,25 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
       <input class="form-ctrl" type="number" id="fProgress" min="0" max="100" step="5" value="0" style="width:70px;text-align:center">
       <span style="font-size:12px;color:var(--t3)">%</span>
     </div>
+    <div class="form-row" id="rowLink">
+      <label class="form-lbl">超連結（文件）</label>
+      <div style="display:flex;gap:6px;align-items:center;flex:1">
+        <input class="form-ctrl" id="fLink" placeholder="https://… （僅允許複製，不直接開啟）" style="flex:1">
+        <button class="btn" onclick="copyTaskLink()" title="複製連結" style="flex-shrink:0">複製</button>
+      </div>
+    </div>
+    <div class="form-row" id="rowApproval">
+      <label class="form-lbl">審批狀態</label>
+      <select class="form-ctrl" id="fApproval">
+        <option value="">無需審批</option>
+        <option value="pending">待審批</option>
+        <option value="approved">已批准</option>
+        <option value="rejected">已拒絕</option>
+      </select>
+    </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn" id="modal-approval-btn" onclick="submitApproval()" style="display:none">📋 提交審批</button>
       <button class="btn btn-primary" id="modal-submit" onclick="submitTask()">新增任務</button>
     </div>
   </div>
@@ -5852,9 +6191,890 @@ async function initApp() {
 }
 
 /* ═══════════════════════════════════════════
+   THEMES
+═══════════════════════════════════════════ */
+const THEMES = [
+  { id:'default',    label:'預設',    color:'#5E6AD2' },
+  { id:'morandi',   label:'莫蘭迪',  color:'#8E9E9B' },
+  { id:'mondrian',  label:'蒙德里安',color:'#D32F2F' },
+  { id:'memphis',   label:'孟菲斯',  color:'#FF3366' },
+  { id:'rococo',    label:'洛可可',  color:'#C08060' },
+  { id:'macaron',   label:'馬卡龍',  color:'#F472B6' },
+  { id:'dunhuang',  label:'敦煌',    color:'#C0792A' },
+];
+let _activeTheme = localStorage.getItem('gp_theme') || 'default';
+
+function applyTheme(id) {
+  _activeTheme = id;
+  THEMES.forEach(t => document.body.classList.remove('theme-' + t.id));
+  if (id !== 'default') document.body.classList.add('theme-' + id);
+  localStorage.setItem('gp_theme', id);
+  document.querySelectorAll('.theme-swatch').forEach(s => {
+    s.classList.toggle('active', s.dataset.tid === id);
+  });
+  render();
+}
+
+function openThemePicker() {
+  const row = document.getElementById('themeSwatchRow');
+  row.innerHTML = THEMES.map(t =>
+    `<div class="theme-swatch${_activeTheme===t.id?' active':''}" data-tid="${t.id}"
+      style="background:${t.color}" title="${t.label}"
+      onclick="applyTheme('${t.id}')"></div>`
+  ).join('') +
+  `<span style="font-size:11px;color:var(--t3);margin-left:4px;align-self:center">${THEMES.find(t=>t.id===_activeTheme)?.label||'預設'}</span>`;
+  document.getElementById('themeOverlay').classList.add('open');
+}
+function closeThemePicker() {
+  document.getElementById('themeOverlay').classList.remove('open');
+}
+
+function extractLogoColors(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, c.width, c.height).data;
+    const buckets = {};
+    for (let i = 0; i < data.length; i += 16) {
+      const r = Math.round(data[i] / 32) * 32;
+      const g = Math.round(data[i+1] / 32) * 32;
+      const b = Math.round(data[i+2] / 32) * 32;
+      const a = data[i+3];
+      if (a < 128 || (r > 230 && g > 230 && b > 230)) continue; // skip transparent/white
+      const key = `${r},${g},${b}`;
+      buckets[key] = (buckets[key] || 0) + 1;
+    }
+    const sorted = Object.entries(buckets).sort((a,b) => b[1]-a[1]).slice(0, 5);
+    const preview = document.getElementById('logoColorPreview');
+    preview.innerHTML = sorted.map(([k]) => {
+      const [r,g,b] = k.split(',');
+      const hex = '#' + [r,g,b].map(x=>Number(x).toString(16).padStart(2,'0')).join('');
+      return `<div style="width:18px;height:18px;border-radius:50%;background:${hex};cursor:pointer;border:2px solid var(--border);flex-shrink:0" title="${hex}" onclick="applyLogoTheme('${hex}')"></div>`;
+    }).join('');
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+}
+
+function applyLogoTheme(hex) {
+  document.documentElement.style.setProperty('--accent', hex);
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  const light = `rgba(${r},${g},${b},0.12)`;
+  document.documentElement.style.setProperty('--accent-bg', light);
+  _activeTheme = 'logo';
+  render();
+}
+
+/* ═══════════════════════════════════════════
+   WORKING TIME SETTINGS
+═══════════════════════════════════════════ */
+// Custom work days (0=Sun,1=Mon,...,6=Sat). Default Mon-Fri.
+let _customWorkDays = JSON.parse(localStorage.getItem('gp_workdays') || '[1,2,3,4,5]');
+let _customNonWorkDays = JSON.parse(localStorage.getItem('gp_nonworkdays') || '[]'); // extra non-work dates
+
+function openWorkTimeModal() {
+  // Sync checkboxes
+  document.querySelectorAll('.wday-chip input[data-dow]').forEach(cb => {
+    cb.checked = _customWorkDays.includes(Number(cb.dataset.dow));
+  });
+  renderCustomNonWorkList();
+  document.getElementById('workTimeOverlay').classList.add('open');
+}
+function closeWorkTimeModal() {
+  document.getElementById('workTimeOverlay').classList.remove('open');
+}
+function updateWorkDays() {
+  _customWorkDays = [];
+  document.querySelectorAll('.wday-chip input[data-dow]:checked').forEach(cb => {
+    _customWorkDays.push(Number(cb.dataset.dow));
+  });
+  localStorage.setItem('gp_workdays', JSON.stringify(_customWorkDays));
+  render();
+}
+function renderCustomNonWorkList() {
+  const el = document.getElementById('customNonWorkList');
+  if (!el) return;
+  if (!_customNonWorkDays.length) {
+    el.innerHTML = '<div style="font-size:11px;color:var(--t4);padding:4px 0">尚無自訂非工作日</div>';
+    return;
+  }
+  el.innerHTML = _customNonWorkDays.map(d =>
+    `<div class="wtime-nonwork-item">${d}<button onclick="removeCustomNonWorkDay('${d}')">✕</button></div>`
+  ).join('');
+}
+function addCustomNonWorkDay() {
+  const v = document.getElementById('customNonWorkInput').value;
+  if (!v) return;
+  if (!_customNonWorkDays.includes(v)) {
+    _customNonWorkDays.push(v);
+    _customNonWorkDays.sort();
+    localStorage.setItem('gp_nonworkdays', JSON.stringify(_customNonWorkDays));
+    renderCustomNonWorkList();
+    render();
+  }
+  document.getElementById('customNonWorkInput').value = '';
+}
+function removeCustomNonWorkDay(d) {
+  _customNonWorkDays = _customNonWorkDays.filter(x => x !== d);
+  localStorage.setItem('gp_nonworkdays', JSON.stringify(_customNonWorkDays));
+  renderCustomNonWorkList();
+  render();
+}
+
+// Override isNonWorkday to respect custom settings
+const _origIsNonWorkday = isNonWorkday;
+function isNonWorkdayCustom(d) {
+  const ds = typeof d === 'string' ? d : toStr(d);
+  if (_customNonWorkDays.includes(ds)) return true;
+  const dt = typeof d === 'string' ? new Date(d + 'T00:00:00') : d;
+  const dow = dt.getDay();
+  if (!_customWorkDays.includes(dow)) return true;
+  return false;
+}
+
+/* ═══════════════════════════════════════════
+   HYPERLINKS IN TASKS
+═══════════════════════════════════════════ */
+function copyTaskLink() {
+  const link = document.getElementById('fLink').value.trim();
+  if (!link) return;
+  navigator.clipboard.writeText(link).then(() => {
+    const btn = document.querySelector('#rowLink button');
+    const orig = btn.textContent;
+    btn.textContent = '✓ 已複製';
+    setTimeout(() => btn.textContent = orig, 1800);
+  });
+}
+
+/* ═══════════════════════════════════════════
+   APPROVAL WORKFLOW
+═══════════════════════════════════════════ */
+function submitApproval() {
+  if (!editingTaskId) return;
+  const task = taskById(editingTaskId);
+  if (!task) return;
+  pushHistory();
+  task.approval = 'pending';
+  closeModal();
+  render();
+  if (currentUser) saveToCloud();
+  // Notify via chat
+  sendSystemMessage(`📋 ${currentUser?.displayName || '用戶'} 提交了任務「${task.name}」的審批申請`);
+}
+
+/* ═══════════════════════════════════════════
+   CHAT & ANNOTATIONS
+═══════════════════════════════════════════ */
+let _chatTab = 'chat';
+let _chatUnsub = null;
+let _annotTask = null;
+
+function toggleChat() {
+  const panel = document.getElementById('chatPanel');
+  const isHidden = panel.classList.toggle('hidden');
+  if (!isHidden && currentUser && !_guestMode) {
+    subscribeChat();
+  }
+  document.getElementById('chatToggleBtn').classList.toggle('active', !isHidden);
+}
+
+function switchChatTab(tab) {
+  _chatTab = tab;
+  document.getElementById('chatTabChat').classList.toggle('active', tab === 'chat');
+  document.getElementById('chatTabAnnot').classList.toggle('active', tab === 'annot');
+  loadChatMessages();
+}
+
+function subscribeChat() {
+  if (_chatUnsub) { _chatUnsub(); _chatUnsub = null; }
+  if (!currentUser || !currentProjId) return;
+  const col = db.collection('gantt_chat')
+    .doc(String(currentProjId))
+    .collection('messages')
+    .orderBy('ts', 'asc')
+    .limitToLast(100);
+  _chatUnsub = col.onSnapshot(snap => {
+    const msgs = [];
+    snap.forEach(d => msgs.push({ id: d.id, ...d.data() }));
+    renderChatMessages(msgs.filter(m => _chatTab === 'annot' ? m.taskId : !m.taskId));
+  });
+}
+
+function loadChatMessages() {
+  if (currentUser && !_guestMode) subscribeChat();
+}
+
+function renderChatMessages(msgs) {
+  const el = document.getElementById('chatMessages');
+  if (!el) return;
+  if (!msgs.length) {
+    el.innerHTML = `<div style="text-align:center;font-size:12px;color:var(--t4);margin-top:24px">${_chatTab==='chat'?'暫無訊息，輸入開始聊天…':'暫無批注，點擊任務列新增批注…'}</div>`;
+    return;
+  }
+  el.innerHTML = msgs.map(m => {
+    const isOwn = m.uid === currentUser?.uid;
+    const body = (m.text || '').replace(/@(\S+)/g, '<span class="mention">@$1</span>');
+    const time = m.ts ? new Date(m.ts.toMillis()).toLocaleTimeString('zh-TW', {hour:'2-digit',minute:'2-digit'}) : '';
+    const bg = avColor(m.displayName || '');
+    return `<div class="chat-msg${isOwn?' own':''}">
+      <div class="chat-msg-meta">
+        <span class="chat-msg-av" style="background:${bg}">${initials(m.displayName||'?')}</span>
+        <b>${m.displayName||'用戶'}</b>
+        <span>${time}</span>
+        ${m.taskName ? `<span style="color:var(--accent);font-size:10px">→ ${m.taskName}</span>` : ''}
+      </div>
+      <div class="chat-msg-body">${body}</div>
+    </div>`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function onChatKeyDown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+}
+
+function onChatInput(e) {
+  const val = e.target.value;
+  const match = val.match(/@(\w*)$/);
+  if (match) showMentionDropdown(match[1]);
+  else hideMentionDropdown();
+}
+
+function showMentionDropdown(q) {
+  const dd = document.getElementById('mentionDropdown');
+  const members = getProjectMembers();
+  const filtered = members.filter(m => m.toLowerCase().includes(q.toLowerCase()));
+  if (!filtered.length) { hideMentionDropdown(); return; }
+  dd.innerHTML = filtered.map(m =>
+    `<div class="chat-mention-item" onclick="completeMention('${m}')">
+      <span class="chat-msg-av" style="background:${avColor(m)};width:20px;height:20px;font-size:9px">${initials(m)}</span>
+      ${m}
+    </div>`
+  ).join('');
+  dd.style.display = 'block';
+}
+
+function hideMentionDropdown() {
+  const dd = document.getElementById('mentionDropdown');
+  if (dd) dd.style.display = 'none';
+}
+
+function completeMention(name) {
+  const inp = document.getElementById('chatInput');
+  inp.value = inp.value.replace(/@\w*$/, '@' + name + ' ');
+  hideMentionDropdown();
+  inp.focus();
+}
+
+function insertMention() {
+  const inp = document.getElementById('chatInput');
+  inp.value += '@';
+  inp.focus();
+  showMentionDropdown('');
+}
+
+function getProjectMembers() {
+  const names = new Set();
+  (tasks || []).forEach(t => { if (t.assignee) names.add(t.assignee); });
+  if (currentUser?.displayName) names.add(currentUser.displayName);
+  return [...names];
+}
+
+async function sendChatMessage() {
+  const inp = document.getElementById('chatInput');
+  const text = inp.value.trim();
+  if (!text) return;
+  hideMentionDropdown();
+  inp.value = '';
+  const msg = {
+    text,
+    uid: currentUser?.uid || 'guest',
+    displayName: currentUser?.displayName || '訪客',
+    ts: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+  if (_chatTab === 'annot' && _annotTask) {
+    msg.taskId = _annotTask.id;
+    msg.taskName = _annotTask.name;
+  }
+  if (!currentUser || _guestMode) {
+    // Local preview only
+    renderChatMessages([{ ...msg, ts: { toMillis: () => Date.now() } }]);
+    return;
+  }
+  try {
+    await db.collection('gantt_chat')
+      .doc(String(currentProjId))
+      .collection('messages')
+      .add(msg);
+  } catch(e) { console.warn('chat send error', e); }
+}
+
+async function sendSystemMessage(text) {
+  if (!currentUser || _guestMode) return;
+  try {
+    await db.collection('gantt_chat')
+      .doc(String(currentProjId))
+      .collection('messages')
+      .add({
+        text,
+        uid: 'system',
+        displayName: '系統',
+        ts: firebase.firestore.FieldValue.serverTimestamp(),
+        system: true,
+      });
+  } catch(e) {}
+}
+
+function openTaskAnnotation(task) {
+  _annotTask = task;
+  _chatTab = 'annot';
+  switchChatTab('annot');
+  const panel = document.getElementById('chatPanel');
+  if (panel.classList.contains('hidden')) toggleChat();
+}
+
+/* ═══════════════════════════════════════════
+   DASHBOARD
+═══════════════════════════════════════════ */
+function renderDashboard() {
+  const el = document.getElementById('dashboardView');
+  if (!el) return;
+  const allTasks = tasks.filter(t => t.type === 'task');
+  const done = allTasks.filter(t => t.done).length;
+  const total = allTasks.length;
+  const pct = total ? Math.round(done / total * 100) : 0;
+  const milestones = tasks.filter(t => t.type === 'milestone');
+  const msDone = milestones.filter(t => t.done).length;
+
+  // Overdue
+  const overdue = allTasks.filter(t => !t.done && t.end && t.end < TODAY_STR).length;
+
+  // Per-assignee breakdown
+  const assignees = {};
+  allTasks.forEach(t => {
+    const a = t.assignee || '未分配';
+    if (!assignees[a]) assignees[a] = { total: 0, done: 0 };
+    assignees[a].total++;
+    if (t.done) assignees[a].done++;
+  });
+
+  // Multi-project bars
+  const projBars = projects.map(p => {
+    const pt = (p.tasks || []).filter(t => t.type === 'task');
+    const pd = pt.filter(t => t.done).length;
+    const pp = pt.length ? Math.round(pd / pt.length * 100) : 0;
+    const health = pp >= 80 ? '#10B981' : pp >= 40 ? '#F59E0B' : '#EF4444';
+    return { name: p.name, pct: pp, color: health };
+  });
+
+  el.innerHTML = `
+  <div style="font-size:20px;font-weight:800;color:var(--t1);margin-bottom:20px">📊 專案儀表板</div>
+
+  <div class="dash-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">總體完成率</div>
+      <div class="kpi-value">${pct}%</div>
+      <div class="kpi-sub">${done} / ${total} 任務完成</div>
+      <div class="kpi-bar"><div class="kpi-bar-fill" style="width:${pct}%;background:${pct>=80?'#10B981':pct>=50?'#F59E0B':'#EF4444'}"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">里程碑完成</div>
+      <div class="kpi-value">${msDone}<span style="font-size:14px;color:var(--t4)">/${milestones.length}</span></div>
+      <div class="kpi-sub">里程碑達成率 ${milestones.length?Math.round(msDone/milestones.length*100):0}%</div>
+      <div class="kpi-bar"><div class="kpi-bar-fill" style="width:${milestones.length?msDone/milestones.length*100:0}%"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">逾期任務</div>
+      <div class="kpi-value" style="color:${overdue?'#EF4444':'#10B981'}">${overdue}</div>
+      <div class="kpi-sub">截止日期已過未完成</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">專案數量</div>
+      <div class="kpi-value">${projects.length}</div>
+      <div class="kpi-sub">進行中 ${projects.length} 個</div>
+    </div>
+  </div>
+
+  <div class="dash-section">
+    <div class="dash-section-title">🏢 各專案健康度</div>
+    ${projBars.map(p => `
+      <div class="proj-health-bar">
+        <div class="phb-name" title="${p.name}">${p.name}</div>
+        <div class="phb-track"><div class="phb-fill" style="width:${p.pct}%;background:${p.color}"></div></div>
+        <div class="phb-pct">${p.pct}%</div>
+      </div>
+    `).join('')}
+  </div>
+
+  <div class="dash-section">
+    <div class="dash-section-title">👤 人員工作量</div>
+    ${Object.entries(assignees).map(([name, s]) => {
+      const p = Math.round(s.done / s.total * 100);
+      return `<div class="proj-health-bar">
+        <div class="phb-name">${name}</div>
+        <div class="phb-track"><div class="phb-fill" style="width:${p}%;background:var(--accent)"></div></div>
+        <div class="phb-pct">${s.done}/${s.total}</div>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <div class="dash-section">
+    <div class="dash-section-title">📈 近期到期任務（7天內）</div>
+    ${(() => {
+      const d7 = new Date(TODAY); d7.setDate(d7.getDate() + 7);
+      const d7s = toStr(d7);
+      const upcoming = allTasks.filter(t => !t.done && t.end && t.end >= TODAY_STR && t.end <= d7s);
+      if (!upcoming.length) return '<div style="font-size:12px;color:var(--t4)">7天內無到期任務</div>';
+      return upcoming.map(t => `
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span style="width:10px;height:10px;border-radius:50%;background:${t.color};flex-shrink:0"></span>
+          <span style="flex:1;font-size:12px;color:var(--t1)">${t.name}</span>
+          <span style="font-size:11px;color:var(--t3)">${t.end}</span>
+          ${t.assignee?`<span style="font-size:11px;color:var(--t4)">${t.assignee}</span>`:''}
+        </div>
+      `).join('');
+    })()}
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════
+   SPRINT / KANBAN VIEW
+═══════════════════════════════════════════ */
+function renderSprintView() {
+  const el = document.getElementById('sprintView');
+  if (!el) return;
+  const cols = [
+    { id:'todo',       label:'待辦',    color:'#6B7280' },
+    { id:'inprogress', label:'進行中',  color:'#3B82F6' },
+    { id:'review',     label:'審查中',  color:'#F59E0B' },
+    { id:'done',       label:'完成',    color:'#10B981' },
+  ];
+  function getStatus(t) {
+    if (t.done) return 'done';
+    if ((t.progress||0) > 0) return 'inprogress';
+    if (t.approval === 'pending') return 'review';
+    return 'todo';
+  }
+  const taskMap = {};
+  cols.forEach(c => taskMap[c.id] = []);
+  tasks.filter(t => t.type === 'task').forEach(t => taskMap[getStatus(t)].push(t));
+
+  el.innerHTML = `<div style="font-size:16px;font-weight:700;color:var(--t1);margin-bottom:14px">🏃 看板視圖</div>
+  <div class="sprint-board">
+    ${cols.map(c => `
+      <div class="sprint-col">
+        <div class="sprint-col-head">
+          <span style="display:flex;align-items:center;gap:6px">
+            <span style="width:8px;height:8px;border-radius:50%;background:${c.color}"></span>
+            ${c.label}
+          </span>
+          <span class="sprint-col-count">${taskMap[c.id].length}</span>
+        </div>
+        <div class="sprint-col-body">
+          ${taskMap[c.id].map(t => `
+            <div class="sprint-card" onclick="openEditModal(${t.id})">
+              <div class="sprint-card-name">${t.name}</div>
+              <div class="sprint-card-meta">
+                <span class="sprint-card-dot" style="background:${t.color}"></span>
+                ${t.assignee ? `<span>${t.assignee}</span>` : ''}
+                ${t.end ? `<span>${t.end}</span>` : ''}
+              </div>
+              <div class="sprint-card-progress">
+                <div class="sprint-card-progress-fill" style="width:${t.progress||0}%;background:${c.color}"></div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════
+   RESOURCE CALENDAR VIEW
+═══════════════════════════════════════════ */
+function renderResourceCal() {
+  const el = document.getElementById('resourceCalView');
+  if (!el) return;
+
+  const assignees = [...new Set(tasks.filter(t => t.assignee).map(t => t.assignee))];
+  if (!assignees.length) {
+    el.innerHTML = '<div style="padding:24px;font-size:13px;color:var(--t3)">尚無分配負責人的任務。請先在任務中設定「負責人」。</div>';
+    return;
+  }
+
+  // Build date range for visible period (CHART_START to CHART_END, max 60 days)
+  const days = [];
+  let d = new Date(CHART_START);
+  const endD = new Date(Math.min(CHART_END, new Date(CHART_START).getTime() + 60 * 86400000));
+  while (d <= endD) { days.push(toStr(d)); d.setDate(d.getDate() + 1); }
+
+  const dayNames = ['日','一','二','三','四','五','六'];
+
+  const header = `<div class="rcal-header">
+    <div class="rcal-name-col">負責人</div>
+    ${days.map(ds => {
+      const dt = new Date(ds + 'T00:00:00');
+      const dow = dt.getDay();
+      const isWknd = dow === 0 || dow === 6;
+      const isToday = ds === TODAY_STR;
+      return `<div class="rcal-day-cell${isWknd?' weekend':''}${isToday?' today':''}" title="${ds}">
+        <div>${dt.getDate()}</div>
+        <div style="font-size:9px">${dayNames[dow]}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  const rows = assignees.map(name => {
+    const myTasks = tasks.filter(t => t.assignee === name && t.type === 'task' && t.start && t.end);
+    const cells = days.map(ds => {
+      const dt = new Date(ds + 'T00:00:00');
+      const dow = dt.getDay();
+      const isWknd = dow === 0 || dow === 6;
+      const tasksToday = myTasks.filter(t => t.start <= ds && t.end >= ds);
+      const chip = tasksToday.map(t =>
+        `<div class="rcal-task-chip" style="background:${t.color}" title="${t.name}" onclick="openEditModal(${t.id})">${t.name}</div>`
+      ).join('');
+      return `<div class="rcal-row-cell${isWknd?' weekend':''}" style="position:relative">${chip}</div>`;
+    }).join('');
+    return `<div class="rcal-row">
+      <div class="rcal-row-name">
+        <span class="chat-msg-av" style="background:${avColor(name)};width:22px;height:22px;font-size:10px;font-weight:700;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff">${initials(name)}</span>
+        ${name}
+      </div>
+      ${cells}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="rcal-wrap">${header}${rows}</div>`;
+}
+
+/* ═══════════════════════════════════════════
+   VIEW SWITCHING (patch setChartView)
+═══════════════════════════════════════════ */
+const _origSetChartView = setChartView;
+function setChartView(cv) {
+  // Show/hide special views
+  const dashboard = document.getElementById('dashboardView');
+  const sprint = document.getElementById('sprintView');
+  const rcal = document.getElementById('resourceCalView');
+  const scroll = document.getElementById('chartScroll');
+
+  [dashboard, sprint, rcal].forEach(el => { if (el) el.classList.remove('active'); });
+  if (scroll) scroll.style.display = '';
+
+  if (cv === 'dashboard') {
+    if (dashboard) { dashboard.classList.add('active'); renderDashboard(); }
+    // Update button active states without calling original
+    document.querySelectorAll('#chartViewBtns .btn').forEach(b => b.classList.toggle('active', b.dataset.cv === cv));
+    return;
+  }
+  if (cv === 'sprint') {
+    if (sprint) { sprint.classList.add('active'); renderSprintView(); }
+    document.querySelectorAll('#chartViewBtns .btn').forEach(b => b.classList.toggle('active', b.dataset.cv === cv));
+    return;
+  }
+  if (cv === 'resource') {
+    if (rcal) { rcal.classList.add('active'); renderResourceCal(); }
+    document.querySelectorAll('#chartViewBtns .btn').forEach(b => b.classList.toggle('active', b.dataset.cv === cv));
+    return;
+  }
+  _origSetChartView(cv);
+}
+
+/* ═══════════════════════════════════════════
+   EXCEL EXPORT (SheetJS)
+═══════════════════════════════════════════ */
+function exportExcel() {
+  if (!window.XLSX) { alert('Excel 匯出元件載入中，請稍後再試'); return; }
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Tasks
+  const rows = [['編號','任務名稱','類型','負責人','開始日期','結束日期','工作日','進度%','前置任務','已完成','超連結','審批狀態']];
+  function walk(list, depth) {
+    list.forEach(t => {
+      const indent = '  '.repeat(depth);
+      const wdays = t.type === 'task' && t.start && t.end ? countWorkingDays(t.start, t.end) : '';
+      const deps = buildDepsText(t);
+      const approval = {pending:'待審批',approved:'已批准',rejected:'已拒絕'}[t.approval] || '';
+      rows.push([
+        t.id, indent + t.name, t.type === 'group' ? '群組' : t.type === 'milestone' ? '里程碑' : '任務',
+        t.assignee || '', t.start || t.date || '', t.end || t.date || '',
+        wdays, t.progress || 0, deps, t.done ? '是' : '否', t.link || '', approval
+      ]);
+      const children = tasks.filter(c => c.parent === t.id);
+      if (children.length) walk(children, depth + 1);
+    });
+  }
+  walk(tasks.filter(t => t.parent === null || t.parent === undefined), 0);
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  // Column widths
+  ws['!cols'] = [8,36,8,14,12,12,8,8,16,8,36,10].map(w => ({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, '任務列表');
+
+  // Sheet 2: Project Summary
+  const sumRows = [['專案名稱','開始日期','結束日期','任務數','完成數','完成率%']];
+  projects.forEach(p => {
+    const pt = (p.tasks||[]).filter(t=>t.type==='task');
+    const pd = pt.filter(t=>t.done).length;
+    sumRows.push([p.name, p.startDate, p.endDate, pt.length, pd, pt.length?Math.round(pd/pt.length*100):0]);
+  });
+  const ws2 = XLSX.utils.aoa_to_sheet(sumRows);
+  ws2['!cols'] = [28,12,12,10,10,10].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws2, '專案摘要');
+
+  const proj = curProj();
+  XLSX.writeFile(wb, `GanttPro-${proj?.name||'export'}-${TODAY_STR}.xlsx`);
+}
+
+/* ═══════════════════════════════════════════
+   GANTT PDF (canvas-based, via print)
+═══════════════════════════════════════════ */
+function exportGanttPDF() {
+  // Use the PNG canvas approach then open in new window for printing
+  const canvas = document.querySelector('#chartCanvas canvas');
+  if (!canvas) { exportPDF(); return; }
+
+  const taskPanelEl = document.getElementById('taskPanel');
+  const win = window.open('', '_blank');
+  if (!win) { exportPDF(); return; }
+
+  // Build a printable HTML page with the chart image
+  const dataUrl = canvas.toDataURL('image/png');
+  const proj = curProj();
+  const taskCount = tasks.filter(t=>t.type==='task').length;
+  const msCount = tasks.filter(t=>t.type==='milestone').length;
+
+  win.document.write(`<!DOCTYPE html><html><head>
+  <meta charset="UTF-8">
+  <title>${proj?.name||'GanttPro'}</title>
+  <style>
+    body{font-family:-apple-system,sans-serif;margin:0;padding:20px;background:#fff;color:#111}
+    h1{font-size:18px;margin:0 0 4px}
+    p{font-size:12px;color:#555;margin:0 0 16px}
+    img{max-width:100%;border:1px solid #eee}
+    @media print{@page{size:A4 landscape;margin:1cm}}
+  </style></head><body>
+  <h1>${proj?.name||'甘特圖'}</h1>
+  <p>${proj?.startDate||''} — ${proj?.endDate||''} &nbsp;|&nbsp; 任務 ${taskCount} 項 &nbsp;|&nbsp; 里程碑 ${msCount} 項 &nbsp;|&nbsp; 匯出時間 ${TODAY_STR}</p>
+  <img src="${dataUrl}">
+  <script>window.onload=()=>window.print()<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
+/* ═══════════════════════════════════════════
+   MARKDOWN REPORT & PPTX EXPORT
+═══════════════════════════════════════════ */
+function openReportModal() {
+  generateMdReport();
+  document.getElementById('reportOverlay').classList.add('open');
+}
+function closeReportModal() {
+  document.getElementById('reportOverlay').classList.remove('open');
+}
+
+function generateMdReport() {
+  const sel = document.getElementById('reportProjSelect');
+  const mode = sel ? sel.value : 'current';
+  const projs = mode === 'all' ? projects : [curProj()].filter(Boolean);
+
+  let md = `# 📊 GanttPro 專案報告\n\n生成時間：${TODAY_STR}\n\n`;
+
+  projs.forEach(p => {
+    const pt = (p.tasks||[]).filter(t=>t.type==='task');
+    const pd = pt.filter(t=>t.done).length;
+    const pct = pt.length ? Math.round(pd/pt.length*100) : 0;
+    const ms = (p.tasks||[]).filter(t=>t.type==='milestone');
+    const overdue = pt.filter(t=>!t.done&&t.end&&t.end<TODAY_STR);
+
+    md += `## ${p.name}\n\n`;
+    md += `**期間：** ${p.startDate} — ${p.endDate}  \n`;
+    md += `**完成率：** ${pct}% (${pd}/${pt.length})  \n`;
+    md += `**里程碑：** ${ms.filter(m=>m.done).length}/${ms.length} 完成  \n`;
+    if (overdue.length) md += `**⚠️ 逾期任務：** ${overdue.length} 項  \n`;
+    md += '\n';
+
+    md += `### 任務清單\n\n`;
+    md += `| # | 任務 | 負責人 | 開始 | 結束 | 進度 | 狀態 |\n`;
+    md += `|---|------|--------|------|------|------|------|\n`;
+    let i = 1;
+    function walkMd(list, depth) {
+      list.forEach(t => {
+        if (t.type === 'group') {
+          md += `| | ${'  '.repeat(depth)}**${t.name}** | | | | | 群組 |\n`;
+          walkMd((p.tasks||[]).filter(c=>c.parent===t.id), depth+1);
+        } else {
+          const status = t.done ? '✅' : (t.approval==='pending'?'⏳ 待審批':t.approval==='approved'?'✔ 已批准':t.approval==='rejected'?'❌ 已拒絕':'○');
+          const prog = t.type === 'task' ? `${t.progress||0}%` : '—';
+          md += `| ${i++} | ${'  '.repeat(depth)}${t.name} | ${t.assignee||'—'} | ${t.start||t.date||''} | ${t.end||t.date||''} | ${prog} | ${status} |\n`;
+        }
+      });
+    }
+    walkMd((p.tasks||[]).filter(t=>t.parent==null||t.parent===undefined), 0);
+    md += '\n';
+
+    if (ms.length) {
+      md += `### 里程碑\n\n`;
+      ms.forEach(m => md += `- ${m.done?'[x]':'[ ]'} **${m.name}** — ${m.date||''}\n`);
+      md += '\n';
+    }
+
+    if (overdue.length) {
+      md += `### ⚠️ 逾期任務\n\n`;
+      overdue.forEach(t => md += `- ${t.name}（截止：${t.end}，負責人：${t.assignee||'未指定'}）\n`);
+      md += '\n';
+    }
+
+    md += '---\n\n';
+  });
+
+  document.getElementById('reportMdArea').value = md;
+}
+
+function copyMdReport() {
+  const md = document.getElementById('reportMdArea').value;
+  navigator.clipboard.writeText(md).then(() => {
+    const btn = document.querySelector('.report-export-row .btn');
+    const orig = btn.textContent;
+    btn.textContent = '✓ 已複製';
+    setTimeout(() => btn.textContent = orig, 1800);
+  });
+}
+
+async function exportPPTX() {
+  if (!window.PptxGenJS) { alert('PPTX 元件載入中，請稍後再試'); return; }
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_WIDE';
+
+  const projs = [curProj()].filter(Boolean);
+  projs.forEach(p => {
+    const pt = (p.tasks||[]).filter(t=>t.type==='task');
+    const pd = pt.filter(t=>t.done).length;
+    const pct = pt.length ? Math.round(pd/pt.length*100) : 0;
+
+    // Slide 1: Cover
+    const slide1 = pptx.addSlide();
+    slide1.addText(p.name, { x:0.5, y:1.2, w:12, h:1.2, fontSize:40, bold:true, color:'363636' });
+    slide1.addText(`${p.startDate} — ${p.endDate}`, { x:0.5, y:2.6, w:12, h:0.6, fontSize:18, color:'666666' });
+    slide1.addText(`完成率 ${pct}%  |  任務 ${pd}/${pt.length}  |  ${TODAY_STR}`, { x:0.5, y:3.4, w:12, h:0.5, fontSize:14, color:'888888' });
+
+    // Slide 2: Progress bar chart
+    const slide2 = pptx.addSlide();
+    slide2.addText(`${p.name} — 進度概覽`, { x:0.5, y:0.3, w:12, h:0.6, fontSize:22, bold:true, color:'363636' });
+
+    // Progress bar
+    slide2.addShape(pptx.ShapeType.rect, { x:0.5, y:1.2, w:12, h:0.4, fill:{color:'E5E7EB'} });
+    slide2.addShape(pptx.ShapeType.rect, { x:0.5, y:1.2, w:12*(pct/100), h:0.4, fill:{color:'5E6AD2'} });
+    slide2.addText(`${pct}%`, { x:0.5, y:1.7, w:12, h:0.4, fontSize:14, bold:true, color:'5E6AD2' });
+
+    // Task table (first 15 tasks)
+    const tableRows = [
+      [{ text:'任務',opts:{bold:true,fill:{color:'5E6AD2'},color:'FFFFFF'}},{text:'負責人',opts:{bold:true,fill:{color:'5E6AD2'},color:'FFFFFF'}},{text:'截止日期',opts:{bold:true,fill:{color:'5E6AD2'},color:'FFFFFF'}},{text:'狀態',opts:{bold:true,fill:{color:'5E6AD2'},color:'FFFFFF'}}]
+    ];
+    pt.slice(0,14).forEach(t => {
+      tableRows.push([
+        { text: t.name },
+        { text: t.assignee || '—' },
+        { text: t.end || '' },
+        { text: t.done ? '完成' : `${t.progress||0}%` },
+      ]);
+    });
+    slide2.addTable(tableRows, { x:0.5, y:2.2, w:12, colW:[5,2.5,2,2.5], fontSize:11, border:{pt:0.5,color:'E5E7EB'} });
+
+    // Slide 3: Milestones
+    const ms = (p.tasks||[]).filter(t=>t.type==='milestone');
+    if (ms.length) {
+      const slide3 = pptx.addSlide();
+      slide3.addText('里程碑', { x:0.5, y:0.3, w:12, h:0.6, fontSize:22, bold:true, color:'363636' });
+      ms.forEach((m, i) => {
+        const y = 1.2 + i * 0.55;
+        if (y > 6.5) return;
+        slide3.addShape(pptx.ShapeType.ellipse, { x:0.5, y:y+0.05, w:0.3, h:0.3, fill:{color: m.done?'10B981':'9CA3AF'} });
+        slide3.addText(`${m.name}  ${m.date||''}`, { x:1.0, y, w:11, h:0.5, fontSize:13, color: m.done?'065F46':'374151' });
+      });
+    }
+  });
+
+  const proj = curProj();
+  await pptx.writeFile({ fileName: `GanttPro-${proj?.name||'report'}-${TODAY_STR}.pptx` });
+}
+
+/* ═══════════════════════════════════════════
+   MODAL: Link field init
+═══════════════════════════════════════════ */
+// Patch openModal and openEditModal to handle link/approval fields
+const _origOpenModal = openModal;
+function openModal(unused, prefillDate) {
+  _origOpenModal(unused, prefillDate);
+  document.getElementById('fLink').value = '';
+  document.getElementById('fApproval').value = '';
+  document.getElementById('modal-approval-btn').style.display = 'none';
+}
+
+const _origOpenEditModal = openEditModal;
+function openEditModal(taskId) {
+  _origOpenEditModal(taskId);
+  const task = taskById(taskId);
+  if (task) {
+    document.getElementById('fLink').value = task.link || '';
+    document.getElementById('fApproval').value = task.approval || '';
+    const canApprove = isAdmin() || (curProj() && !curProj()._isShared);
+    document.getElementById('modal-approval-btn').style.display = (task.approval === 'pending' && canApprove) ? '' : 'none';
+  }
+}
+
+// Patch submitTask to save link/approval
+const _origSubmitTask = submitTask;
+function submitTask() {
+  const link = document.getElementById('fLink')?.value?.trim();
+  const approval = document.getElementById('fApproval')?.value;
+  const wasEditing = editingTaskId;
+  const prevCount = tasks.length;
+  _origSubmitTask();
+  // After original submit, find the just-saved/added task
+  let t = null;
+  if (wasEditing) {
+    t = taskById(wasEditing);
+  } else if (tasks.length > prevCount) {
+    t = tasks[tasks.length - 1];
+  }
+  if (t) {
+    if (link) t.link = link; else delete t.link;
+    if (approval) t.approval = approval; else delete t.approval;
+    if (currentUser) saveToCloud();
+  }
+}
+
+/* ═══════════════════════════════════════════
+   RBAC — role-aware permission display
+═══════════════════════════════════════════ */
+function getRoleLabel(perm) {
+  return { viewer:'唯讀', commenter:'批注者', editor:'共同編輯', admin:'管理員', read:'唯讀', edit:'共同編輯' }[perm] || perm;
+}
+function getRoleClass(perm) {
+  return { admin:'admin', editor:'editor', edit:'editor', viewer:'viewer', read:'viewer', commenter:'commenter' }[perm] || 'viewer';
+}
+
+function initWorkTimeSettings() {
+  document.querySelectorAll('.wday-chip input[data-dow]').forEach(cb => {
+    cb.checked = _customWorkDays.includes(Number(cb.dataset.dow));
+  });
+}
+
+/* ═══════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async () => {
+  applyTheme(_activeTheme);
+  initWorkTimeSettings();
   const urlParams = new URLSearchParams(location.search);
   const shareToken = urlParams.get('share');
 
