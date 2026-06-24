@@ -12,6 +12,7 @@
 <script async src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <script async src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"></script>
 <script async src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.4.5.min.js"></script>
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css" onload="this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css"></noscript>
 <style>
@@ -875,6 +876,111 @@ body.dark .form-ctrl{color-scheme:dark}
 /* Primary section separator */
 .modal-primary-end{border:none;border-top:1px solid var(--border);margin:12px 0 0}
 
+/* ── SLACK-LIKE CHAT ── */
+#chatFab{
+  position:fixed;right:18px;bottom:80px;z-index:1200;
+  width:48px;height:48px;border-radius:50%;border:none;
+  background:var(--accent);color:#fff;font-size:20px;cursor:pointer;
+  box-shadow:0 4px 16px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;
+  transition:transform .2s;
+}
+#chatFab:hover{transform:scale(1.08)}
+#chatFab .chat-badge{
+  position:absolute;top:-3px;right:-3px;
+  background:#ef4444;color:#fff;font-size:10px;font-weight:700;
+  min-width:16px;height:16px;border-radius:8px;padding:0 3px;
+  display:none;align-items:center;justify-content:center;
+  line-height:16px;
+}
+#chatFab .chat-badge.show{display:flex}
+#chatPanel{
+  position:fixed;right:18px;bottom:138px;z-index:1199;
+  width:340px;max-width:calc(100vw - 36px);height:480px;max-height:calc(100vh - 160px);
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  box-shadow:0 8px 40px rgba(0,0,0,.18);display:flex;flex-direction:column;
+  overflow:hidden;transform:scale(.92) translateY(20px);opacity:0;
+  pointer-events:none;transition:transform .22s cubic-bezier(.4,0,.2,1),opacity .18s;
+}
+#chatPanel.open{transform:scale(1) translateY(0);opacity:1;pointer-events:auto}
+.chat-header{
+  display:flex;align-items:center;gap:8px;padding:10px 14px;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+  background:var(--surface);
+}
+.chat-header-title{font-weight:600;font-size:14px;color:var(--t1);flex:1}
+.chat-header-online{font-size:11px;color:var(--t3)}
+.chat-close-btn{background:none;border:none;cursor:pointer;color:var(--t3);font-size:16px;padding:2px 4px}
+.chat-channels{
+  display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid var(--border);
+  flex-shrink:0;overflow-x:auto;scrollbar-width:none;
+}
+.chat-channels::-webkit-scrollbar{display:none}
+.chat-ch-btn{
+  padding:3px 10px;border-radius:12px;border:none;cursor:pointer;font-size:12px;font-family:inherit;
+  background:var(--s2);color:var(--t2);transition:background .12s,color .12s;white-space:nowrap;
+}
+.chat-ch-btn.active{background:var(--accent);color:#fff}
+.chat-messages{
+  flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:6px;
+  scroll-behavior:smooth;
+}
+.chat-msg{display:flex;gap:8px;align-items:flex-start}
+.chat-msg-avatar{
+  width:28px;height:28px;border-radius:50%;
+  background:var(--accent);color:#fff;font-size:12px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;
+}
+.chat-msg-body{flex:1;min-width:0}
+.chat-msg-meta{display:flex;align-items:baseline;gap:6px;margin-bottom:2px}
+.chat-msg-name{font-size:12px;font-weight:600;color:var(--t1)}
+.chat-msg-time{font-size:10px;color:var(--t3)}
+.chat-msg-text{font-size:13px;color:var(--t2);line-height:1.5;word-break:break-word;white-space:pre-wrap}
+.chat-msg-text .mention{color:var(--accent);font-weight:600;background:var(--accent-bg);border-radius:3px;padding:0 2px}
+.chat-msg.self .chat-msg-avatar{background:#10b981}
+.chat-msg.system .chat-msg-text{font-size:11px;color:var(--t3);font-style:italic}
+.chat-msg.system .chat-msg-avatar{background:var(--s2);color:var(--t3);font-size:10px}
+.chat-input-row{
+  display:flex;gap:6px;padding:10px;border-top:1px solid var(--border);flex-shrink:0;
+  align-items:flex-end;
+}
+.chat-input{
+  flex:1;min-height:34px;max-height:80px;
+  border:1px solid var(--border);border-radius:8px;
+  padding:7px 10px;font-size:13px;color:var(--t1);
+  background:var(--surface);font-family:inherit;resize:none;outline:none;
+  transition:border-color .12s;line-height:1.4;
+}
+.chat-input:focus{border-color:var(--accent)}
+.chat-send-btn{
+  width:34px;height:34px;border-radius:8px;border:none;
+  background:var(--accent);color:#fff;cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:background .12s;
+}
+.chat-send-btn:hover{background:#4b5bd6}
+.chat-mention-popup{
+  position:absolute;bottom:100%;left:0;right:0;margin-bottom:4px;
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  box-shadow:0 4px 16px rgba(0,0,0,.12);overflow:hidden;z-index:10;
+}
+.chat-mention-item{
+  padding:6px 12px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:8px;
+  color:var(--t1);transition:background .1s;
+}
+.chat-mention-item:hover,.chat-mention-item.sel{background:var(--accent-bg);color:var(--accent)}
+.chat-online-dot{width:8px;height:8px;border-radius:50%;background:#10b981;flex-shrink:0}
+.chat-presence-bar{
+  padding:4px 10px;font-size:11px;color:var(--t3);border-bottom:1px solid var(--border);
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;flex-shrink:0;min-height:28px;
+}
+.chat-presence-name{
+  display:inline-flex;align-items:center;gap:3px;
+  background:var(--s2);border-radius:10px;padding:1px 7px;font-size:11px;
+}
+@media(max-width:480px){
+  #chatPanel{width:calc(100vw - 20px);right:10px;bottom:72px;height:calc(100vh - 120px);border-radius:16px 16px 0 0}
+  #chatFab{bottom:65px;right:14px}
+}
 /* ── TOOLTIP ── */
 .tooltip{
   position:fixed;
@@ -9490,6 +9596,353 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => document.getElementById('localNameInput')?.focus(), 100);
   }
 });
+</script>
+
+<!-- ── SLACK-LIKE CHAT ── -->
+<button id="chatFab" onclick="toggleChat()" title="团队聊天" style="display:none">
+  💬<span class="chat-badge" id="chatBadge"></span>
+</button>
+<div id="chatPanel">
+  <div class="chat-header">
+    <div class="chat-header-title">💬 团队频道</div>
+    <div class="chat-header-online" id="chatOnlineCount"></div>
+    <button class="chat-close-btn" onclick="toggleChat()">✕</button>
+  </div>
+  <div class="chat-channels" id="chatChannels">
+    <button class="chat-ch-btn active" data-ch="general" onclick="switchChatChannel('general')"># 综合</button>
+    <button class="chat-ch-btn" data-ch="gantt" onclick="switchChatChannel('gantt')"># 甘特图</button>
+    <button class="chat-ch-btn" data-ch="review" onclick="switchChatChannel('review')"># 进度汇报</button>
+    <button class="chat-ch-btn" data-ch="random" onclick="switchChatChannel('random')"># 随意聊</button>
+  </div>
+  <div class="chat-presence-bar" id="chatPresenceBar"></div>
+  <div class="chat-messages" id="chatMessages"></div>
+  <div class="chat-input-row" style="position:relative">
+    <div id="chatMentionPopup" class="chat-mention-popup" style="display:none"></div>
+    <textarea class="chat-input" id="chatInput" rows="1" placeholder="发消息… 用@提及队友"
+      onkeydown="chatInputKeydown(event)" oninput="chatInputChange(event)"></textarea>
+    <button class="chat-send-btn" onclick="sendChatMsg()" title="发送">➤</button>
+  </div>
+</div>
+
+<script>
+// ── PUBNUB TEAM CHAT ──
+(function(){
+  const PUBNUB_PUB = 'demo';
+  const PUBNUB_SUB = 'demo';
+  const CHANNEL_PREFIX = 'ganttpro_';
+  const PRESENCE_CH = 'ganttpro_presence';
+
+  let _pn = null, _chatOpen = false, _curCh = 'general';
+  let _unread = 0, _mentionCount = 0;
+  let _onlineUsers = {}; // uuid -> name
+  let _mentionSel = -1, _mentionMatches = [];
+
+  function _isTeamMode() {
+    return location.hostname.includes('github.io') || location.hostname.includes('localhost') || location.hostname !== '';
+  }
+
+  function _myUuid() {
+    let id = localStorage.getItem('gp_chat_uuid');
+    if (!id) { id = 'u_' + Math.random().toString(36).slice(2,10); localStorage.setItem('gp_chat_uuid', id); }
+    return id;
+  }
+
+  function _myName() {
+    return (typeof currentUser !== 'undefined' && currentUser?.displayName) ||
+           localStorage.getItem('gp_local_name') || '匿名用户';
+  }
+
+  function _chName(key) { return CHANNEL_PREFIX + key; }
+
+  function _avatarLetter(name) { return (name || '?')[0].toUpperCase(); }
+
+  function _avatarColor(name) {
+    const colors = ['#5E6AD2','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899'];
+    let h = 0; for (let i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i)) & 0xffff;
+    return colors[h % colors.length];
+  }
+
+  function _fmt(ts) {
+    const d = new Date(ts);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    if (sameDay) return d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+    return d.toLocaleDateString('zh-CN',{month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  function _renderMsg(msg, isNew) {
+    const box = document.getElementById('chatMessages');
+    if (!box) return;
+    const isSelf = (msg.uuid === _myUuid());
+    const isSystem = (msg.type === 'system');
+    const div = document.createElement('div');
+    div.className = 'chat-msg' + (isSelf?' self':'') + (isSystem?' system':'');
+    const color = isSystem ? '' : `background:${_avatarColor(msg.name)};`;
+    const text = _linkify(_mentionify(escHtml(msg.text || '')));
+    div.innerHTML = `<div class="chat-msg-avatar" style="${color}">${isSystem?'ℹ️':_avatarLetter(msg.name)}</div>
+      <div class="chat-msg-body">
+        <div class="chat-msg-meta">
+          <span class="chat-msg-name">${escHtml(msg.name)}</span>
+          <span class="chat-msg-time">${_fmt(msg.ts)}</span>
+        </div>
+        <div class="chat-msg-text">${text}</div>
+      </div>`;
+    box.appendChild(div);
+    if (isNew) {
+      box.scrollTop = box.scrollHeight;
+      // Unread / mention tracking
+      if (!_chatOpen || document.hidden) {
+        if (text.includes('mention')) _mentionCount++;
+        _unread++;
+        _updateBadge();
+      }
+      // Check if we're mentioned
+      if (isNew && !isSelf && msg.text && msg.text.includes('@' + _myName())) {
+        _showMentionNotif(msg.name);
+      }
+    }
+  }
+
+  function _mentionify(html) {
+    return html.replace(/@([\w一-龥]+)/g, '<span class="mention">@$1</span>');
+  }
+
+  function _linkify(html) {
+    return html.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent)">$1</a>');
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function _updateBadge() {
+    const badge = document.getElementById('chatBadge');
+    if (!badge) return;
+    const n = _unread + _mentionCount;
+    badge.textContent = n > 99 ? '99+' : (n || '');
+    badge.classList.toggle('show', n > 0);
+  }
+
+  function _updatePresence() {
+    const bar = document.getElementById('chatPresenceBar');
+    const onlineEl = document.getElementById('chatOnlineCount');
+    if (!bar) return;
+    const names = Object.values(_onlineUsers);
+    if (onlineEl) onlineEl.textContent = names.length ? `${names.length} 人在线` : '';
+    bar.innerHTML = names.map(n =>
+      `<span class="chat-presence-name"><span class="chat-online-dot"></span>${escHtml(n)}</span>`
+    ).join('');
+  }
+
+  function _showMentionNotif(fromName) {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted') {
+      new Notification(`@你 — ${fromName}`, { body: '在团队频道提到了你', icon: '' });
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission();
+    }
+  }
+
+  function _publish(text, type) {
+    if (!_pn) return;
+    _pn.publish({
+      channel: _chName(_curCh),
+      message: { uuid: _myUuid(), name: _myName(), text, ts: Date.now(), type: type||'msg' }
+    });
+  }
+
+  function _subscribeChannel(chKey) {
+    if (!_pn) return;
+    _pn.subscribe({ channels: [_chName(chKey)], withPresence: false });
+  }
+
+  // Public API
+  window.toggleChat = function() {
+    if (!_pn) return;
+    _chatOpen = !_chatOpen;
+    document.getElementById('chatPanel').classList.toggle('open', _chatOpen);
+    if (_chatOpen) {
+      _unread = 0; _mentionCount = 0; _updateBadge();
+      setTimeout(() => { const b = document.getElementById('chatMessages'); if(b) b.scrollTop = b.scrollHeight; }, 50);
+      document.getElementById('chatInput')?.focus();
+    }
+  };
+
+  window.switchChatChannel = function(chKey) {
+    _curCh = chKey;
+    document.querySelectorAll('.chat-ch-btn').forEach(b => b.classList.toggle('active', b.dataset.ch === chKey));
+    const box = document.getElementById('chatMessages');
+    if (box) box.innerHTML = '';
+    _subscribeChannel(chKey);
+    // Fetch history
+    if (_pn) {
+      _pn.fetchMessages({ channels: [_chName(chKey)], count: 40 }).then(r => {
+        const msgs = r.channels[_chName(chKey)] || [];
+        msgs.forEach(m => _renderMsg(m.message, false));
+        const b = document.getElementById('chatMessages');
+        if (b) b.scrollTop = b.scrollHeight;
+      }).catch(()=>{});
+    }
+  };
+
+  window.sendChatMsg = function() {
+    const inp = document.getElementById('chatInput');
+    const text = (inp?.value || '').trim();
+    if (!text || !_pn) return;
+    _publish(text);
+    inp.value = '';
+    inp.style.height = '';
+    hideMentionPopup();
+  };
+
+  window.chatInputKeydown = function(e) {
+    const popup = document.getElementById('chatMentionPopup');
+    const visible = popup && popup.style.display !== 'none';
+    if (visible) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); _mentionSel = Math.min(_mentionSel+1, _mentionMatches.length-1); _renderMentionPopup(); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); _mentionSel = Math.max(_mentionSel-1, 0); _renderMentionPopup(); return; }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); if (_mentionMatches[_mentionSel]) _insertMention(_mentionMatches[_mentionSel]); return; }
+      if (e.key === 'Escape') { hideMentionPopup(); return; }
+    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMsg(); return; }
+    // auto-resize
+    const inp = e.target;
+    inp.style.height = 'auto';
+    inp.style.height = Math.min(inp.scrollHeight, 80) + 'px';
+  };
+
+  window.chatInputChange = function(e) {
+    const inp = e.target;
+    const val = inp.value;
+    const pos = inp.selectionStart;
+    // find @word before cursor
+    const before = val.slice(0, pos);
+    const m = before.match(/@([\w一-龥]*)$/);
+    if (m) {
+      const query = m[1].toLowerCase();
+      _mentionMatches = Object.values(_onlineUsers).filter(n => n.toLowerCase().includes(query) && n !== _myName());
+      if (_mentionMatches.length) { _mentionSel = 0; _renderMentionPopup(); return; }
+    }
+    hideMentionPopup();
+  };
+
+  function _renderMentionPopup() {
+    const popup = document.getElementById('chatMentionPopup');
+    if (!popup) return;
+    popup.innerHTML = _mentionMatches.map((n,i) =>
+      `<div class="chat-mention-item${i===_mentionSel?' sel':''}" onclick="insertMentionByName('${escHtml(n)}')">${escHtml(n)}</div>`
+    ).join('');
+    popup.style.display = 'block';
+  }
+
+  window.hideMentionPopup = function() {
+    const popup = document.getElementById('chatMentionPopup');
+    if (popup) popup.style.display = 'none';
+    _mentionMatches = []; _mentionSel = -1;
+  };
+
+  window.insertMentionByName = function(name) { _insertMention(name); };
+
+  function _insertMention(name) {
+    const inp = document.getElementById('chatInput');
+    if (!inp) return;
+    const val = inp.value, pos = inp.selectionStart;
+    const before = val.slice(0, pos);
+    const replaced = before.replace(/@[\w一-龥]*$/, '@' + name + ' ');
+    inp.value = replaced + val.slice(pos);
+    inp.selectionStart = inp.selectionEnd = replaced.length;
+    inp.focus();
+    hideMentionPopup();
+  }
+
+  // Broadcast task event to chat
+  window.chatBroadcastTask = function(action, taskName) {
+    if (!_pn || !taskName) return;
+    const text = `📌 ${_myName()} ${action}了任务"${taskName}"`;
+    _pn.publish({
+      channel: _chName('gantt'),
+      message: { uuid: _myUuid(), name: '系统', text, ts: Date.now(), type: 'system' }
+    });
+  };
+
+  // Init
+  function initChat() {
+    if (!_isTeamMode()) return;
+    const fab = document.getElementById('chatFab');
+    if (fab) fab.style.display = 'flex';
+
+    const uuid = _myUuid();
+    _onlineUsers[uuid] = _myName();
+
+    _pn = new PubNub({ publishKey: PUBNUB_PUB, subscribeKey: PUBNUB_SUB, uuid });
+
+    // Subscribe to current channel + presence channel
+    _pn.subscribe({ channels: [_chName(_curCh), PRESENCE_CH], withPresence: true });
+
+    // Listen for messages
+    _pn.addListener({
+      message: function(evt) {
+        if (evt.channel === PRESENCE_CH) {
+          // presence announcements
+          const m = evt.message;
+          if (m && m.uuid && m.name) {
+            _onlineUsers[m.uuid] = m.name;
+            _updatePresence();
+          }
+          return;
+        }
+        _renderMsg(evt.message, true);
+      },
+      presence: function(evt) {
+        if (evt.action === 'join') {
+          // will be set via announcement
+        } else if (evt.action === 'leave' || evt.action === 'timeout') {
+          delete _onlineUsers[evt.uuid];
+          _updatePresence();
+        }
+      },
+      status: function(s) {
+        if (s.category === 'PNConnectedCategory') {
+          // Announce presence
+          _pn.publish({
+            channel: PRESENCE_CH,
+            message: { uuid, name: _myName(), action: 'join', ts: Date.now() }
+          });
+          // Initial history load
+          switchChatChannel(_curCh);
+        }
+      }
+    });
+
+    // Heartbeat: re-announce every 2 minutes
+    setInterval(() => {
+      _onlineUsers[uuid] = _myName();
+      _pn.publish({
+        channel: PRESENCE_CH,
+        message: { uuid, name: _myName(), action: 'heartbeat', ts: Date.now() }
+      }).catch(()=>{});
+      _updatePresence();
+    }, 120000);
+
+    // Post join message
+    setTimeout(() => {
+      _pn.publish({
+        channel: _chName('general'),
+        message: { uuid, name: '系统', text: `👋 ${_myName()} 加入了频道`, ts: Date.now(), type: 'system' }
+      }).catch(()=>{});
+    }, 1500);
+  }
+
+  // Start chat after app init
+  document.addEventListener('DOMContentLoaded', () => {
+    // Wait for currentUser to be set
+    const tryInit = () => {
+      if (typeof currentUser !== 'undefined' && currentUser) { initChat(); }
+      else { setTimeout(tryInit, 800); }
+    };
+    setTimeout(tryInit, 1200);
+  });
+})();
 </script>
 </body>
 </html>
