@@ -893,7 +893,7 @@ body.dark .form-ctrl{color-scheme:dark}
   line-height:16px;
 }
 #chatFab .chat-badge.show{display:flex}
-#chatPanel{
+#fcPanel{
   position:fixed;right:18px;bottom:138px;z-index:1199;
   width:340px;max-width:calc(100vw - 36px);height:480px;max-height:calc(100vh - 160px);
   background:var(--surface);border:1px solid var(--border);border-radius:16px;
@@ -901,7 +901,7 @@ body.dark .form-ctrl{color-scheme:dark}
   overflow:hidden;transform:scale(.92) translateY(20px);opacity:0;
   pointer-events:none;transition:transform .22s cubic-bezier(.4,0,.2,1),opacity .18s;
 }
-#chatPanel.open{transform:scale(1) translateY(0);opacity:1;pointer-events:auto}
+#fcPanel.open{transform:scale(1) translateY(0);opacity:1;pointer-events:auto}
 .chat-header{
   display:flex;align-items:center;gap:8px;padding:10px 14px;
   border-bottom:1px solid var(--border);flex-shrink:0;
@@ -978,7 +978,7 @@ body.dark .form-ctrl{color-scheme:dark}
   background:var(--s2);border-radius:10px;padding:1px 7px;font-size:11px;
 }
 @media(max-width:480px){
-  #chatPanel{width:calc(100vw - 20px);right:10px;bottom:72px;height:calc(100vh - 120px);border-radius:16px 16px 0 0}
+  #fcPanel{width:calc(100vw - 20px);right:10px;bottom:72px;height:calc(100vh - 120px);border-radius:16px 16px 0 0}
   #chatFab{bottom:65px;right:14px}
 }
 /* ── TOOLTIP ── */
@@ -4955,19 +4955,18 @@ function renderMobileView() {
   // Filter out children of collapsed groups
   const visibleTasks = displayTasks.filter(t => {
     if (!t.parent) return true;
-    // walk up to see if any ancestor is collapsed
-    let pid = t.parent;
+    let pid = +t.parent;
     while (pid) {
       if (_mobCollapsed.has(pid)) return false;
-      const par = tasks.find(p => p.id === pid);
-      pid = par?.parent;
+      const par = tasks.find(p => +p.id === pid);
+      pid = par ? +par.parent : 0;
     }
     return true;
   });
   el.innerHTML = bannerHtml + visibleTasks.map(t => {
     if (t.type === 'group') {
-      const collapsed = _mobCollapsed.has(t.id);
-      const childCount = tasks.filter(c => c.parent === t.id).length;
+      const collapsed = _mobCollapsed.has(+t.id);
+      const childCount = tasks.filter(c => +c.parent === +t.id).length;
       const countLabel = childCount ? `<span style="font-size:11px;font-weight:400;color:var(--t3);margin-left:auto">${childCount}项</span>` : '';
       return `<div class="mobile-card-group${collapsed?' collapsed':''}" onclick="toggleMobGroup(${t.id})">
         <span class="mcg-chevron">▼</span><span style="flex:1">${t.name}</span>${countLabel}
@@ -5011,6 +5010,7 @@ let _mobMineFilter = false; // true = show only my tasks
 let _mobCollapsed = new Set(); // group task IDs that are collapsed on mobile
 
 function toggleMobGroup(id) {
+  id = +id;
   if (_mobCollapsed.has(id)) _mobCollapsed.delete(id);
   else _mobCollapsed.add(id);
   renderMobileTasks();
@@ -9624,347 +9624,325 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 </script>
 
-<!-- ── SLACK-LIKE CHAT ── -->
-<button id="chatFab" onclick="toggleChat()" title="团队聊天" style="display:none">
+<!-- ── SLACK-LIKE CHAT (floating) ── -->
+<button id="chatFab" onclick="fcToggle()" title="团队聊天" style="display:none">
   💬<span class="chat-badge" id="chatBadge"></span>
 </button>
-<div id="chatPanel">
+<div id="fcPanel">
   <div class="chat-header">
     <div class="chat-header-title">💬 团队频道</div>
-    <div class="chat-header-online" id="chatOnlineCount"></div>
-    <button class="chat-close-btn" onclick="toggleChat()">✕</button>
+    <div class="chat-header-online" id="fcOnlineCount"></div>
+    <button class="chat-close-btn" onclick="fcToggle()">✕</button>
   </div>
-  <div class="chat-channels" id="chatChannels">
-    <button class="chat-ch-btn active" data-ch="general" onclick="switchChatChannel('general')"># 综合</button>
-    <button class="chat-ch-btn" data-ch="gantt" onclick="switchChatChannel('gantt')"># 甘特图</button>
-    <button class="chat-ch-btn" data-ch="review" onclick="switchChatChannel('review')"># 进度汇报</button>
-    <button class="chat-ch-btn" data-ch="random" onclick="switchChatChannel('random')"># 随意聊</button>
+  <div class="chat-channels" id="fcChannels">
+    <button class="chat-ch-btn active" data-ch="general" onclick="fcSwitchCh('general')"># 综合</button>
+    <button class="chat-ch-btn" data-ch="gantt" onclick="fcSwitchCh('gantt')"># 甘特图</button>
+    <button class="chat-ch-btn" data-ch="review" onclick="fcSwitchCh('review')"># 进度汇报</button>
+    <button class="chat-ch-btn" data-ch="random" onclick="fcSwitchCh('random')"># 随意聊</button>
   </div>
-  <div class="chat-presence-bar" id="chatPresenceBar"></div>
-  <div class="chat-messages" id="chatMessages"></div>
+  <!-- Activity log: join/leave events -->
+  <div class="chat-presence-bar" id="fcPresenceBar"></div>
+  <div id="fcActivityLog" style="padding:0 10px 4px;font-size:11px;color:var(--t3);max-height:48px;overflow:hidden;border-bottom:1px solid var(--border)"></div>
+  <div class="chat-messages" id="fcMessages"></div>
   <div class="chat-input-row" style="position:relative">
-    <div id="chatMentionPopup" class="chat-mention-popup" style="display:none"></div>
-    <textarea class="chat-input" id="chatInput" rows="1" placeholder="发消息… 用@提及队友"
-      onkeydown="chatInputKeydown(event)" oninput="chatInputChange(event)"></textarea>
-    <button class="chat-send-btn" onclick="sendChatMsg()" title="发送">➤</button>
+    <div id="fcMentionPopup" class="chat-mention-popup" style="display:none"></div>
+    <textarea class="chat-input" id="fcInput" rows="1" placeholder="发消息… 用@提及队友"
+      onkeydown="fcInputKeydown(event)" oninput="fcInputChange(event)"></textarea>
+    <button class="chat-send-btn" onclick="fcSend()" title="发送">➤</button>
   </div>
 </div>
 
 <script>
-// ── PUBNUB TEAM CHAT ──
+// ── PUBNUB TEAM CHAT (floating panel, prefix fc) ──
 (function(){
-  const PUBNUB_PUB = 'demo';
-  const PUBNUB_SUB = 'demo';
-  const CHANNEL_PREFIX = 'ganttpro_';
-  const PRESENCE_CH = 'ganttpro_presence';
+  const PUB = 'demo', SUB = 'demo';
+  const CH_PRE = 'ganttpro_', PRES_CH = 'ganttpro_presence';
 
-  let _pn = null, _chatOpen = false, _curCh = 'general';
-  let _unread = 0, _mentionCount = 0;
-  let _onlineUsers = {}; // uuid -> name
-  let _mentionSel = -1, _mentionMatches = [];
+  let _pn = null, _open = false, _curCh = 'general';
+  let _unread = 0;
+  let _online = {};          // uuid -> name
+  let _prevOnlineSet = null; // for join/leave diff
+  let _actLog = [];          // [{ts, text}] recent activity
+  let _mSel = -1, _mMatches = [];
+  let _connecting = false;
 
-  function _isTeamMode() {
-    return location.hostname.includes('github.io') || location.hostname.includes('localhost') || location.hostname !== '';
-  }
-
-  function _myUuid() {
-    let id = localStorage.getItem('gp_chat_uuid');
-    if (!id) { id = 'u_' + Math.random().toString(36).slice(2,10); localStorage.setItem('gp_chat_uuid', id); }
+  function _isTeam() { return location.hostname !== '' && location.protocol !== 'file:'; }
+  function _uuid() {
+    let id = localStorage.getItem('gp_fc_uuid');
+    if (!id) { id = 'u_' + Math.random().toString(36).slice(2,10); localStorage.setItem('gp_fc_uuid', id); }
     return id;
   }
-
-  function _myName() {
+  function _me() {
     return (typeof currentUser !== 'undefined' && currentUser?.displayName) ||
            localStorage.getItem('gp_local_name') || '匿名用户';
   }
+  function _ch(key) { return CH_PRE + key; }
+  function _letter(n) { return (n||'?')[0].toUpperCase(); }
+  function _color(n) {
+    const c=['#5E6AD2','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899'];
+    let h=0; for(let i=0;i<n.length;i++) h=(h*31+n.charCodeAt(i))&0xffff;
+    return c[h%c.length];
+  }
+  function _fmt(ts) {
+    const d=new Date(ts), now=new Date();
+    if(d.toDateString()===now.toDateString()) return d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+    return d.toLocaleDateString('zh-CN',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+  }
+  function _esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function _mentionify(h){ return h.replace(/@([\w一-龥]+)/g,'<span class="mention">@$1</span>'); }
+  function _linkify(h){ return h.replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener" style="color:var(--accent)">$1</a>'); }
 
-  function _chName(key) { return CHANNEL_PREFIX + key; }
-
-  function _avatarLetter(name) { return (name || '?')[0].toUpperCase(); }
-
-  function _avatarColor(name) {
-    const colors = ['#5E6AD2','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899'];
-    let h = 0; for (let i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i)) & 0xffff;
-    return colors[h % colors.length];
+  function _badge() {
+    const el=document.getElementById('chatBadge');
+    if(!el) return;
+    el.textContent = _unread > 99 ? '99+' : (_unread||'');
+    el.classList.toggle('show', _unread > 0);
   }
 
-  function _fmt(ts) {
-    const d = new Date(ts);
-    const now = new Date();
-    const sameDay = d.toDateString() === now.toDateString();
-    if (sameDay) return d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
-    return d.toLocaleDateString('zh-CN',{month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+  // Presence bar: show online names
+  function _renderPresence() {
+    const bar=document.getElementById('fcPresenceBar');
+    const cnt=document.getElementById('fcOnlineCount');
+    if(!bar) return;
+    const names=Object.values(_online);
+    if(cnt) cnt.textContent = names.length ? `${names.length} 人在线` : (_connecting?'连接中…':'');
+    bar.innerHTML = names.map(n=>
+      `<span class="chat-presence-name"><span class="chat-online-dot"></span>${_esc(n)}</span>`
+    ).join('');
+  }
+
+  // Activity log: join/leave events shown below presence bar
+  function _logActivity(text) {
+    const ts = Date.now();
+    _actLog.push({ts, text});
+    if(_actLog.length > 8) _actLog = _actLog.slice(-8);
+    _renderActivity();
+  }
+  function _renderActivity() {
+    const el=document.getElementById('fcActivityLog');
+    if(!el) return;
+    el.innerHTML = _actLog.slice(-3).map(e=>
+      `<span style="margin-right:10px">🕐 ${_fmt(e.ts)} ${_esc(e.text)}</span>`
+    ).join('');
+  }
+
+  // Diff online set and emit join/leave activity
+  function _diffPresence(newSet) {
+    if(!_prevOnlineSet) { _prevOnlineSet = {...newSet}; return; }
+    Object.entries(newSet).forEach(([uid, name]) => {
+      if(!_prevOnlineSet[uid]) _logActivity(`${name} 上线了 🟢`);
+    });
+    Object.entries(_prevOnlineSet).forEach(([uid, name]) => {
+      if(!newSet[uid]) _logActivity(`${name} 离线了`);
+    });
+    _prevOnlineSet = {...newSet};
   }
 
   function _renderMsg(msg, isNew) {
-    const box = document.getElementById('chatMessages');
-    if (!box) return;
-    const isSelf = (msg.uuid === _myUuid());
-    const isSystem = (msg.type === 'system');
-    const div = document.createElement('div');
-    div.className = 'chat-msg' + (isSelf?' self':'') + (isSystem?' system':'');
-    const color = isSystem ? '' : `background:${_avatarColor(msg.name)};`;
-    const text = _linkify(_mentionify(escHtml(msg.text || '')));
-    div.innerHTML = `<div class="chat-msg-avatar" style="${color}">${isSystem?'ℹ️':_avatarLetter(msg.name)}</div>
+    const box=document.getElementById('fcMessages');
+    if(!box) return;
+    const isSelf=(msg.uuid===_uuid());
+    const isSys=(msg.type==='system');
+    const div=document.createElement('div');
+    div.className='chat-msg'+(isSelf?' self':'')+(isSys?' system':'');
+    const col=isSys?'':`background:${_color(msg.name)};`;
+    const text=_linkify(_mentionify(_esc(msg.text||'')));
+    div.innerHTML=`<div class="chat-msg-avatar" style="${col}">${isSys?'ℹ️':_letter(msg.name)}</div>
       <div class="chat-msg-body">
-        <div class="chat-msg-meta">
-          <span class="chat-msg-name">${escHtml(msg.name)}</span>
-          <span class="chat-msg-time">${_fmt(msg.ts)}</span>
-        </div>
+        <div class="chat-msg-meta"><span class="chat-msg-name">${_esc(msg.name)}</span><span class="chat-msg-time">${_fmt(msg.ts)}</span></div>
         <div class="chat-msg-text">${text}</div>
       </div>`;
     box.appendChild(div);
-    if (isNew) {
-      box.scrollTop = box.scrollHeight;
-      // Unread / mention tracking
-      if (!_chatOpen || document.hidden) {
-        if (text.includes('mention')) _mentionCount++;
-        _unread++;
-        _updateBadge();
-      }
-      // Check if we're mentioned
-      if (isNew && !isSelf && msg.text && msg.text.includes('@' + _myName())) {
-        _showMentionNotif(msg.name);
-      }
+    if(isNew) {
+      box.scrollTop=box.scrollHeight;
+      if(!_open||document.hidden){ _unread++; _badge(); }
+      if(!isSelf && msg.text && msg.text.includes('@'+_me())) _notify(msg.name);
     }
   }
 
-  function _mentionify(html) {
-    return html.replace(/@([\w一-龥]+)/g, '<span class="mention">@$1</span>');
+  function _notify(from) {
+    if(!('Notification' in window)) return;
+    if(Notification.permission==='granted')
+      new Notification(`@你 — ${from}`,{body:'在团队频道提到了你'});
+    else if(Notification.permission!=='denied') Notification.requestPermission();
   }
 
-  function _linkify(html) {
-    return html.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent)">$1</a>');
+  function _loadHistory(chKey) {
+    if(!_pn) return;
+    _pn.fetchMessages({channels:[_ch(chKey)], count:40}).then(r=>{
+      const msgs=(r.channels[_ch(chKey)]||[]);
+      msgs.forEach(m=>_renderMsg(m.message, false));
+      const b=document.getElementById('fcMessages');
+      if(b) b.scrollTop=b.scrollHeight;
+    }).catch(()=>{});
   }
 
-  function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+  // ── Public API (global functions for onclick) ──
 
-  function _updateBadge() {
-    const badge = document.getElementById('chatBadge');
-    if (!badge) return;
-    const n = _unread + _mentionCount;
-    badge.textContent = n > 99 ? '99+' : (n || '');
-    badge.classList.toggle('show', n > 0);
-  }
+  window.fcToggle = function() {
+    _open = !_open;
+    const panel=document.getElementById('fcPanel');
+    if(panel) panel.classList.toggle('open', _open);
+    if(_open) {
+      _unread=0; _badge();
+      setTimeout(()=>{ const b=document.getElementById('fcMessages'); if(b) b.scrollTop=b.scrollHeight; },50);
+      document.getElementById('fcInput')?.focus();
+      _renderActivity();
+    }
+  };
 
-  function _updatePresence() {
-    const bar = document.getElementById('chatPresenceBar');
-    const onlineEl = document.getElementById('chatOnlineCount');
-    if (!bar) return;
-    const names = Object.values(_onlineUsers);
-    if (onlineEl) onlineEl.textContent = names.length ? `${names.length} 人在线` : '';
-    bar.innerHTML = names.map(n =>
-      `<span class="chat-presence-name"><span class="chat-online-dot"></span>${escHtml(n)}</span>`
+  window.fcSwitchCh = function(chKey) {
+    _curCh=chKey;
+    document.querySelectorAll('#fcChannels .chat-ch-btn').forEach(b=>b.classList.toggle('active',b.dataset.ch===chKey));
+    const box=document.getElementById('fcMessages');
+    if(box) box.innerHTML='';
+    if(_pn) _pn.subscribe({channels:[_ch(chKey)],withPresence:false});
+    _loadHistory(chKey);
+  };
+
+  window.fcSend = function() {
+    const inp=document.getElementById('fcInput');
+    const text=(inp?.value||'').trim();
+    if(!text) return;
+    if(_pn) {
+      _pn.publish({channel:_ch(_curCh), message:{uuid:_uuid(),name:_me(),text,ts:Date.now(),type:'msg'}});
+    }
+    inp.value=''; inp.style.height='';
+    window.fcHideMention();
+  };
+
+  window.fcInputKeydown = function(e) {
+    const popup=document.getElementById('fcMentionPopup');
+    const vis=popup&&popup.style.display!=='none';
+    if(vis) {
+      if(e.key==='ArrowDown'){e.preventDefault();_mSel=Math.min(_mSel+1,_mMatches.length-1);_renderMention();return;}
+      if(e.key==='ArrowUp'){e.preventDefault();_mSel=Math.max(_mSel-1,0);_renderMention();return;}
+      if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();if(_mMatches[_mSel])_insertMention(_mMatches[_mSel]);return;}
+      if(e.key==='Escape'){window.fcHideMention();return;}
+    }
+    if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();fcSend();return;}
+    const inp=e.target; inp.style.height='auto'; inp.style.height=Math.min(inp.scrollHeight,80)+'px';
+  };
+
+  window.fcInputChange = function(e) {
+    const inp=e.target, val=inp.value, pos=inp.selectionStart;
+    const before=val.slice(0,pos);
+    const m=before.match(/@([\w一-龥]*)$/);
+    if(m) {
+      const q=m[1].toLowerCase();
+      _mMatches=Object.values(_online).filter(n=>n.toLowerCase().includes(q)&&n!==_me());
+      if(_mMatches.length){_mSel=0;_renderMention();return;}
+    }
+    window.fcHideMention();
+  };
+
+  function _renderMention() {
+    const popup=document.getElementById('fcMentionPopup');
+    if(!popup) return;
+    popup.innerHTML=_mMatches.map((n,i)=>
+      `<div class="chat-mention-item${i===_mSel?' sel':''}" onclick="fcInsertMention('${_esc(n)}')">${_esc(n)}</div>`
     ).join('');
+    popup.style.display='block';
   }
 
-  function _showMentionNotif(fromName) {
-    if (!('Notification' in window)) return;
-    if (Notification.permission === 'granted') {
-      new Notification(`@你 — ${fromName}`, { body: '在团队频道提到了你', icon: '' });
-    } else if (Notification.permission !== 'denied') {
-      Notification.requestPermission();
-    }
-  }
-
-  function _publish(text, type) {
-    if (!_pn) return;
-    _pn.publish({
-      channel: _chName(_curCh),
-      message: { uuid: _myUuid(), name: _myName(), text, ts: Date.now(), type: type||'msg' }
-    });
-  }
-
-  function _subscribeChannel(chKey) {
-    if (!_pn) return;
-    _pn.subscribe({ channels: [_chName(chKey)], withPresence: false });
-  }
-
-  // Public API
-  window.toggleChat = function() {
-    if (!_pn) return;
-    _chatOpen = !_chatOpen;
-    document.getElementById('chatPanel').classList.toggle('open', _chatOpen);
-    if (_chatOpen) {
-      _unread = 0; _mentionCount = 0; _updateBadge();
-      setTimeout(() => { const b = document.getElementById('chatMessages'); if(b) b.scrollTop = b.scrollHeight; }, 50);
-      document.getElementById('chatInput')?.focus();
-    }
+  window.fcHideMention = function() {
+    const p=document.getElementById('fcMentionPopup'); if(p) p.style.display='none';
+    _mMatches=[]; _mSel=-1;
   };
 
-  window.switchChatChannel = function(chKey) {
-    _curCh = chKey;
-    document.querySelectorAll('.chat-ch-btn').forEach(b => b.classList.toggle('active', b.dataset.ch === chKey));
-    const box = document.getElementById('chatMessages');
-    if (box) box.innerHTML = '';
-    _subscribeChannel(chKey);
-    // Fetch history
-    if (_pn) {
-      _pn.fetchMessages({ channels: [_chName(chKey)], count: 40 }).then(r => {
-        const msgs = r.channels[_chName(chKey)] || [];
-        msgs.forEach(m => _renderMsg(m.message, false));
-        const b = document.getElementById('chatMessages');
-        if (b) b.scrollTop = b.scrollHeight;
-      }).catch(()=>{});
-    }
-  };
-
-  window.sendChatMsg = function() {
-    const inp = document.getElementById('chatInput');
-    const text = (inp?.value || '').trim();
-    if (!text || !_pn) return;
-    _publish(text);
-    inp.value = '';
-    inp.style.height = '';
-    hideMentionPopup();
-  };
-
-  window.chatInputKeydown = function(e) {
-    const popup = document.getElementById('chatMentionPopup');
-    const visible = popup && popup.style.display !== 'none';
-    if (visible) {
-      if (e.key === 'ArrowDown') { e.preventDefault(); _mentionSel = Math.min(_mentionSel+1, _mentionMatches.length-1); _renderMentionPopup(); return; }
-      if (e.key === 'ArrowUp') { e.preventDefault(); _mentionSel = Math.max(_mentionSel-1, 0); _renderMentionPopup(); return; }
-      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); if (_mentionMatches[_mentionSel]) _insertMention(_mentionMatches[_mentionSel]); return; }
-      if (e.key === 'Escape') { hideMentionPopup(); return; }
-    }
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMsg(); return; }
-    // auto-resize
-    const inp = e.target;
-    inp.style.height = 'auto';
-    inp.style.height = Math.min(inp.scrollHeight, 80) + 'px';
-  };
-
-  window.chatInputChange = function(e) {
-    const inp = e.target;
-    const val = inp.value;
-    const pos = inp.selectionStart;
-    // find @word before cursor
-    const before = val.slice(0, pos);
-    const m = before.match(/@([\w一-龥]*)$/);
-    if (m) {
-      const query = m[1].toLowerCase();
-      _mentionMatches = Object.values(_onlineUsers).filter(n => n.toLowerCase().includes(query) && n !== _myName());
-      if (_mentionMatches.length) { _mentionSel = 0; _renderMentionPopup(); return; }
-    }
-    hideMentionPopup();
-  };
-
-  function _renderMentionPopup() {
-    const popup = document.getElementById('chatMentionPopup');
-    if (!popup) return;
-    popup.innerHTML = _mentionMatches.map((n,i) =>
-      `<div class="chat-mention-item${i===_mentionSel?' sel':''}" onclick="insertMentionByName('${escHtml(n)}')">${escHtml(n)}</div>`
-    ).join('');
-    popup.style.display = 'block';
-  }
-
-  window.hideMentionPopup = function() {
-    const popup = document.getElementById('chatMentionPopup');
-    if (popup) popup.style.display = 'none';
-    _mentionMatches = []; _mentionSel = -1;
-  };
-
-  window.insertMentionByName = function(name) { _insertMention(name); };
+  window.fcInsertMention = function(name) { _insertMention(name); };
 
   function _insertMention(name) {
-    const inp = document.getElementById('chatInput');
-    if (!inp) return;
-    const val = inp.value, pos = inp.selectionStart;
-    const before = val.slice(0, pos);
-    const replaced = before.replace(/@[\w一-龥]*$/, '@' + name + ' ');
-    inp.value = replaced + val.slice(pos);
-    inp.selectionStart = inp.selectionEnd = replaced.length;
-    inp.focus();
-    hideMentionPopup();
+    const inp=document.getElementById('fcInput'); if(!inp) return;
+    const val=inp.value, pos=inp.selectionStart;
+    const before=val.slice(0,pos);
+    const rep=before.replace(/@[\w一-龥]*$/,'@'+name+' ');
+    inp.value=rep+val.slice(pos);
+    inp.selectionStart=inp.selectionEnd=rep.length;
+    inp.focus(); window.fcHideMention();
   }
 
-  // Broadcast task event to chat
+  // Broadcast task activity to #甘特图 channel
   window.chatBroadcastTask = function(action, taskName) {
-    if (!_pn || !taskName) return;
-    const text = `📌 ${_myName()} ${action}了任务"${taskName}"`;
-    _pn.publish({
-      channel: _chName('gantt'),
-      message: { uuid: _myUuid(), name: '系统', text, ts: Date.now(), type: 'system' }
+    if(!_pn||!taskName) return;
+    _pn.publish({channel:_ch('gantt'),
+      message:{uuid:_uuid(),name:'系统',text:`📌 ${_me()} ${action}了任务"${taskName}"`,ts:Date.now(),type:'system'}
     });
   };
 
   // Init
   function initChat() {
-    if (!_isTeamMode()) return;
-    const fab = document.getElementById('chatFab');
-    if (fab) fab.style.display = 'flex';
+    if(!_isTeam()) return;
+    const fab=document.getElementById('chatFab');
+    if(fab) fab.style.display='flex';
+    _connecting=true; _renderPresence();
 
-    const uuid = _myUuid();
-    _onlineUsers[uuid] = _myName();
+    const uuid=_uuid();
+    _online[uuid]=_me();
+    _prevOnlineSet={[uuid]:_me()};
 
-    _pn = new PubNub({ publishKey: PUBNUB_PUB, subscribeKey: PUBNUB_SUB, uuid });
+    _pn=new PubNub({publishKey:PUB, subscribeKey:SUB, uuid});
+    _pn.subscribe({channels:[_ch(_curCh), PRES_CH], withPresence:true});
 
-    // Subscribe to current channel + presence channel
-    _pn.subscribe({ channels: [_chName(_curCh), PRESENCE_CH], withPresence: true });
-
-    // Listen for messages
     _pn.addListener({
-      message: function(evt) {
-        if (evt.channel === PRESENCE_CH) {
-          // presence announcements
-          const m = evt.message;
-          if (m && m.uuid && m.name) {
-            _onlineUsers[m.uuid] = m.name;
-            _updatePresence();
+      message(evt) {
+        if(evt.channel===PRES_CH) {
+          const m=evt.message;
+          if(!m||!m.uuid||!m.name) return;
+          const wasOnline=!!_online[m.uuid];
+          _online[m.uuid]=m.name;
+          if(!wasOnline && m.uuid!==uuid) {
+            _logActivity(`${m.name} 上线了 🟢`);
+            _prevOnlineSet={..._online};
           }
+          _renderPresence();
           return;
         }
         _renderMsg(evt.message, true);
       },
-      presence: function(evt) {
-        if (evt.action === 'join') {
-          // will be set via announcement
-        } else if (evt.action === 'leave' || evt.action === 'timeout') {
-          delete _onlineUsers[evt.uuid];
-          _updatePresence();
+      presence(evt) {
+        if(evt.action==='leave'||evt.action==='timeout') {
+          const name=_online[evt.uuid];
+          if(name && evt.uuid!==uuid) _logActivity(`${name} 离线了`);
+          delete _online[evt.uuid];
+          if(_prevOnlineSet) delete _prevOnlineSet[evt.uuid];
+          _renderPresence();
         }
       },
-      status: function(s) {
-        if (s.category === 'PNConnectedCategory') {
-          // Announce presence
-          _pn.publish({
-            channel: PRESENCE_CH,
-            message: { uuid, name: _myName(), action: 'join', ts: Date.now() }
-          });
-          // Initial history load
-          switchChatChannel(_curCh);
+      status(s) {
+        if(s.category==='PNConnectedCategory') {
+          _connecting=false;
+          // Announce self
+          _pn.publish({channel:PRES_CH,
+            message:{uuid,name:_me(),action:'join',ts:Date.now()}});
+          // Welcome system msg
+          setTimeout(()=>{
+            _pn.publish({channel:_ch('general'),
+              message:{uuid,name:'系统',text:`👋 ${_me()} 加入了频道`,ts:Date.now(),type:'system'}
+            }).catch(()=>{});
+          },1000);
+          fcSwitchCh(_curCh);
+          _renderPresence();
         }
       }
     });
 
-    // Heartbeat: re-announce every 2 minutes
-    setInterval(() => {
-      _onlineUsers[uuid] = _myName();
-      _pn.publish({
-        channel: PRESENCE_CH,
-        message: { uuid, name: _myName(), action: 'heartbeat', ts: Date.now() }
+    // Heartbeat every 90s — only publish, no re-announce if already known
+    setInterval(()=>{
+      if(!_pn) return;
+      _online[uuid]=_me();
+      _pn.publish({channel:PRES_CH,
+        message:{uuid,name:_me(),action:'heartbeat',ts:Date.now()}
       }).catch(()=>{});
-      _updatePresence();
-    }, 120000);
-
-    // Post join message
-    setTimeout(() => {
-      _pn.publish({
-        channel: _chName('general'),
-        message: { uuid, name: '系统', text: `👋 ${_myName()} 加入了频道`, ts: Date.now(), type: 'system' }
-      }).catch(()=>{});
-    }, 1500);
+      // No activity log for own heartbeat — only external events get logged
+      _renderPresence();
+    }, 90000);
   }
 
-  // Start chat after app init
-  document.addEventListener('DOMContentLoaded', () => {
-    // Wait for currentUser to be set
-    const tryInit = () => {
-      if (typeof currentUser !== 'undefined' && currentUser) { initChat(); }
-      else { setTimeout(tryInit, 800); }
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const tryInit=()=>{
+      if(typeof currentUser!=='undefined'&&currentUser) initChat();
+      else setTimeout(tryInit, 800);
     };
     setTimeout(tryInit, 1200);
   });
