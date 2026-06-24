@@ -2349,6 +2349,55 @@ function getNextGroupColor() {
 ═══════════════════════════════════════════ */
 const TEMPLATES = [
   {
+    id: 'nonstandard',
+    name: '非标设备项目管理流程',
+    defaultName: '非标设备项目',
+    color: '#8B5CF6',
+    tasks: [
+      { id:1,  name:'{{PROJECT_NAME}}',         type:'group',     parent:null, color:'#8B5CF6' },
+
+      { id:2,  name:'立项启动',                 type:'group',     parent:1,  color:'#6366F1' },
+      { id:3,  name:'项目立项申请',             type:'task',      parent:2,  color:'#6366F1', wday:3,  deps:[],   done:false, start:'', end:'' },
+      { id:4,  name:'资源与预算评估',           type:'task',      parent:2,  color:'#6366F1', wday:3,  deps:[3],  done:false, start:'', end:'' },
+      { id:5,  name:'KOM 启动会',               type:'milestone', parent:2,  color:'#4F46E5',          deps:[4],  date:'' },
+
+      { id:6,  name:'设计阶段',                 type:'group',     parent:1,  color:'#0EA5E9' },
+      { id:7,  name:'概念设计',                 type:'task',      parent:6,  color:'#0EA5E9', wday:7,  deps:[5],  done:false, start:'', end:'' },
+      { id:8,  name:'概设评审',                 type:'milestone', parent:6,  color:'#0284C7',          deps:[7],  date:'' },
+      { id:9,  name:'详细设计',                 type:'task',      parent:6,  color:'#0EA5E9', wday:10, deps:[8],  done:false, start:'', end:'' },
+      { id:10, name:'详设评审',                 type:'milestone', parent:6,  color:'#0284C7',          deps:[9],  date:'' },
+
+      { id:11, name:'采购阶段',                 type:'group',     parent:1,  color:'#F59E0B' },
+      { id:12, name:'物料清单确认',             type:'task',      parent:11, color:'#F59E0B', wday:3,  deps:[10], done:false, start:'', end:'' },
+      { id:13, name:'供应商询价与下单',         type:'task',      parent:11, color:'#F59E0B', wday:5,  deps:[12], done:false, start:'', end:'' },
+      { id:14, name:'物料到货验收',             type:'task',      parent:11, color:'#F59E0B', wday:10, deps:[13], done:false, start:'', end:'' },
+
+      { id:15, name:'组装调试',                 type:'group',     parent:1,  color:'#10B981' },
+      { id:16, name:'机械结构组装',             type:'task',      parent:15, color:'#10B981', wday:5,  deps:[14], done:false, start:'', end:'' },
+      { id:17, name:'电气接线',                 type:'task',      parent:15, color:'#10B981', wday:3,  deps:[16], done:false, start:'', end:'' },
+      { id:18, name:'系统调试',                 type:'task',      parent:15, color:'#10B981', wday:5,  deps:[17], done:false, start:'', end:'' },
+      { id:19, name:'通电里程碑',               type:'milestone', parent:15, color:'#059669',          deps:[18], date:'' },
+
+      { id:20, name:'出厂验收',                 type:'group',     parent:1,  color:'#F87171' },
+      { id:21, name:'内部验收测试',             type:'task',      parent:20, color:'#F87171', wday:3,  deps:[19], done:false, start:'', end:'' },
+      { id:22, name:'客户出厂验收',             type:'task',      parent:20, color:'#F87171', wday:2,  deps:[21], done:false, start:'', end:'' },
+      { id:23, name:'验收完成里程碑',           type:'milestone', parent:20, color:'#EF4444',          deps:[22], date:'' },
+
+      { id:24, name:'打包发货',                 type:'group',     parent:1,  color:'#A78BFA' },
+      { id:25, name:'包装与装箱',               type:'task',      parent:24, color:'#A78BFA', wday:2,  deps:[23], done:false, start:'', end:'' },
+      { id:26, name:'物流运输',                 type:'task',      parent:24, color:'#A78BFA', wday:5,  deps:[25], done:false, start:'', end:'' },
+      { id:27, name:'发货里程碑',               type:'milestone', parent:24, color:'#7C3AED',          deps:[25], date:'' },
+
+      { id:28, name:'现场实施',                 type:'group',     parent:1,  color:'#34D399' },
+      { id:29, name:'设备吊装就位',             type:'task',      parent:28, color:'#34D399', wday:2,  deps:[26], done:false, start:'', end:'' },
+      { id:30, name:'现场接线与配置',           type:'task',      parent:28, color:'#34D399', wday:3,  deps:[29], done:false, start:'', end:'' },
+      { id:31, name:'现场调试与试运行',         type:'task',      parent:28, color:'#34D399', wday:5,  deps:[30], done:false, start:'', end:'' },
+      { id:32, name:'恢复通电里程碑',           type:'milestone', parent:28, color:'#10B981',          deps:[31], date:'' },
+      { id:33, name:'初步验收',                 type:'task',      parent:28, color:'#34D399', wday:2,  deps:[32], done:false, start:'', end:'' },
+      { id:34, name:'终验收里程碑',             type:'milestone', parent:28, color:'#065F46',          deps:[33], date:'' },
+    ]
+  },
+  {
     id: 'hardware',
     name: '硬件产品开发与量产标准流程',
     defaultName: '硬件产品开发计划',
@@ -3286,6 +3335,11 @@ function prevWorkingDay(endStr) {
 
 function renderBar(row, task) {
   if (!task.start || !task.end) return;
+  // When start === end, auto-render as milestone diamond
+  if (task.start === task.end) {
+    renderMilestone(row, { ...task, date: task.start });
+    return;
+  }
   const x1 = dateToX(task.start);
   const visualEnd = (() => { const d = new Date(task.end); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); })();
   const x2 = dateToX(visualEnd);
@@ -7625,6 +7679,86 @@ function getWBSCode(taskId) {
 ═══════════════════════════════════════════ */
 function openKbdOverlay() { document.getElementById('kbdOverlay').classList.add('open'); }
 function closeKbdOverlay() { document.getElementById('kbdOverlay').classList.remove('open'); }
+
+/* ═══════════════════════════════════════════
+   DRIVER.JS TOUR
+═══════════════════════════════════════════ */
+function startTour() {
+  if (typeof window.driver === 'undefined' || typeof window.driver.js === 'undefined') {
+    // driver.js loads async; fallback message
+    alert('导览功能加载中，请稍后再试（需联网加载 driver.js）');
+    return;
+  }
+  const { driver } = window.driver.js;
+  const driverObj = driver({
+    animate: true,
+    smoothScroll: true,
+    showProgress: true,
+    progressText: '第 {{current}} 步，共 {{total}} 步',
+    nextBtnText: '下一步 →',
+    prevBtnText: '← 上一步',
+    doneBtnText: '完成 ✓',
+    steps: [
+      {
+        element: '#appToolbar',
+        popover: {
+          title: '🏠 顶部菜单栏',
+          description: '这里包含文件、编辑、视图、插入等全部菜单，以及快速操作工具栏（新增任务、撤销、导出等）。',
+          side: 'bottom', align: 'start'
+        }
+      },
+      {
+        element: '#taskPanel',
+        popover: {
+          title: '📋 任务列表面板',
+          description: '左侧表格列出所有任务。点击任意单元格可直接编辑（任务名称、开始/结束日期、负责人均支持单元格内快速编辑）。<br><br>💡 <b>技巧</b>：将开始日期和结束日期设为同一天，甘特图会自动显示菱形里程碑。',
+          side: 'right', align: 'start'
+        }
+      },
+      {
+        element: '#chartPanel',
+        popover: {
+          title: '📊 甘特图区域',
+          description: '右侧显示甘特图。蓝色横条 = 普通任务，菱形 ◆ = 里程碑，黑色箭头端点条 = 群组汇总。<br><br>拖拽条形可移动任务日期；拖拽右端可调整工期；箭头连线表示前置依赖。',
+          side: 'left', align: 'start'
+        }
+      },
+      {
+        element: '.quickbar',
+        popover: {
+          title: '⚡ 快速工具栏',
+          description: '常用操作：新增任务 ＋、添加里程碑 ◆、群组、撤销/重做、视图切换（甘特图 / 看板 / 仪表盘 / 工作量），以及时间缩放 Day / Week / Month。',
+          side: 'bottom', align: 'start'
+        }
+      },
+      {
+        element: '#taskBody',
+        popover: {
+          title: '✏️ 内联快速编辑',
+          description: '点击任意行的<b>任务名称</b>可直接修改；点击<b>日期列</b>弹出日期选择；点击<b>负责人列</b>直接输入姓名，多人用逗号分隔。<br><br>按 <kbd>Enter</kbd> 确认，<kbd>Esc</kbd> 取消。',
+          side: 'right', align: 'start'
+        }
+      },
+      {
+        element: '#mi-insert',
+        popover: {
+          title: '➕ 插入菜单',
+          description: '从"插入"菜单可以新建<b>普通任务</b>、<b>里程碑</b>、<b>群组</b>，也可以添加前置依赖关系（FS / SS / FF / SF）。',
+          side: 'bottom', align: 'start'
+        }
+      },
+      {
+        element: '#mi-help',
+        popover: {
+          title: '🎉 导览结束',
+          description: '您已了解 GanttPro 的核心功能！随时从"帮助 → 入门引导"重新查看此导览。<br><br>使用 <b>帮助 → 键盘快捷键</b> 查看全部快捷键列表。',
+          side: 'bottom', align: 'end'
+        }
+      }
+    ]
+  });
+  driverObj.drive();
+}
 
 /* ═══════════════════════════════════════════
    ENHANCED KEYBOARD HANDLER
