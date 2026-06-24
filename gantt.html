@@ -859,6 +859,21 @@ body.readonly .btn-owner-only{display:none!important}
 .form-ctrl:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94,106,210,.15)}
 body.dark .form-ctrl{color-scheme:dark}
 .modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+/* Progressive disclosure — advanced section */
+.modal-advanced{overflow:hidden;max-height:0;transition:max-height .28s cubic-bezier(.4,0,.2,1),opacity .22s;opacity:0;pointer-events:none}
+.modal-advanced.open{max-height:1000px;opacity:1;pointer-events:auto}
+.modal-expand-btn{
+  display:flex;align-items:center;gap:5px;width:100%;
+  padding:7px 10px;margin:8px 0 2px;
+  border:1px dashed var(--border);border-radius:8px;
+  background:none;color:var(--t3);font-size:12px;font-family:inherit;
+  cursor:pointer;transition:color .15s,border-color .15s,background .15s;
+}
+.modal-expand-btn:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-bg)}
+.modal-expand-btn .meb-chevron{display:inline-block;transition:transform .25s;font-size:10px}
+.modal-expand-btn.open .meb-chevron{transform:rotate(180deg)}
+/* Primary section separator */
+.modal-primary-end{border:none;border-top:1px solid var(--border);margin:12px 0 0}
 
 /* ── TOOLTIP ── */
 .tooltip{
@@ -2207,87 +2222,104 @@ body:not(.show-wbs) .wbs-code{display:none}
   <div class="modal" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeModal()" title="关闭">✕</button>
     <div class="modal-title" id="modal-title">＋ 新增任务</div>
+
+    <!-- ★ PRIMARY (golden zone — always visible) ★ -->
     <div class="form-row">
-      <label class="form-lbl">任务名称</label>
-      <input class="form-ctrl" id="fName" placeholder="输入任务名称...">
+      <input class="form-ctrl" id="fName" placeholder="任务名称…" style="font-size:15px;font-weight:500">
     </div>
-    <div class="form-row-2" style="grid-template-columns:1fr 1fr">
+    <div class="form-row-2" id="rowDates" style="grid-template-columns:1fr 1fr 72px">
       <div>
-        <label class="form-lbl">类型</label>
-        <select class="form-ctrl" id="fType" onchange="updateModalForType()">
-          <option value="task">普通任务</option>
-          <option value="milestone">里程碑</option>
-          <option value="group">群组</option>
-        </select>
-      </div>
-      <div>
-        <label class="form-lbl">父群组</label>
-        <select class="form-ctrl" id="fParent"></select>
-      </div>
-    </div>
-    <div class="form-row-2" id="rowDates" style="grid-template-columns:1fr 1fr 80px">
-      <div>
-        <label class="form-lbl" id="lblStart">开始日期</label>
-        <input class="form-ctrl" type="date" id="fStart" value="2026-05-07">
+        <label class="form-lbl" id="lblStart">开始</label>
+        <input class="form-ctrl" type="date" id="fStart">
       </div>
       <div id="colEnd">
-        <label class="form-lbl">结束日期</label>
-        <input class="form-ctrl" type="date" id="fEnd" value="2026-05-14">
+        <label class="form-lbl">结束</label>
+        <input class="form-ctrl" type="date" id="fEnd">
       </div>
       <div id="colWday">
-        <label class="form-lbl">工作日</label>
+        <label class="form-lbl" style="white-space:nowrap">工作日</label>
         <input class="form-ctrl" type="number" id="fWday" min="1" value="6" style="text-align:center">
       </div>
-    </div>
-    <div class="form-row" id="rowDeps">
-      <label class="form-lbl">前置任务</label>
-      <div id="fDepsWrap">
-        <input class="form-ctrl" id="fDeps" placeholder="输入行号（如 2、2SS、2FS+3）或从下方选择" autocomplete="off">
-        <div id="fDepsList" onmousedown="event.preventDefault()"></div>
-      </div>
-      <div id="fDepsTip" style="font-size:11px;color:var(--t3);margin-top:4px;line-height:1.5"></div>
     </div>
     <div class="form-row" id="rowAssignee">
       <label class="form-lbl" data-i18n="assignee">负责人</label>
       <div class="res-chips-wrap" id="resChipsWrap" onclick="document.getElementById('resChipInput').focus()">
-        <input class="res-chip-input" id="resChipInput" autocomplete="off" placeholder="输入姓名后按 Enter" list="assigneeList">
+        <input class="res-chip-input" id="resChipInput" autocomplete="off" placeholder="输入姓名后回车，支持多人" list="assigneeList">
       </div>
       <datalist id="assigneeList"></datalist>
     </div>
-    <div class="form-row" id="rowDone" style="display:flex;align-items:center;gap:10px;margin-bottom:0">
-      <label class="form-lbl" style="margin-bottom:0">已完成</label>
-      <div class="check-box" id="fDone" onclick="this.classList.toggle('done');this.textContent=this.classList.contains('done')?'✓':'';if(this.classList.contains('done'))document.getElementById('fProgress').value=100"></div>
-      <label class="form-lbl" style="margin-bottom:0;margin-left:14px">进度</label>
-      <input class="form-ctrl" type="number" id="fProgress" min="0" max="100" step="5" value="0" style="width:70px;text-align:center">
+    <div class="form-row" id="rowDone" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+      <label class="form-lbl" style="margin-bottom:0">进度</label>
+      <div class="check-box" id="fDone" onclick="this.classList.toggle('done');this.textContent=this.classList.contains('done')?'✓':'';const _pv=this.classList.contains('done')?100:document.getElementById('fProgress').value;document.getElementById('fProgress').value=_pv;document.getElementById('fProgressRange').value=_pv" title="标记完成"></div>
+      <input class="form-ctrl" type="number" id="fProgress" min="0" max="100" step="5" value="0" style="width:64px;text-align:center" oninput="document.getElementById('fProgressRange').value=this.value">
       <span style="font-size:12px;color:var(--t3)">%</span>
+      <input type="range" id="fProgressRange" min="0" max="100" step="5" value="0"
+        oninput="document.getElementById('fProgress').value=this.value"
+        style="flex:1;min-width:80px;accent-color:var(--accent);cursor:pointer">
     </div>
-    <div class="form-row" id="rowLink">
-      <label class="form-lbl">超链接（文档）</label>
-      <div style="display:flex;gap:6px;align-items:center;flex:1">
-        <input class="form-ctrl" id="fLink" placeholder="https://… （仅允许复制，不直接打开）" style="flex:1">
-        <button class="btn" onclick="copyTaskLink()" title="复制链接" style="flex-shrink:0">复制</button>
+
+    <!-- ▸ ADVANCED TOGGLE ▸ -->
+    <hr class="modal-primary-end">
+    <button class="modal-expand-btn" id="modalExpandBtn" onclick="toggleModalAdvanced()">
+      <span class="meb-chevron">▾</span>
+      <span id="modalExpandLabel">更多选项</span>
+    </button>
+
+    <!-- ▾ SECONDARY (collapsed by default) ▾ -->
+    <div class="modal-advanced" id="modalAdvanced">
+      <div class="form-row-2" style="grid-template-columns:1fr 1fr;margin-top:10px">
+        <div>
+          <label class="form-lbl">类型</label>
+          <select class="form-ctrl" id="fType" onchange="updateModalForType()">
+            <option value="task">普通任务</option>
+            <option value="milestone">里程碑</option>
+            <option value="group">群组</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-lbl">父群组</label>
+          <select class="form-ctrl" id="fParent"></select>
+        </div>
+      </div>
+      <div class="form-row" id="rowDeps">
+        <label class="form-lbl">前置任务</label>
+        <div id="fDepsWrap">
+          <input class="form-ctrl" id="fDeps" placeholder="行号 2、2SS、2FS+3 或从列表选" autocomplete="off">
+          <div id="fDepsList" onmousedown="event.preventDefault()"></div>
+        </div>
+        <div id="fDepsTip" style="font-size:11px;color:var(--t3);margin-top:4px;line-height:1.5"></div>
+      </div>
+      <div class="form-row" id="rowLink">
+        <label class="form-lbl">文档链接</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="form-ctrl" id="fLink" placeholder="https://…" style="flex:1">
+          <button class="btn" onclick="copyTaskLink()" style="flex-shrink:0;padding:6px 10px">复制</button>
+        </div>
+      </div>
+      <div class="form-row" id="rowEvidence">
+        <label class="form-lbl">佐证链接</label>
+        <input class="form-ctrl" id="fEvidence" type="url" placeholder="https://… 进度附件">
+      </div>
+      <div class="form-row" id="rowApproval">
+        <label class="form-lbl">审批状态</label>
+        <select class="form-ctrl" id="fApproval">
+          <option value="">无需审批</option>
+          <option value="pending">待审批</option>
+          <option value="approved">已批准</option>
+          <option value="rejected">已拒绝</option>
+        </select>
+      </div>
+      <div class="form-row" id="rowCosts">
+        <label class="form-lbl">成本（计划 / 实际）</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input class="form-ctrl" type="number" id="fPlannedCost" min="0" step="0.01" placeholder="计划" style="flex:1">
+          <span style="color:var(--t4);font-size:12px">/</span>
+          <input class="form-ctrl" type="number" id="fActualCost" min="0" step="0.01" placeholder="实际" style="flex:1">
+        </div>
       </div>
     </div>
-    <div class="form-row" id="rowApproval">
-      <label class="form-lbl">审批状态</label>
-      <select class="form-ctrl" id="fApproval">
-        <option value="">无需审批</option>
-        <option value="pending">待审批</option>
-        <option value="approved">已批准</option>
-        <option value="rejected">已拒绝</option>
-      </select>
-    </div>
-    <div class="form-row" id="rowEvidence">
-      <label class="form-lbl">佐证链接</label>
-      <input class="form-ctrl" id="fEvidence" type="url" placeholder="https://… （进度佐证/附件链接）">
-    </div>
-    <div class="form-row" id="rowCosts" style="display:none">
-      <label class="form-lbl">计划成本</label>
-      <input class="form-ctrl" type="number" id="fPlannedCost" min="0" step="0.01" placeholder="0" style="width:100px">
-      <label class="form-lbl" style="margin-left:12px">实际成本</label>
-      <input class="form-ctrl" type="number" id="fActualCost" min="0" step="0.01" placeholder="0" style="width:100px">
-    </div>
-    <div class="modal-footer">
+
+    <div class="modal-footer" style="margin-top:14px">
       <button class="btn" onclick="closeModal()">取消</button>
       <button class="btn" id="modal-approval-btn" onclick="submitApproval()" style="display:none">📋 提交审批</button>
       <button class="btn btn-primary" id="modal-submit" onclick="submitTask()">新增任务</button>
@@ -9227,6 +9259,35 @@ async function exportPPTX() {
    MODAL: Link field init
 ═══════════════════════════════════════════ */
 // Patch openModal and openEditModal to handle link/approval fields
+/* ── Progressive disclosure: modal advanced section ── */
+let _modalAdvancedOpen = false;
+function toggleModalAdvanced(forceOpen) {
+  _modalAdvancedOpen = forceOpen !== undefined ? forceOpen : !_modalAdvancedOpen;
+  const adv = document.getElementById('modalAdvanced');
+  const btn = document.getElementById('modalExpandBtn');
+  const lbl = document.getElementById('modalExpandLabel');
+  if (!adv) return;
+  adv.classList.toggle('open', _modalAdvancedOpen);
+  if (btn) btn.classList.toggle('open', _modalAdvancedOpen);
+  if (lbl) lbl.textContent = _modalAdvancedOpen ? '收起选项' : '更多选项';
+}
+function _syncProgressRange(val) {
+  const r = document.getElementById('fProgressRange');
+  if (r) r.value = val;
+}
+// Auto-expand advanced section if task has any advanced fields filled
+function _autoExpandModalAdvanced(task) {
+  const hasAdv = !!(
+    task?.deps?.length || task?.sdeps?.length ||
+    task?.ffdeps?.length || task?.sfdeps?.length ||
+    task?.link || task?.approval || task?.evidence ||
+    task?.plannedCost || task?.actualCost ||
+    task?.parent ||
+    (task?.type && task.type !== 'task')
+  );
+  toggleModalAdvanced(hasAdv);
+}
+
 function openModal(typeOrUnused, prefillDate) {
   _baseOpenModal(typeOrUnused, prefillDate);
   document.getElementById('fLink').value = '';
@@ -9235,11 +9296,13 @@ function openModal(typeOrUnused, prefillDate) {
   document.getElementById('fPlannedCost').value = '';
   document.getElementById('fActualCost').value = '';
   document.getElementById('modal-approval-btn').style.display = 'none';
-  // If a type string was passed, set the type select and update modal
-  if (typeOrUnused === 'milestone' || typeOrUnused === 'group') {
+  _syncProgressRange(0);
+  const needExpand = typeOrUnused === 'milestone' || typeOrUnused === 'group';
+  if (needExpand) {
     const fType = document.getElementById('fType');
     if (fType) { fType.value = typeOrUnused; updateModalForType(); }
   }
+  toggleModalAdvanced(needExpand);
 }
 
 function openEditModal(taskId) {
@@ -9253,6 +9316,11 @@ function openEditModal(taskId) {
     document.getElementById('fActualCost').value = task.actualCost || '';
     const canApprove = isAdmin() || (curProj() && !curProj()._isShared);
     document.getElementById('modal-approval-btn').style.display = (task.approval === 'pending' && canApprove) ? '' : 'none';
+    _syncProgressRange(task.progress || 0);
+    _autoExpandModalAdvanced(task);
+  } else {
+    toggleModalAdvanced(false);
+    _syncProgressRange(0);
   }
 }
 
