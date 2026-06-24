@@ -1375,81 +1375,68 @@ body:not(.show-wbs) .wbs-code{display:none}
    MOBILE (≤767px) — iOS/Android style
 ══════════════════════════════════════ */
 @media(max-width:767px){
-  #mobileView{display:flex!important}
+  /* Hide desktop toolbar entirely on mobile */
+  #appToolbar{display:none!important}
   #main{display:none!important}
-  #appToolbar .quickbar{display:none}
 
-  /* Top bar: frosted glass with accent tint */
-  #appToolbar{
-    position:sticky;top:0;z-index:200;
-    background:rgba(var(--surface-rgb,255,255,255),.72) !important;
-    backdrop-filter:blur(18px) saturate(1.6) !important;
-    -webkit-backdrop-filter:blur(18px) saturate(1.6) !important;
-    border-bottom:1px solid rgba(var(--accent-rgb,94,106,210),.18) !important;
-    box-shadow:0 1px 0 rgba(var(--accent-rgb,94,106,210),.10),
-               0 4px 16px rgba(0,0,0,.08) !important;
-    padding-top:env(safe-area-inset-top,0px);
-  }
-  body.dark #appToolbar{
-    background:rgba(28,30,38,.78) !important;
-    border-bottom-color:rgba(94,106,210,.22) !important;
-  }
-
-  /* Mobile view container */
+  /* mobileView fills the entire screen */
   #mobileView{
+    display:flex!important;
     flex-direction:column;
+    position:fixed;
+    inset:0;
+    inset-top:env(safe-area-inset-top,0px);
+    padding-top:env(safe-area-inset-top,0px);
     background:var(--bg);
-    padding-bottom:env(safe-area-inset-bottom,0px);
+    z-index:10;
+    overflow:hidden;
   }
 
-  /* Mobile top mini-bar inside mobileView */
+  /* Frosted-glass top mini-bar */
   #mobileTopBar{
-    position:sticky;top:0;z-index:150;
+    flex-shrink:0;
     display:flex;align-items:center;gap:8px;
-    padding:10px 14px 10px;
-    background:rgba(var(--surface-rgb,255,255,255),.82);
+    padding:10px 14px calc(10px + 0px);
+    background:rgba(var(--surface-rgb,255,255,255),.88);
     backdrop-filter:blur(20px) saturate(1.8);
     -webkit-backdrop-filter:blur(20px) saturate(1.8);
     border-bottom:1px solid rgba(var(--accent-rgb,94,106,210),.15);
-    box-shadow:0 2px 12px rgba(0,0,0,.07);
+    box-shadow:0 1px 0 rgba(var(--accent-rgb,94,106,210),.10),0 4px 14px rgba(0,0,0,.06);
+    z-index:2;
   }
   body.dark #mobileTopBar{
-    background:rgba(24,26,34,.85);
+    background:rgba(22,24,29,.92);
     border-bottom-color:rgba(94,106,210,.25);
   }
 
-  /* Mobile bottom tab bar */
+  /* Frosted-glass bottom tab bar */
   #mobileTabBar{
-    position:sticky;bottom:0;
+    flex-shrink:0;
     display:flex;align-items:center;justify-content:space-around;
-    padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));
-    background:rgba(var(--surface-rgb,255,255,255),.82);
+    padding:6px 0 calc(6px + env(safe-area-inset-bottom,0px));
+    background:rgba(var(--surface-rgb,255,255,255),.88);
     backdrop-filter:blur(20px) saturate(1.8);
     -webkit-backdrop-filter:blur(20px) saturate(1.8);
     border-top:1px solid rgba(var(--accent-rgb,94,106,210),.15);
-    box-shadow:0 -2px 12px rgba(0,0,0,.07);
-    z-index:150;
+    box-shadow:0 -1px 0 rgba(var(--accent-rgb,94,106,210),.10),0 -4px 14px rgba(0,0,0,.06);
+    z-index:2;
   }
   body.dark #mobileTabBar{
-    background:rgba(24,26,34,.85);
+    background:rgba(22,24,29,.92);
     border-top-color:rgba(94,106,210,.25);
   }
   .mob-tab{
     display:flex;flex-direction:column;align-items:center;gap:2px;
-    padding:4px 12px;border:none;background:none;cursor:pointer;
+    padding:4px 8px;border:none;background:none;cursor:pointer;
     color:var(--t3);font-size:10px;font-family:inherit;border-radius:10px;
-    transition:color .15s;min-width:52px;
+    transition:color .18s,transform .12s;min-width:48px;
   }
-  .mob-tab .mob-tab-icon{font-size:20px;line-height:1.2}
+  .mob-tab .mob-tab-icon{font-size:20px;line-height:1.2;transition:transform .18s}
   .mob-tab.active{color:var(--accent)}
-  .mob-tab:active{background:rgba(94,106,210,.1)}
+  .mob-tab.active .mob-tab-icon{transform:scale(1.15)}
+  .mob-tab:active{transform:scale(.92)}
 
-  /* Mobile card list — add bottom padding for tab bar */
-  #mobileCardList{
-    padding:8px 10px 12px;
-  }
-
-  /* ── BOTTOM SHEET overlays on mobile ── */
+  /* ── BOTTOM SHEET overlays — only on real mobile ── */
   .overlay{
     align-items:flex-end !important;
     padding:0 !important;
@@ -1459,36 +1446,21 @@ body:not(.show-wbs) .wbs-code{display:none}
     max-width:100% !important;
     max-height:92dvh !important;
     border-radius:20px 20px 0 0 !important;
-    padding:0 16px 20px !important;
+    padding:0 16px calc(20px + env(safe-area-inset-bottom,0px)) !important;
     overflow-y:auto !important;
-    animation:slideUpSheet .28s cubic-bezier(.32,1,.42,1) !important;
-    padding-bottom:calc(20px + env(safe-area-inset-bottom,0px)) !important;
+    -webkit-overflow-scrolling:touch;
+    animation:slideUpSheet .32s cubic-bezier(.22,1,.36,1) !important;
   }
   /* Drag handle pill */
   .overlay .modal::before{
-    content:'';
-    display:block;
-    width:36px;height:4px;
-    border-radius:2px;
-    background:rgba(0,0,0,.18);
-    margin:10px auto 14px;
-    flex-shrink:0;
+    content:'';display:block;
+    width:40px;height:4px;border-radius:2px;
+    background:rgba(0,0,0,.15);
+    margin:12px auto 16px;flex-shrink:0;
   }
-  body.dark .overlay .modal::before{
-    background:rgba(255,255,255,.22);
-  }
-  /* Modal title on mobile */
-  .overlay .modal-title{
-    font-size:17px;
-    padding-top:0;
-    margin-bottom:14px;
-  }
-  /* Modal close button repositioned */
-  .overlay .modal-close{
-    position:absolute;
-    right:14px;
-    top:18px;
-  }
+  body.dark .overlay .modal::before{background:rgba(255,255,255,.2)}
+  .overlay .modal-title{font-size:17px;padding-top:0;margin-bottom:14px}
+  .overlay .modal-close{position:absolute;right:14px;top:20px}
 
   /* Login card on mobile */
   .login-card{
@@ -1496,16 +1468,31 @@ body:not(.show-wbs) .wbs-code{display:none}
     min-width:0 !important;
     border-radius:20px !important;
     padding:28px 20px !important;
+    animation:fadeScaleIn .25s cubic-bezier(.22,1,.36,1);
   }
 }
-@keyframes slideUpSheet{
-  from{transform:translateY(60px);opacity:.6}
-  to{transform:translateY(0);opacity:1}
-}
+
+/* ── Overlay fade-in (desktop) ── */
 @media(min-width:768px){
+  .overlay.open .modal{
+    animation:modalPopIn .22s cubic-bezier(.22,1,.36,1);
+  }
   #mobileView{display:none!important}
   #mobileTopBar{display:none!important}
   #mobileTabBar{display:none!important}
+}
+
+@keyframes slideUpSheet{
+  from{transform:translateY(100%);opacity:0}
+  to{transform:translateY(0);opacity:1}
+}
+@keyframes modalPopIn{
+  from{transform:scale(.94) translateY(8px);opacity:0}
+  to{transform:scale(1) translateY(0);opacity:1}
+}
+@keyframes fadeScaleIn{
+  from{transform:scale(.96);opacity:0}
+  to{transform:scale(1);opacity:1}
 }
 
 /* ── PRINT / PDF EXPORT ── */
@@ -2043,25 +2030,35 @@ body:not(.show-wbs) .wbs-code{display:none}
 
 <!-- MAIN -->
 <!-- MOBILE CARD VIEW -->
-<div id="mobileView" style="display:none;flex-direction:column;height:100dvh;overflow:hidden">
+<div id="mobileView" style="display:none;flex-direction:column;overflow:hidden">
   <!-- Frosted-glass top bar -->
   <div id="mobileTopBar">
     <button style="font-size:19px;padding:4px 8px;background:none;border:none;line-height:1;cursor:pointer;color:var(--t1)" onclick="openProjModal()" title="切换项目">☰</button>
     <span id="mobileProjName" style="font-size:14px;font-weight:700;color:var(--t1);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">项目</span>
     <button style="font-size:13px;padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--t2);cursor:pointer" onclick="switchToDesktop()" title="桌面视图">🖥</button>
   </div>
-  <!-- Scrollable task card list -->
-  <div style="overflow-y:auto;flex:1;padding:8px 10px 4px" id="mobileCardList"></div>
+  <!-- Content area: task cards OR gantt -->
+  <div style="flex:1;overflow:hidden;position:relative">
+    <!-- Task card list -->
+    <div style="position:absolute;inset:0;overflow-y:auto;padding:8px 10px 4px;-webkit-overflow-scrolling:touch" id="mobileCardList"></div>
+    <!-- Mini gantt view (hidden by default, shown when gantt tab active) -->
+    <div id="mobileGanttWrap" style="position:absolute;inset:0;display:none;overflow:auto;-webkit-overflow-scrolling:touch">
+      <div id="mobileGanttInner" style="min-width:600px;height:100%"></div>
+    </div>
+  </div>
   <!-- Frosted-glass bottom tab bar -->
   <div id="mobileTabBar">
     <button class="mob-tab active" id="mobTab_tasks" onclick="mobSwitchTab('tasks')">
       <span class="mob-tab-icon">📋</span>任务
     </button>
-    <button class="mob-tab" id="mobTab_add" onclick="openModal()">
-      <span class="mob-tab-icon" style="font-size:26px;line-height:1;font-weight:300">＋</span>
+    <button class="mob-tab" id="mobTab_gantt" onclick="mobSwitchTab('gantt')">
+      <span class="mob-tab-icon">📊</span>甘特图
+    </button>
+    <button class="mob-tab" id="mobTab_add" onclick="openModal()" style="position:relative">
+      <span class="mob-tab-icon" style="font-size:28px;line-height:1;font-weight:200;background:var(--accent);color:#fff;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;margin-top:-12px;box-shadow:0 4px 12px rgba(94,106,210,.4)">＋</span>
     </button>
     <button class="mob-tab" id="mobTab_report" onclick="mobSwitchTab('report')">
-      <span class="mob-tab-icon">📊</span>报告
+      <span class="mob-tab-icon">📈</span>报告
     </button>
     <button class="mob-tab" id="mobTab_settings" onclick="mobSwitchTab('settings')">
       <span class="mob-tab-icon">⚙️</span>设置
@@ -4772,29 +4769,115 @@ function renderMobileView() {
 
 function switchToDesktop() {
   document.getElementById('mobileView').style.display = 'none';
+  document.getElementById('appToolbar').style.display = 'flex';
   document.getElementById('main').style.display = 'flex';
   localStorage.setItem('gp_force_desktop', '1');
 }
 
+let _mobActiveTab = 'tasks';
 function mobSwitchTab(tab) {
+  _mobActiveTab = tab;
   document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('mobTab_' + tab);
   if (btn) btn.classList.add('active');
+
+  const cardList = document.getElementById('mobileCardList');
+  const ganttWrap = document.getElementById('mobileGanttWrap');
+
   if (tab === 'tasks') {
+    if (cardList) cardList.style.display = '';
+    if (ganttWrap) ganttWrap.style.display = 'none';
     renderMobileView();
+  } else if (tab === 'gantt') {
+    if (cardList) cardList.style.display = 'none';
+    if (ganttWrap) { ganttWrap.style.display = ''; renderMobileGantt(); }
   } else if (tab === 'report') {
     openReportModal();
-    setTimeout(() => document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active')), 300);
+    setTimeout(() => {
+      document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
+      if (document.getElementById('mobTab_' + _mobActiveTab))
+        document.getElementById('mobTab_' + (_mobActiveTab === 'report' ? 'tasks' : _mobActiveTab)).classList.add('active');
+    }, 300);
+    _mobActiveTab = 'tasks';
   } else if (tab === 'settings') {
     openProjModal();
-    setTimeout(() => document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active')), 300);
+    setTimeout(() => {
+      document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
+      document.getElementById('mobTab_tasks').classList.add('active');
+    }, 300);
+    _mobActiveTab = 'tasks';
   }
+}
+
+function renderMobileGantt() {
+  // Clone the real gantt into the mobile gantt wrapper using an iframe-like approach:
+  // Simply embed the full #main temporarily hidden but render to a scrollable mini-view.
+  // Better approach: use the existing chart rendering into a new container.
+  const wrap = document.getElementById('mobileGanttInner');
+  if (!wrap) return;
+  // Build a simplified horizontal gantt: task names on left, bars on right
+  const rows = getVisibleRows ? getVisibleRows() : [];
+  const totalW = Math.max(600, (dateToX ? dateToX(CHART_END.toISOString().slice(0,10)) : 600));
+  let html = `<div style="display:flex;min-width:${totalW+160}px;height:100%">`;
+  // Left labels col
+  html += `<div style="width:160px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);z-index:2;position:sticky;left:0">`;
+  rows.forEach(({task,depth}) => {
+    const indent = depth * 10;
+    const color = task.color || '#5E6AD2';
+    html += `<div style="height:36px;display:flex;align-items:center;padding-left:${8+indent}px;border-bottom:1px solid var(--border);gap:4px;overflow:hidden;cursor:pointer" onclick="openEditModal(${task.id})">
+      ${task.type==='milestone'?`<span style="color:${color};font-size:10px">◆</span>`:`<span style="width:8px;height:8px;border-radius:2px;background:${color};flex-shrink:0;display:inline-block"></span>`}
+      <span style="font-size:11px;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${task.name}</span>
+    </div>`;
+  });
+  html += `</div>`;
+  // Chart area
+  html += `<div style="flex:1;position:relative;overflow:visible">`;
+  // Header: dates
+  const startX = dateToX ? dateToX(CHART_START.toISOString().slice(0,10)) : 0;
+  // Draw rows
+  rows.forEach(({task},i) => {
+    const bg = i%2===0 ? 'transparent' : 'rgba(0,0,0,.018)';
+    html += `<div style="position:absolute;top:${i*36}px;left:0;right:0;height:36px;background:${bg}">`;
+    if (task.type === 'task' && task.start && task.end && task.start !== task.end) {
+      const x1 = (dateToX(task.start) - startX);
+      const x2 = (dateToX(task.end) - startX) + PPD;
+      const w = Math.max(4, x2 - x1);
+      const pct = task.progress ?? task.pct ?? 0;
+      html += `<div style="position:absolute;left:${x1}px;width:${w}px;top:5px;height:26px;border-radius:4px;background:${task.color||'#5E6AD2'};overflow:hidden;cursor:pointer" onclick="openEditModal(${task.id})">
+        <div style="position:absolute;top:0;left:0;bottom:0;width:${pct}%;background:rgba(0,0,0,.2)"></div>
+        ${w>40?`<span style="position:relative;z-index:1;font-size:10px;color:#fff;padding:0 5px;line-height:26px;white-space:nowrap;overflow:hidden;display:block;text-shadow:0 1px 2px rgba(0,0,0,.4)">${task.name}</span>`:''}
+      </div>`;
+    } else if ((task.type === 'milestone') || (task.type === 'task' && task.start && task.start === task.end)) {
+      const d = task.date || task.start;
+      if (d) {
+        const x = (dateToX(d) - startX) + PPD/2;
+        html += `<div style="position:absolute;left:${x-8}px;top:9px;width:16px;height:16px;background:${task.color||'#5E6AD2'};transform:rotate(45deg);border-radius:2px;cursor:pointer" onclick="openEditModal(${task.id})"></div>`;
+      }
+    } else if (task.type === 'group') {
+      const gb = groupBounds ? groupBounds(task.id) : null;
+      if (gb && gb.s && gb.e) {
+        const x1 = (dateToX(gb.s) - startX);
+        const x2 = (dateToX(gb.e) - startX) + PPD;
+        const w = Math.max(4, x2 - x1);
+        html += `<div style="position:absolute;left:${x1}px;width:${w}px;top:12px;height:12px;border-radius:2px 2px 0 0;background:${task.color||'#374151'}"></div>`;
+      }
+    }
+    html += `</div>`;
+  });
+  // Today line
+  if (dateToX) {
+    const tx = dateToX(TODAY_STR) - startX;
+    html += `<div style="position:absolute;left:${tx}px;top:0;bottom:0;width:1.5px;background:#EF4444;opacity:.6;pointer-events:none;z-index:5"></div>`;
+  }
+  html += `</div></div>`;
+  wrap.innerHTML = html;
 }
 
 function checkMobileView() {
   const forceDesktop = localStorage.getItem('gp_force_desktop');
   const isMobile = window.innerWidth < 768;
   if (isMobile && !forceDesktop) {
+    document.getElementById('appToolbar').style.display = 'none';
     document.getElementById('mobileView').style.display = 'flex';
     document.getElementById('main').style.display = 'none';
     renderMobileView();
@@ -6929,7 +7012,10 @@ function render() {
   renderTaskPanel();
   renderChartHeader();
   renderChartBody();
-  if (document.getElementById('mobileView')?.style.display !== 'none') renderMobileView();
+  if (document.getElementById('mobileView')?.style.display !== 'none') {
+    if (_mobActiveTab === 'gantt') renderMobileGantt();
+    else renderMobileView();
+  }
   const undoBtn = document.getElementById('undoBtn');
   if (undoBtn) undoBtn.disabled = _history.length === 0;
   if (isReadOnly) return;
@@ -7207,12 +7293,13 @@ async function signOut() {
 
 function showApp() {
   document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('appToolbar').style.display = 'flex';
   const isMobile = window.innerWidth < 768 && !localStorage.getItem('gp_force_desktop');
   if (isMobile) {
+    document.getElementById('appToolbar').style.display = 'none';
     document.getElementById('mobileView').style.display = 'flex';
     document.getElementById('main').style.display = 'none';
   } else {
+    document.getElementById('appToolbar').style.display = 'flex';
     document.getElementById('main').style.display = 'flex';
   }
 }
