@@ -3739,7 +3739,7 @@ function renderWorkloadChart(canvas, tw) {
   updateStats();
 }
 
-function setChartView(v) {
+function _baseSetChartView(v) {
   milestoneView = v === 'milestone';
   workloadView = v === 'workload';
   document.querySelectorAll('#chartViewBtns .btn').forEach(b => {
@@ -4803,7 +4803,7 @@ function isNonWorkday(d) {
 }
 
 function _isNonWork(d) {
-  return typeof isNonWorkdayCustom === 'function' ? isNonWorkdayCustom(d) : _isNonWork(d);
+  return typeof isNonWorkdayCustom === 'function' ? isNonWorkdayCustom(d) : isNonWorkday(d);
 }
 
 function subtractWorkingDays(endStr, days) {
@@ -6477,7 +6477,6 @@ function mergeDefaultProjects() {
 async function signInWithGoogle() { startLocal(); }
 
 async function signInAsGuest() {
-  false = true;
   await initApp();
   setSyncDot('local');
 }
@@ -7841,9 +7840,8 @@ function renderResourceCal() {
 }
 
 /* ═══════════════════════════════════════════
-   VIEW SWITCHING (patch setChartView)
+   VIEW SWITCHING
 ═══════════════════════════════════════════ */
-const _origSetChartView = setChartView;
 function setChartView(cv) {
   // Show/hide special views
   const dashboard = document.getElementById('dashboardView');
@@ -7870,7 +7868,7 @@ function setChartView(cv) {
     document.querySelectorAll('#chartViewBtns .btn').forEach(b => b.classList.toggle('active', b.dataset.cv === cv));
     return;
   }
-  _origSetChartView(cv);
+  _baseSetChartView(cv);
 }
 
 /* ═══════════════════════════════════════════
