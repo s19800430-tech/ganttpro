@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>GanttPro — 專案甘特圖</title>
+<title>GanttPro — 项目甘特图</title>
 <script src="https://cdn.jsdelivr.net/npm/pouchdb@9.0.0/dist/pouchdb.min.js"></script>
 <script async src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script async src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
@@ -1541,7 +1541,7 @@ body:not(.show-wbs) .wbs-code{display:none}
       </div>
     </div>
     <div style="flex:1"></div>
-    <div class="readonly-badge">👁 唯讀模式</div>
+    <div class="readonly-badge">👁 只读模式</div>
     <button class="btn" id="adminBtn" onclick="openAdminPanel()" title="管理員面板" style="display:none">👑 Admin</button>
     <div id="userDisplay"></div>
     <button class="btn" id="signOutBtn" onclick="signOut()" title="登出" style="display:none">登出</button>
@@ -1549,7 +1549,7 @@ body:not(.show-wbs) .wbs-code{display:none}
   </div>
   <!-- Row 2: Quickbar -->
   <div class="quickbar">
-    <button class="btn" id="undoBtn" onclick="undo()" title="復原 (⌘Z)" disabled>↩</button>
+    <button class="btn" id="undoBtn" onclick="undo()" title="撤销 (⌘Z)" disabled>↩</button>
     <div class="sep"></div>
     <button class="btn" onclick="scrollToToday()" title="跳至今日">📍 今日</button>
     <button class="btn" onclick="expandAll()" title="全展開">⊞</button>
@@ -1646,13 +1646,13 @@ body:not(.show-wbs) .wbs-code{display:none}
 <div class="overlay" id="shareOverlay" onclick="closeShareModal()">
   <div class="modal share-modal" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeShareModal()">✕</button>
-    <div class="modal-title">🔗 分享專案：<span id="shareModalProjName" style="color:var(--accent);font-size:14px"></span></div>
-    <p class="share-note">將此連結分享給其他人，對方可以唯讀瀏覽此專案，無法進行任何編輯。</p>
+    <div class="modal-title">🔗 分享项目：<span id="shareModalProjName" style="color:var(--accent);font-size:14px"></span></div>
+    <p class="share-note">将此链接分享给其他人，对方可以只读浏览此项目，无法进行任何编辑。</p>
     <div class="share-link-row">
       <input class="share-link-input" id="shareLinkInput" readonly>
-      <button class="share-copy-btn" onclick="copyShareLink()">複製連結</button>
+      <button class="share-copy-btn" onclick="copyShareLink()">复制链接</button>
     </div>
-    <div class="share-owner-note">💡 此連結為唯讀連結。只有您（專案建立者）在一般模式下可以編輯。</div>
+    <div class="share-owner-note">💡 此链接为只读链接。只有您（项目建立者）在一般模式下可以编辑。</div>
   </div>
 </div>
 
@@ -1719,14 +1719,14 @@ body:not(.show-wbs) .wbs-code{display:none}
   <div class="collab-box" onclick="event.stopPropagation()">
     <div class="collab-title">🔗 共享管理</div>
     <div class="collab-proj-row">
-      <label class="collab-proj-label">專案</label>
+      <label class="collab-proj-label">项目</label>
       <select id="collabProjSelect" class="collab-proj-select" onchange="onCollabProjChange()"></select>
     </div>
     <div class="collab-share-list" id="collabShareList"></div>
     <div class="collab-add-row">
-      <input id="collabEmailInput" type="email" placeholder="輸入對方的 Gmail 帳號" onkeydown="if(event.key==='Enter')addShare()">
+      <input id="collabEmailInput" type="email" placeholder="输入对方的 Gmail 账号" onkeydown="if(event.key==='Enter')addShare()">
       <select id="collabPermSelect">
-        <option value="viewer">唯讀</option>
+        <option value="viewer">只读</option>
         <option value="commenter">批注者</option>
         <option value="editor">共同編輯</option>
         <option value="admin">管理員</option>
@@ -1843,7 +1843,7 @@ body:not(.show-wbs) .wbs-code{display:none}
 <div class="overlay" id="workTimeOverlay" onclick="closeWorkTimeModal()">
   <div class="modal wtime-modal" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeWorkTimeModal()">✕</button>
-    <div class="modal-title">🗓 工作時間設定</div>
+    <div class="modal-title">🗓 工作时间设置</div>
     <div class="wtime-section">
       <div class="wtime-section-title">工作日</div>
       <div class="wday-check-row">
@@ -1857,23 +1857,23 @@ body:not(.show-wbs) .wbs-code{display:none}
       </div>
     </div>
     <div class="wtime-section">
-      <div class="wtime-section-title">每日工作時段</div>
+      <div class="wtime-section-title">每日工作时段</div>
       <div style="display:flex;flex-direction:column;gap:8px" id="shiftList"></div>
       <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
         <input type="time" id="shiftStartInput" value="09:00" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg);color:var(--t1)">
         <span style="font-size:12px;color:var(--t3)">至</span>
         <input type="time" id="shiftEndInput" value="18:00" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg);color:var(--t1)">
-        <button class="btn btn-primary" onclick="addWorkShift()" style="font-size:12px;padding:4px 10px">＋ 新增時段</button>
+        <button class="btn btn-primary" onclick="addWorkShift()" style="font-size:12px;padding:4px 10px">＋ 添加时段</button>
       </div>
-      <div style="font-size:11px;color:var(--t4);margin-top:4px">支援多個時段（如上午9-12、下午13-18）</div>
+      <div style="font-size:11px;color:var(--t4);margin-top:4px">支持多个时段（如上午9-12、下午13-18）</div>
     </div>
     <div class="wtime-section">
-      <div class="wtime-section-title">額外非工作日 / 假日</div>
+      <div class="wtime-section-title">额外非工作日 / 假日</div>
       <div class="wtime-nonwork-list" id="customNonWorkList"></div>
       <div class="wtime-add-row">
         <input type="date" id="customNonWorkInput">
-        <input type="text" id="customNonWorkLabel" placeholder="假日名稱（可選）" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--bg);color:var(--t1);width:130px">
-        <button class="btn btn-primary" onclick="addCustomNonWorkDay()">＋ 新增</button>
+        <input type="text" id="customNonWorkLabel" placeholder="假日名称（可选）" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--bg);color:var(--t1);width:130px">
+        <button class="btn btn-primary" onclick="addCustomNonWorkDay()">＋ 添加</button>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:16px">
@@ -1886,17 +1886,17 @@ body:not(.show-wbs) .wbs-code{display:none}
 <div class="overlay" id="reportOverlay" onclick="if(event.target===this)closeReportModal()">
   <div class="modal report-modal" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeReportModal()">✕</button>
-    <div class="modal-title">📝 專案報告</div>
+    <div class="modal-title">📝 项目报告</div>
     <div class="report-toolbar">
       <button class="btn" onclick="generateMdReport()">⟳ 重新生成</button>
       <select id="reportProjSelect" class="btn" style="cursor:pointer" onchange="generateMdReport()">
-        <option value="current">當前專案</option>
-        <option value="all">全部專案</option>
+        <option value="current">当前项目</option>
+        <option value="all">全部项目</option>
       </select>
     </div>
     <textarea class="report-md-area" id="reportMdArea" placeholder="生成中…" spellcheck="false"></textarea>
     <div class="report-export-row">
-      <button class="btn" onclick="copyMdReport()">📋 複製 Markdown</button>
+      <button class="btn" onclick="copyMdReport()">📋 复制 Markdown</button>
       <button class="btn btn-primary" onclick="exportPPTX()">📊 匯出 PPTX</button>
     </div>
   </div>
@@ -1925,12 +1925,12 @@ body:not(.show-wbs) .wbs-code{display:none}
     <div class="task-thead">
       <div class="task-thead-r">
         <span class="th" style="text-align:center">#</span>
-        <div class="th th-col">任務名稱<div class="col-rsz" data-ci="1"></div></div>
-        <div class="th th-col">開始日期<div class="col-rsz" data-ci="2"></div></div>
-        <div class="th th-col">結束日期<div class="col-rsz" data-ci="3"></div></div>
-        <div class="th th-col" style="justify-content:center">工作日<div class="col-rsz" data-ci="4"></div></div>
-        <div class="th th-col">前置任務<div class="col-rsz" data-ci="5"></div></div>
-        <span class="th" style="text-align:center">完成</span>
+        <div class="th th-col" data-i18n="taskName">任务名称<div class="col-rsz" data-ci="1"></div></div>
+        <div class="th th-col" data-i18n="startDate">开始日期<div class="col-rsz" data-ci="2"></div></div>
+        <div class="th th-col" data-i18n="endDate">结束日期<div class="col-rsz" data-ci="3"></div></div>
+        <div class="th th-col" style="justify-content:center" data-i18n="workDays">工作日<div class="col-rsz" data-ci="4"></div></div>
+        <div class="th th-col" data-i18n="predecessor">前置任务<div class="col-rsz" data-ci="5"></div></div>
+        <span class="th" style="text-align:center" data-i18n="done">完成</span>
         <span></span>
       </div>
       <div class="task-thead-r">
@@ -1977,7 +1977,7 @@ body:not(.show-wbs) .wbs-code{display:none}
     <div class="chat-messages" id="chatMessages"></div>
     <div class="chat-input-wrap" style="position:relative">
       <div class="chat-mention-dropdown" id="mentionDropdown" style="display:none"></div>
-      <textarea class="chat-input" id="chatInput" placeholder="輸入訊息，@ 提及成員…" rows="3" onkeydown="onChatKeyDown(event)" oninput="onChatInput(event)"></textarea>
+      <textarea class="chat-input" id="chatInput" placeholder="输入消息，@ 提及成员…" rows="3" onkeydown="onChatKeyDown(event)" oninput="onChatInput(event)"></textarea>
       <div class="chat-send-row">
         <button class="chat-mention-btn" onclick="insertMention()">@ 提及</button>
         <button class="chat-send-btn" onclick="sendChatMessage()">傳送</button>
@@ -1993,17 +1993,17 @@ body:not(.show-wbs) .wbs-code{display:none}
   <div class="stat"><div class="stat-dot" style="background:#5E6AD2"></div>里程碑 <b id="sMilestone">0</b></div>
   <div class="spacer"></div>
   <div class="stat">今日：<b id="sTodayDisplay"></b></div>
-  <div class="stat">專案期間：<b id="sPeriod">2026-04-01 — 2026-07-31</b></div>
+  <div class="stat">项目期间：<b id="sPeriod">2026-04-01 — 2026-07-31</b></div>
 </div>
 
 <!-- DELETE CONFIRM MODAL -->
 <div class="overlay" id="deleteOverlay" onclick="closeDeleteModal(event)">
   <div class="modal" onclick="event.stopPropagation()" style="width:320px;padding:20px 20px 16px">
-    <div class="modal-title" style="font-size:14px;margin-bottom:6px">刪除任務</div>
-    <p id="deleteModalMsg" style="font-size:12px;color:var(--t3);margin:0 0 18px;line-height:1.5">此操作無法復原。</p>
+    <div class="modal-title" style="font-size:14px;margin-bottom:6px">删除任务</div>
+    <p id="deleteModalMsg" style="font-size:12px;color:var(--t3);margin:0 0 18px;line-height:1.5">此操作无法撤销。</p>
     <div style="display:flex;justify-content:flex-end;gap:8px">
       <button onclick="closeDeleteModal()" style="height:28px;padding:0 12px;border-radius:5px;font-size:12px;border:1px solid var(--border);background:var(--surface);color:var(--t2);cursor:pointer">取消</button>
-      <button id="deleteConfirmBtn" style="height:28px;padding:0 12px;border-radius:5px;font-size:12px;border:none;background:var(--red);color:#fff;cursor:pointer">刪除</button>
+      <button id="deleteConfirmBtn" style="height:28px;padding:0 12px;border-radius:5px;font-size:12px;border:none;background:var(--red);color:#fff;cursor:pointer">删除</button>
     </div>
   </div>
 </div>
@@ -2011,33 +2011,33 @@ body:not(.show-wbs) .wbs-code{display:none}
 <!-- ADD TASK MODAL -->
 <div class="overlay" id="overlay" onclick="closeModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
-    <button class="modal-close" onclick="closeModal()" title="關閉">✕</button>
-    <div class="modal-title" id="modal-title">＋ 新增任務</div>
+    <button class="modal-close" onclick="closeModal()" title="关闭">✕</button>
+    <div class="modal-title" id="modal-title">＋ 新增任务</div>
     <div class="form-row">
-      <label class="form-lbl">任務名稱</label>
-      <input class="form-ctrl" id="fName" placeholder="輸入任務名稱...">
+      <label class="form-lbl">任务名称</label>
+      <input class="form-ctrl" id="fName" placeholder="输入任务名称...">
     </div>
     <div class="form-row-2" style="grid-template-columns:1fr 1fr">
       <div>
-        <label class="form-lbl">類型</label>
+        <label class="form-lbl">类型</label>
         <select class="form-ctrl" id="fType" onchange="updateModalForType()">
-          <option value="task">一般任務</option>
+          <option value="task">普通任务</option>
           <option value="milestone">里程碑</option>
-          <option value="group">群組</option>
+          <option value="group">群组</option>
         </select>
       </div>
       <div>
-        <label class="form-lbl">父群組</label>
+        <label class="form-lbl">父群组</label>
         <select class="form-ctrl" id="fParent"></select>
       </div>
     </div>
     <div class="form-row-2" id="rowDates" style="grid-template-columns:1fr 1fr 80px">
       <div>
-        <label class="form-lbl" id="lblStart">開始日期</label>
+        <label class="form-lbl" id="lblStart">开始日期</label>
         <input class="form-ctrl" type="date" id="fStart" value="2026-05-07">
       </div>
       <div id="colEnd">
-        <label class="form-lbl">結束日期</label>
+        <label class="form-lbl">结束日期</label>
         <input class="form-ctrl" type="date" id="fEnd" value="2026-05-14">
       </div>
       <div id="colWday">
@@ -2046,41 +2046,41 @@ body:not(.show-wbs) .wbs-code{display:none}
       </div>
     </div>
     <div class="form-row" id="rowDeps">
-      <label class="form-lbl">前置任務</label>
+      <label class="form-lbl">前置任务</label>
       <div id="fDepsWrap">
-        <input class="form-ctrl" id="fDeps" placeholder="輸入列號（如 2、2SS、2FS+3）或從下方選擇" autocomplete="off">
+        <input class="form-ctrl" id="fDeps" placeholder="输入行号（如 2、2SS、2FS+3）或从下方选择" autocomplete="off">
         <div id="fDepsList" onmousedown="event.preventDefault()"></div>
       </div>
       <div id="fDepsTip" style="font-size:11px;color:var(--t3);margin-top:4px;line-height:1.5"></div>
     </div>
     <div class="form-row" id="rowAssignee">
-      <label class="form-lbl" data-i18n="assignee">負責人</label>
+      <label class="form-lbl" data-i18n="assignee">负责人</label>
       <div class="res-chips-wrap" id="resChipsWrap" onclick="document.getElementById('resChipInput').focus()">
-        <input class="res-chip-input" id="resChipInput" autocomplete="off" placeholder="輸入姓名後按 Enter" list="assigneeList">
+        <input class="res-chip-input" id="resChipInput" autocomplete="off" placeholder="输入姓名后按 Enter" list="assigneeList">
       </div>
       <datalist id="assigneeList"></datalist>
     </div>
     <div class="form-row" id="rowDone" style="display:flex;align-items:center;gap:10px;margin-bottom:0">
       <label class="form-lbl" style="margin-bottom:0">已完成</label>
       <div class="check-box" id="fDone" onclick="this.classList.toggle('done');this.textContent=this.classList.contains('done')?'✓':'';if(this.classList.contains('done'))document.getElementById('fProgress').value=100"></div>
-      <label class="form-lbl" style="margin-bottom:0;margin-left:14px">進度</label>
+      <label class="form-lbl" style="margin-bottom:0;margin-left:14px">进度</label>
       <input class="form-ctrl" type="number" id="fProgress" min="0" max="100" step="5" value="0" style="width:70px;text-align:center">
       <span style="font-size:12px;color:var(--t3)">%</span>
     </div>
     <div class="form-row" id="rowLink">
-      <label class="form-lbl">超連結（文件）</label>
+      <label class="form-lbl">超链接（文档）</label>
       <div style="display:flex;gap:6px;align-items:center;flex:1">
-        <input class="form-ctrl" id="fLink" placeholder="https://… （僅允許複製，不直接開啟）" style="flex:1">
-        <button class="btn" onclick="copyTaskLink()" title="複製連結" style="flex-shrink:0">複製</button>
+        <input class="form-ctrl" id="fLink" placeholder="https://… （仅允许复制，不直接打开）" style="flex:1">
+        <button class="btn" onclick="copyTaskLink()" title="复制链接" style="flex-shrink:0">复制</button>
       </div>
     </div>
     <div class="form-row" id="rowApproval">
-      <label class="form-lbl">審批狀態</label>
+      <label class="form-lbl">审批状态</label>
       <select class="form-ctrl" id="fApproval">
-        <option value="">無需審批</option>
-        <option value="pending">待審批</option>
+        <option value="">无需审批</option>
+        <option value="pending">待审批</option>
         <option value="approved">已批准</option>
-        <option value="rejected">已拒絕</option>
+        <option value="rejected">已拒绝</option>
       </select>
     </div>
     <div class="form-row" id="rowEvidence">
@@ -2095,8 +2095,8 @@ body:not(.show-wbs) .wbs-code{display:none}
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal()">取消</button>
-      <button class="btn" id="modal-approval-btn" onclick="submitApproval()" style="display:none">📋 提交審批</button>
-      <button class="btn btn-primary" id="modal-submit" onclick="submitTask()">新增任務</button>
+      <button class="btn" id="modal-approval-btn" onclick="submitApproval()" style="display:none">📋 提交审批</button>
+      <button class="btn btn-primary" id="modal-submit" onclick="submitTask()">新增任务</button>
     </div>
   </div>
 </div>
@@ -2105,32 +2105,32 @@ body:not(.show-wbs) .wbs-code{display:none}
 <div class="overlay" id="projOverlay" onclick="closeProjModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeProjModal()" title="關閉">✕</button>
-    <div class="modal-title" id="projModalTitle">◆ 建立新專案</div>
+    <div class="modal-title" id="projModalTitle">◆ 新建项目</div>
     <div class="form-row">
-      <label class="form-lbl">專案名稱</label>
-      <input class="form-ctrl" id="pName" placeholder="例：網站改版計畫、Q3 行銷活動...">
+      <label class="form-lbl" id="lblProjName">项目名称</label>
+      <input class="form-ctrl" id="pName" placeholder="例：网站改版、Q3 营销活动...">
     </div>
     <div class="form-row">
-      <label class="form-lbl">開始日期</label>
+      <label class="form-lbl">开始日期</label>
       <input class="form-ctrl" type="date" id="pStart" value="2026-05-06">
     </div>
     <div class="form-row">
-      <label class="form-lbl">套用範本</label>
+      <label class="form-lbl">套用模板</label>
       <select class="form-ctrl" id="pTemplate" onchange="onTemplateChange()">
-        <option value="">— 空白專案 —</option>
+        <option value="">— 空白项目 —</option>
       </select>
     </div>
     <div id="templatePreview" style="display:none;margin:4px 0 0;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--t3);line-height:1.6"></div>
     <div class="form-row">
-      <label class="form-lbl">專案顏色</label>
+      <label class="form-lbl">项目颜色</label>
       <div style="display:flex;align-items:center;gap:8px;margin-top:6px" id="projColorPreview">
         <div id="projColorDot" style="width:20px;height:20px;border-radius:50%;background:#5E6AD2;flex-shrink:0"></div>
-        <span style="font-size:12px;color:var(--t3)">自動分配（依色盤順序）</span>
+        <span style="font-size:12px;color:var(--t3)">自动分配（按调色板顺序）</span>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeProjModal()">取消</button>
-      <button class="btn btn-primary" id="projSubmitBtn" onclick="submitProject()">建立專案</button>
+      <button class="btn btn-primary" id="projSubmitBtn" onclick="submitProject()">建立项目</button>
     </div>
   </div>
 </div>
@@ -2203,8 +2203,8 @@ function getNextGroupColor() {
 const TEMPLATES = [
   {
     id: 'hardware',
-    name: '硬體產品開發與量產標準流程',
-    defaultName: '硬體產品開發計畫',
+    name: '硬件产品开发与量产标准流程',
+    defaultName: '硬件产品开发计划',
     color: '#0EA5E9',
     tasks: [
       { id:1,  name:'{{PROJECT_NAME}}',      type:'group',     parent:null, color:'#0EA5E9' },
@@ -2261,13 +2261,13 @@ const TEMPLATES = [
 let projects = [
   {
     id: 2,
-    name: '硬體產品開發與量產標準流程',
+    name: '硬件产品开发与量产标准流程',
     color: '#0EA5E9',
     startDate: '2026-05-04',
     endDate: '2027-03-31',
     nextId: 38,
     tasks: [
-      { id:1,  name:'硬體產品開發與量產標準流程', type:'group', parent:null, color:'#0EA5E9' },
+      { id:1,  name:'硬件产品开发与量产标准流程', type:'group', parent:null, color:'#0EA5E9' },
 
       { id:2,  name:'需求定義',           type:'group',     parent:1,  color:'#818CF8' },
       { id:3,  name:'市場需求調研',       type:'task',      parent:2,  color:'#818CF8', wday:10, deps:[],    done:false, start:'', end:'' },
@@ -2737,7 +2737,7 @@ function renderTaskPanel() {
       const mb = document.createElement('span');
       mb.textContent = '◆';
       mb.style.cssText = `font-size:13px;color:${task.color};cursor:pointer;opacity:${task.done ? 0.3 : 1};transition:opacity .12s`;
-      mb.title = task.done ? '點擊標記為未完成' : '點擊標記為完成';
+      mb.title = task.done ? '点击标记为未完成' : '点击标记为完成';
       mb.onclick = e => {
         e.stopPropagation();
         pushHistory();
@@ -2780,14 +2780,14 @@ function renderTaskPanel() {
     const addBtn = document.createElement('div');
     addBtn.className = 'row-action-btn add';
     addBtn.textContent = '+';
-    addBtn.title = '在此節點下新增任務';
+    addBtn.title = '在此节点下新增任务';
     addBtn.onclick = e => { e.stopPropagation(); addTaskInline(task.id); };
     ac.appendChild(addBtn);
 
     const delBtn = document.createElement('div');
     delBtn.className = 'row-action-btn del';
     delBtn.textContent = '✕';
-    delBtn.title = '刪除任務';
+    delBtn.title = '删除任务';
     delBtn.onclick = e => { e.stopPropagation(); confirmDeleteTask(task.id); };
     ac.appendChild(delBtn);
 
@@ -4719,7 +4719,7 @@ function populateModal(excludeId = null, checkedDeps = [], presetParent = null, 
   sel.innerHTML = '';
   const noneOpt = document.createElement('option');
   noneOpt.value = '';
-  noneOpt.textContent = '— 無（最上層）—';
+  noneOpt.textContent = '— 无（最上层）—';
   sel.appendChild(noneOpt);
   const excludeSet = excludeId !== null ? new Set([excludeId, ...getAllDescendants(excludeId)]) : new Set();
   tasks.filter(t => t.type === 'group' && !excludeSet.has(t.id)).forEach(t => {
@@ -4776,7 +4776,7 @@ function updateModalForType() {
   document.getElementById('rowDates').style.display = isGrp ? 'none' : '';
   document.getElementById('colEnd').style.display   = isMs ? 'none' : '';
   document.getElementById('colWday').style.display  = isMs ? 'none' : '';
-  document.getElementById('lblStart').textContent   = isMs ? '日期' : '開始日期';
+  document.getElementById('lblStart').textContent   = isMs ? '日期' : '开始日期';
   document.getElementById('rowDone').style.display  = (isMs || isGrp) ? 'none' : 'flex';
   document.getElementById('rowDeps').style.display  = isGrp ? 'none' : '';
   document.getElementById('rowAssignee').style.display = isGrp ? 'none' : '';
@@ -4910,8 +4910,8 @@ function _baseOpenModal(unused, prefillDate) {
   if (isReadOnly) return;
   if (!curProj()) { openProjModal(); return; }
   editingTaskId = null;
-  document.getElementById('modal-title').textContent = '＋ 新增任務';
-  document.getElementById('modal-submit').textContent = '新增任務';
+  document.getElementById('modal-title').textContent = '＋ 新增任务';
+  document.getElementById('modal-submit').textContent = '新增任务';
   document.getElementById('fName').value = '';
   const startDate = prefillDate || TODAY_STR;
   document.getElementById('fStart').value = startDate;
@@ -4938,7 +4938,7 @@ function openNameEditor(task, cell, isNew = false) {
   inp.type = 'text';
   inp.className = 'inline-input';
   inp.value = task.name;
-  inp.placeholder = '輸入任務名稱…';
+  inp.placeholder = '输入任务名称…';
   inp.style.cssText = 'width:100%;min-width:80px';
   cell.innerHTML = '';
   cell.style.overflow = 'visible';
@@ -5010,8 +5010,8 @@ function openModalUnder(taskId) {
   if (!task) return;
   const parentId = task.parent;
   editingTaskId = null;
-  document.getElementById('modal-title').textContent = '＋ 新增任務';
-  document.getElementById('modal-submit').textContent = '新增任務';
+  document.getElementById('modal-title').textContent = '＋ 新增任务';
+  document.getElementById('modal-submit').textContent = '新增任务';
   document.getElementById('fName').value = '';
   document.getElementById('fStart').value = TODAY_STR;
   document.getElementById('fEnd').value = TODAY_STR;
@@ -5027,8 +5027,8 @@ function _baseOpenEditModal(taskId) {
   const task = taskById(taskId);
   if (!task) return;
   editingTaskId = taskId;
-  document.getElementById('modal-title').textContent = '✏️ 編輯任務';
-  document.getElementById('modal-submit').textContent = '儲存變更';
+  document.getElementById('modal-title').textContent = '✏️ 编辑任务';
+  document.getElementById('modal-submit').textContent = '保存修改';
   document.getElementById('fName').value = task.name;
   document.getElementById('fType').value = task.type;
   document.getElementById('fStart').value = task.start || task.date || TODAY_STR;
@@ -5062,9 +5062,9 @@ function confirmDeleteTask(id) {
   const descendants = getAllDescendants(id);
   const msg = document.getElementById('deleteModalMsg');
   if (task.type === 'group' && descendants.length > 0) {
-    msg.textContent = `此群組及其 ${descendants.length} 個子任務將一併刪除，此操作無法復原。`;
+    msg.textContent = `此群組及其 ${descendants.length} 个子任务将一并删除，此操作无法撤销。`;
   } else {
-    msg.textContent = '此操作無法復原。';
+    msg.textContent = '此操作无法撤销。';
   }
 
   document.getElementById('deleteConfirmBtn').onclick = () => { executeDeleteTask(_deleteTargetId); };
@@ -5105,7 +5105,7 @@ function executeDeleteTask(id) {
   const delName = tasks.find(t => t.id === id)?.name || String(id);
   tasks = tasks.filter(t => !toDelete.has(t.id));
   curProj().tasks = tasks;
-  if (typeof logAudit === 'function') logAudit('刪除任務', delName + (toDelete.size > 1 ? ` (+${toDelete.size-1}個子任務)` : ''));
+  if (typeof logAudit === 'function') logAudit('删除任务', delName + (toDelete.size > 1 ? ` (+${toDelete.size-1}個子任務)` : ''));
   render();
   saveToLS();
   if (currentUser) saveToCloud();
@@ -6108,7 +6108,7 @@ function openProjModal() {
     tplRow.className = 'form-row';
     tplRow.id = 'tplRow';
     tplRow.innerHTML =
-      '<label class="form-lbl">套用範本</label>' +
+      '<label class="form-lbl">套用模板</label>' +
       '<select class="form-ctrl" id="pTemplate" onchange="onTemplateChange()">' +
       `<option value="">${t('blankProj')}</option></select>`;
     startRow.insertAdjacentElement('afterend', tplRow);
@@ -6363,7 +6363,7 @@ function openShareModal() {
   const token = getOrCreateShareToken(proj);
   document.getElementById('shareModalProjName').textContent = proj.name;
   const note = document.querySelector('.share-owner-note');
-  if (note) note.innerHTML = '💡 此連結為唯讀連結。只有您（專案建立者）在一般模式下可以編輯。';
+  if (note) note.innerHTML = '💡 此链接为只读链接。只有您（项目建立者）在一般模式下可以编辑。';
   render();
   const encoded = saveShareToCloud(token, proj);
   const hash = encoded ? '#d=' + encoded : '';
@@ -6531,7 +6531,8 @@ function createVersion() {
 function restoreVersion(vId) {
   const v = curVersions().find(v => v.id === vId);
   if (!v) return;
-  if (!confirm(`還原至版本「${v.name}」？\n目前變更將被覆蓋，此操作無法復原。`)) return;
+  if (!confirm(`还原至版本「${v.name}」？
+当前变更将被覆盖，此操作无法撤销。`)) return;
   curProj().tasks = JSON.parse(JSON.stringify(v.snapshot));
   tasks = curProj().tasks;
   collapsed.clear();
@@ -6545,7 +6546,7 @@ function deleteVersion(vId) {
   const vs = curVersions();
   const v = vs.find(v => v.id === vId);
   if (!v) return;
-  if (!confirm(`刪除版本「${v.name}」？`)) return;
+  if (!confirm(`删除版本「${v.name}」？`)) return;
   curProj().versions = vs.filter(v => v.id !== vId);
   renderVersionList();
   render();
@@ -6555,7 +6556,7 @@ function renderVersionList() {
   const el = document.getElementById('verList');
   const vs = curVersions();
   if (vs.length === 0) {
-    el.innerHTML = '<div class="ver-empty">尚無版本紀錄<br>編輯完成後輸入版本名稱<br>點擊「建立版本」儲存快照</div>';
+    el.innerHTML = '<div class="ver-empty">尚无版本记录<br>编辑完成后输入版本名称<br>点击「建立版本」保存快照</div>';
     return;
   }
   el.innerHTML = '';
@@ -6569,7 +6570,7 @@ function renderVersionList() {
       <div class="ver-item-meta">${dateStr} · ${v.taskCount} 個任務</div>
       <div class="ver-item-actions">
         <button class="ver-btn ver-btn-restore" onclick="restoreVersion(${v.id})">還原此版本</button>
-        <button class="ver-btn ver-btn-del" onclick="deleteVersion(${v.id})">刪除</button>
+        <button class="ver-btn ver-btn-del" onclick="deleteVersion(${v.id})">删除</button>
       </div>
     `;
     el.appendChild(item);
@@ -6713,7 +6714,7 @@ function setSyncDot(state) {
   const dot = document.getElementById('syncDot');
   if (!dot) return;
   dot.className = 'sync-dot' + (state ? ' ' + state : '');
-  dot.title = { saving:'儲存中...', ok:'已同步', err:'同步失敗', off:'唯讀模式', local:'本地模式（不同步雲端）' }[state] || '雲端同步';
+  dot.title = { saving:'保存中...', ok:'已同步', err:'同步失败', off:'只读模式', local:'本地模式（不同步云端）' }[state] || '雲端同步';
 }
 
 async function saveToCloud() {
@@ -7357,6 +7358,20 @@ function applyI18N() {
   document.querySelectorAll('.th').forEach(el => {
     thMap.forEach(([cn, key]) => { if (el.textContent.trim() === cn) el.childNodes[0].textContent = t(key); });
   });
+
+  // Generic data-i18n attribute handling
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const val = t(key);
+    if (val && val !== key) {
+      // If element has child elements, only update the first text node
+      if (el.firstChild && el.firstChild.nodeType === 3) {
+        el.firstChild.textContent = val;
+      } else if (!el.children.length) {
+        el.textContent = val;
+      }
+    }
+  });
 }
 
 /* ═══════════════════════════════════════════
@@ -7799,7 +7814,7 @@ function renderCustomNonWorkList() {
   const el = document.getElementById('customNonWorkList');
   if (!el) return;
   if (!_customNonWorkDays.length) {
-    el.innerHTML = '<div style="font-size:11px;color:var(--t4);padding:4px 0">尚無自訂非工作日</div>';
+    el.innerHTML = '<div style="font-size:11px;color:var(--t4);padding:4px 0">尚无自定义非工作日</div>';
     return;
   }
   el.innerHTML = _customNonWorkDays.map(x => {
@@ -7813,7 +7828,7 @@ function renderShiftList() {
   if (!el) return;
   el.innerHTML = _workShifts.map((s, i) =>
     `<div style="display:flex;align-items:center;gap:8px;font-size:13px">
-      <span style="color:var(--t3)">時段 ${i+1}:</span>
+      <span style="color:var(--t3)">时段 ${i+1}:</span>
       <strong style="color:var(--t1)">${s.start} – ${s.end}</strong>
       <span style="color:var(--t4);font-size:11px">(${calcShiftHours(s.start,s.end)}h)</span>
       ${_workShifts.length > 1 ? `<button onclick="removeWorkShift(${i})" style="background:none;border:none;color:var(--t4);cursor:pointer;font-size:14px;padding:0 4px">✕</button>` : ''}
@@ -7828,10 +7843,10 @@ function calcShiftHours(start, end) {
 function addWorkShift() {
   const s = document.getElementById('shiftStartInput')?.value;
   const e = document.getElementById('shiftEndInput')?.value;
-  if (!s || !e || s >= e) { alert('請輸入有效的時段（結束時間必須晚於開始時間）'); return; }
+  if (!s || !e || s >= e) { alert('请输入有效的时段（结束时间必须晚于开始时间）'); return; }
   // Check overlap
   for (const sh of _workShifts) {
-    if (!(e <= sh.start || s >= sh.end)) { alert('時段與現有時段重疊'); return; }
+    if (!(e <= sh.start || s >= sh.end)) { alert('时段与现有时段重叠'); return; }
   }
   _workShifts.push({ start: s, end: e });
   _workShifts.sort((a, b) => a.start < b.start ? -1 : 1);
@@ -7927,7 +7942,7 @@ function renderChatMessages(msgs) {
   const el = document.getElementById('chatMessages');
   if (!el) return;
   if (!msgs.length) {
-    el.innerHTML = `<div style="text-align:center;font-size:12px;color:var(--t4);margin-top:24px">${_chatTab==='chat'?'暫無訊息，輸入開始聊天…':'暫無批注，點擊任務列新增批注…'}</div>`;
+    el.innerHTML = `<div style="text-align:center;font-size:12px;color:var(--t4);margin-top:24px">${_chatTab==='chat'?'暂无消息，输入开始聊天…':'暂无批注，点击任务行添加批注…'}</div>`;
     return;
   }
   el.innerHTML = msgs.map(m => {
@@ -8061,7 +8076,7 @@ function renderDashboard() {
   });
 
   el.innerHTML = `
-  <div style="font-size:20px;font-weight:800;color:var(--t1);margin-bottom:20px">📊 專案儀表板</div>
+  <div style="font-size:20px;font-weight:800;color:var(--t1);margin-bottom:20px">📊 项目仪表板</div>
 
   <div class="dash-grid">
     <div class="kpi-card">
@@ -8073,7 +8088,7 @@ function renderDashboard() {
     <div class="kpi-card">
       <div class="kpi-label">里程碑完成</div>
       <div class="kpi-value">${msDone}<span style="font-size:14px;color:var(--t4)">/${milestones.length}</span></div>
-      <div class="kpi-sub">里程碑達成率 ${milestones.length?Math.round(msDone/milestones.length*100):0}%</div>
+      <div class="kpi-sub">里程碑达成率 ${milestones.length?Math.round(msDone/milestones.length*100):0}%</div>
       <div class="kpi-bar"><div class="kpi-bar-fill" style="width:${milestones.length?msDone/milestones.length*100:0}%"></div></div>
     </div>
     <div class="kpi-card">
@@ -8082,14 +8097,14 @@ function renderDashboard() {
       <div class="kpi-sub">截止日期已過未完成</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">專案數量</div>
+      <div class="kpi-label">项目数量</div>
       <div class="kpi-value">${projects.length}</div>
       <div class="kpi-sub">進行中 ${projects.length} 個</div>
     </div>
   </div>
 
   <div class="dash-section">
-    <div class="dash-section-title">🏢 各專案健康度</div>
+    <div class="dash-section-title">🏢 各项目健康度</div>
     ${projBars.map(p => `
       <div class="proj-health-bar">
         <div class="phb-name" title="${p.name}">${p.name}</div>
@@ -8386,7 +8401,7 @@ function exportExcel() {
   XLSX.utils.book_append_sheet(wb, ws, '任務列表');
 
   // Sheet 2: Project Summary
-  const sumRows = [['專案名稱','開始日期','結束日期','任務數','完成數','完成率%']];
+  const sumRows = [['项目名称','开始日期','结束日期','任务数','完成数','完成率%']];
   projects.forEach(p => {
     const pt = (p.tasks||[]).filter(t=>t.type==='task');
     const pd = pt.filter(t=>t.done).length;
@@ -8394,7 +8409,7 @@ function exportExcel() {
   });
   const ws2 = XLSX.utils.aoa_to_sheet(sumRows);
   ws2['!cols'] = [28,12,12,10,10,10].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb, ws2, '專案摘要');
+  XLSX.utils.book_append_sheet(wb, ws2, '项目摘要');
 
   const proj = curProj();
   XLSX.writeFile(wb, `GanttPro-${proj?.name||'export'}-${TODAY_STR}.xlsx`);
@@ -8462,7 +8477,7 @@ function generateMdReport() {
   const mode = sel ? sel.value : 'current';
   const projs = mode === 'all' ? projects : [curProj()].filter(Boolean);
 
-  let md = `# 📊 GanttPro 專案報告\n\n生成時間：${TODAY_STR}\n\n`;
+  let md = `# 📊 GanttPro 项目报告\n\n生成時間：${TODAY_STR}\n\n`;
 
   projs.forEach(p => {
     const pt = (p.tasks||[]).filter(t=>t.type==='task');
@@ -8647,7 +8662,7 @@ function submitTask() {
    RBAC — role-aware permission display
 ═══════════════════════════════════════════ */
 function getRoleLabel(perm) {
-  return { viewer:'唯讀', commenter:'批注者', editor:'共同編輯', admin:'管理員', read:'唯讀', edit:'共同編輯' }[perm] || perm;
+  return { viewer:'只读', commenter:'批注者', editor:'共同编辑', admin:'管理员', read:'只读', edit:'共同编辑' }[perm] || perm;
 }
 function getRoleClass(perm) {
   return { admin:'admin', editor:'editor', edit:'editor', viewer:'viewer', read:'viewer', commenter:'commenter' }[perm] || 'viewer';
