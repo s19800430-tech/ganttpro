@@ -9116,6 +9116,56 @@ function initWorkTimeSettings() {
 /* ═══════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════ */
+/* ── Body scroll lock for modals (prevents iOS page-position jump) ── */
+let _scrollLockY = 0;
+let _scrollLockCount = 0;
+function _lockBodyScroll() {
+  if (++_scrollLockCount === 1) {
+    _scrollLockY = window.scrollY || window.pageYOffset || 0;
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${_scrollLockY}px`;
+    document.body.style.width = '100%';
+  }
+}
+function _unlockBodyScroll() {
+  if (--_scrollLockCount <= 0) {
+    _scrollLockCount = 0;
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    window.scrollTo(0, _scrollLockY);
+  }
+}
+// Watch every .overlay for class="open" — single MutationObserver handles all modals
+(function() {
+  const _tracked = new WeakSet();
+  function watchOverlay(el) {
+    if (_tracked.has(el)) return;
+    _tracked.add(el);
+    let wasOpen = el.classList.contains('open');
+    new MutationObserver(() => {
+      const isOpen = el.classList.contains('open');
+      if (isOpen && !wasOpen) _lockBodyScroll();
+      if (!isOpen && wasOpen) _unlockBodyScroll();
+      wasOpen = isOpen;
+    }).observe(el, { attributes: true, attributeFilter: ['class'] });
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.overlay').forEach(watchOverlay);
+    // Also catch dynamically added overlays
+    new MutationObserver(muts => {
+      muts.forEach(m => m.addedNodes.forEach(n => {
+        if (n.nodeType === 1) {
+          if (n.classList?.contains('overlay')) watchOverlay(n);
+          n.querySelectorAll?.('.overlay').forEach(watchOverlay);
+        }
+      }));
+    }).observe(document.body, { childList: true, subtree: true });
+  });
+})();
+
 document.addEventListener('DOMContentLoaded', async () => {
   applyTheme(_activeTheme);
   initWorkTimeSettings();
