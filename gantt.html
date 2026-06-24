@@ -1490,7 +1490,9 @@ body:not(.show-wbs) .wbs-code{display:none}
 .mobile-card-meta{font-size:11px;color:var(--t3);display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}
 .mobile-card-progress{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
 .mobile-card-progress-fill{height:100%;border-radius:2px;transition:width .3s}
-.mobile-card-group{background:var(--surface2);border-left:3px solid var(--accent);padding:8px 12px;border-radius:6px;margin-bottom:6px;font-size:13px;font-weight:700;color:var(--t1)}
+.mobile-card-group{background:var(--surface2);border-left:3px solid var(--accent);padding:8px 12px;border-radius:6px;margin-bottom:6px;font-size:13px;font-weight:700;color:var(--t1);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px}
+.mobile-card-group .mcg-chevron{display:inline-block;transition:transform .2s;font-size:10px;color:var(--accent);flex-shrink:0}
+.mobile-card-group.collapsed .mcg-chevron{transform:rotate(-90deg)}
 .mobile-card-milestone{border-left:3px solid var(--gold,#F59E0B)}
 /* ══════════════════════════════════════
    MOBILE (≤767px) — iOS/Android style
@@ -4950,9 +4952,26 @@ function renderMobileView() {
   }
 
   const today = TODAY_STR;
-  el.innerHTML = bannerHtml + displayTasks.map(t => {
+  // Filter out children of collapsed groups
+  const visibleTasks = displayTasks.filter(t => {
+    if (!t.parent) return true;
+    // walk up to see if any ancestor is collapsed
+    let pid = t.parent;
+    while (pid) {
+      if (_mobCollapsed.has(pid)) return false;
+      const par = tasks.find(p => p.id === pid);
+      pid = par?.parent;
+    }
+    return true;
+  });
+  el.innerHTML = bannerHtml + visibleTasks.map(t => {
     if (t.type === 'group') {
-      return `<div class="mobile-card-group">▶ ${t.name}</div>`;
+      const collapsed = _mobCollapsed.has(t.id);
+      const childCount = tasks.filter(c => c.parent === t.id).length;
+      const countLabel = childCount ? `<span style="font-size:11px;font-weight:400;color:var(--t3);margin-left:auto">${childCount}项</span>` : '';
+      return `<div class="mobile-card-group${collapsed?' collapsed':''}" onclick="toggleMobGroup(${t.id})">
+        <span class="mcg-chevron">▼</span><span style="flex:1">${t.name}</span>${countLabel}
+      </div>`;
     }
     if (t.type === 'milestone') {
       const overdue = t.date && t.date < today && !t.done;
@@ -4989,6 +5008,13 @@ function switchToDesktop() {
 
 let _mobActiveTab = 'tasks';
 let _mobMineFilter = false; // true = show only my tasks
+let _mobCollapsed = new Set(); // group task IDs that are collapsed on mobile
+
+function toggleMobGroup(id) {
+  if (_mobCollapsed.has(id)) _mobCollapsed.delete(id);
+  else _mobCollapsed.add(id);
+  renderMobileTasks();
+}
 
 function mobSwitchTab(tab) {
   _mobActiveTab = tab;
