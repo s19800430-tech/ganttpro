@@ -2033,8 +2033,8 @@ body:not(.show-wbs) .wbs-code{display:none}
 <div id="mobileView" style="display:none;flex-direction:column;overflow:hidden">
   <!-- Frosted-glass top bar -->
   <div id="mobileTopBar">
-    <button style="font-size:19px;padding:4px 8px;background:none;border:none;line-height:1;cursor:pointer;color:var(--t1)" onclick="openProjModal()" title="切换项目">☰</button>
-    <span id="mobileProjName" style="font-size:14px;font-weight:700;color:var(--t1);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">项目</span>
+    <button style="font-size:19px;padding:4px 8px;background:none;border:none;line-height:1;cursor:pointer;color:var(--t1)" onclick="openMobileNav()" title="导航与设置">☰</button>
+    <span id="mobileProjName" style="font-size:14px;font-weight:700;color:var(--t1);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer" onclick="openProjModal()">项目</span>
     <button style="font-size:13px;padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--t2);cursor:pointer" onclick="switchToDesktop()" title="桌面视图">🖥</button>
   </div>
   <!-- Content area: task cards OR gantt -->
@@ -2049,20 +2049,65 @@ body:not(.show-wbs) .wbs-code{display:none}
   <!-- Frosted-glass bottom tab bar -->
   <div id="mobileTabBar">
     <button class="mob-tab active" id="mobTab_tasks" onclick="mobSwitchTab('tasks')">
-      <span class="mob-tab-icon">📋</span>任务
+      <span class="mob-tab-icon">📋</span>全部
+    </button>
+    <button class="mob-tab" id="mobTab_mine" onclick="mobSwitchTab('mine')">
+      <span class="mob-tab-icon">👤</span>我的
+    </button>
+    <button class="mob-tab" id="mobTab_add" onclick="openModal()" style="position:relative">
+      <span class="mob-tab-icon" style="font-size:26px;line-height:1;font-weight:200;background:var(--accent);color:#fff;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;margin-top:-12px;box-shadow:0 4px 12px rgba(94,106,210,.4)">＋</span>
     </button>
     <button class="mob-tab" id="mobTab_gantt" onclick="mobSwitchTab('gantt')">
       <span class="mob-tab-icon">📊</span>甘特图
     </button>
-    <button class="mob-tab" id="mobTab_add" onclick="openModal()" style="position:relative">
-      <span class="mob-tab-icon" style="font-size:28px;line-height:1;font-weight:200;background:var(--accent);color:#fff;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;margin-top:-12px;box-shadow:0 4px 12px rgba(94,106,210,.4)">＋</span>
-    </button>
     <button class="mob-tab" id="mobTab_report" onclick="mobSwitchTab('report')">
       <span class="mob-tab-icon">📈</span>报告
     </button>
-    <button class="mob-tab" id="mobTab_settings" onclick="mobSwitchTab('settings')">
-      <span class="mob-tab-icon">⚙️</span>设置
-    </button>
+  </div>
+</div>
+
+<!-- Mobile Nav/Settings bottom sheet -->
+<div class="overlay" id="mobileNavOverlay" onclick="if(event.target===this)closeMobileNav()" style="z-index:1100">
+  <div class="modal" style="width:100%;max-width:100%;border-radius:20px 20px 0 0;padding:0 0 env(safe-area-inset-bottom,0px)" onclick="event.stopPropagation()">
+    <div style="width:40px;height:4px;border-radius:2px;background:rgba(0,0,0,.15);margin:12px auto 4px"></div>
+    <!-- Project section -->
+    <div style="padding:12px 20px 8px;border-bottom:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:600;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">项目</div>
+      <button onclick="closeMobileNav();openProjModal()" style="width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:none;background:var(--bg);cursor:pointer;text-align:left">
+        <span style="font-size:20px">📁</span>
+        <div><div style="font-size:14px;font-weight:600;color:var(--t1)" id="mobileNavProjName">切换项目</div><div style="font-size:12px;color:var(--t3)">管理项目列表</div></div>
+      </button>
+    </div>
+    <!-- Display settings -->
+    <div style="padding:12px 20px 8px;border-bottom:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:600;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">显示</div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <label style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:10px;background:var(--bg)">
+          <span style="font-size:14px;color:var(--t1)">🌙 深色模式</span>
+          <input type="checkbox" id="mobileNavDark" onchange="toggleDarkMode(this.checked)" style="width:18px;height:18px">
+        </label>
+        <div style="padding:9px 12px;border-radius:10px;background:var(--bg)">
+          <div style="font-size:14px;color:var(--t1);margin-bottom:8px">🔍 甘特图缩放</div>
+          <div style="display:flex;gap:6px">
+            <button onclick="setMobileZoom('month')" id="mznBtn_month" style="flex:1;padding:6px;border-radius:7px;border:1px solid var(--border);background:var(--surface);font-size:12px;cursor:pointer;color:var(--t1)">月</button>
+            <button onclick="setMobileZoom('week')" id="mznBtn_week" style="flex:1;padding:6px;border-radius:7px;border:1px solid var(--border);background:var(--surface);font-size:12px;cursor:pointer;color:var(--t1)">周</button>
+            <button onclick="setMobileZoom('day')" id="mznBtn_day" style="flex:1;padding:6px;border-radius:7px;border:1px solid var(--border);background:var(--surface);font-size:12px;cursor:pointer;color:var(--t1)">日</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Actions -->
+    <div style="padding:12px 20px 16px">
+      <div style="font-size:11px;font-weight:600;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">操作</div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <button onclick="closeMobileNav();scheduleExport()" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:none;background:var(--bg);cursor:pointer;text-align:left;width:100%">
+          <span style="font-size:20px">📤</span><span style="font-size:14px;color:var(--t1)">导出项目</span>
+        </button>
+        <button onclick="closeMobileNav();switchToDesktop()" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:none;background:var(--bg);cursor:pointer;text-align:left;width:100%">
+          <span style="font-size:20px">🖥</span><span style="font-size:14px;color:var(--t1)">切换到桌面模式</span>
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -4732,12 +4777,42 @@ function renderMobileView() {
   const nameEl = document.getElementById('mobileProjName');
   if (!el) return;
   if (nameEl) nameEl.textContent = proj?.name || '项目';
-  if (!tasks.length) {
-    el.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--t4)"><div style="font-size:40px;margin-bottom:10px">📋</div><div>暂无任务</div><div style="font-size:12px;margin-top:6px">点击右上角 ＋ 新增</div></div>';
+
+  // "我的任务" filter: show only tasks where assignee includes currentUser name
+  const myName = currentUser?.displayName || currentUser?.name || '';
+  let displayTasks = tasks;
+  if (_mobMineFilter && myName) {
+    displayTasks = tasks.filter(t => {
+      if (t.type === 'group') return false; // hide groups in mine view
+      const asg = (t.assignee || '').toLowerCase();
+      return asg.includes(myName.toLowerCase());
+    });
+  }
+
+  if (!displayTasks.length) {
+    const msg = _mobMineFilter
+      ? `<div style="text-align:center;padding:40px 20px;color:var(--t4)"><div style="font-size:40px;margin-bottom:10px">👤</div><div>没有分配给你的任务</div><div style="font-size:12px;margin-top:6px">在任务编辑中填写「负责人」字段</div></div>`
+      : `<div style="text-align:center;padding:40px 20px;color:var(--t4)"><div style="font-size:40px;margin-bottom:10px">📋</div><div>暂无任务</div><div style="font-size:12px;margin-top:6px">点击底部 ＋ 新增</div></div>`;
+    el.innerHTML = msg;
     return;
   }
+
+  // Stats banner for "我的任务" view
+  let bannerHtml = '';
+  if (_mobMineFilter) {
+    const today = TODAY_STR;
+    const overdueCount = displayTasks.filter(t => t.end && t.end < today && !t.done).length;
+    const dueToday = displayTasks.filter(t => (t.end === today || t.date === today) && !t.done).length;
+    const doneCount = displayTasks.filter(t => t.done).length;
+    bannerHtml = `<div style="display:flex;gap:8px;margin-bottom:10px">
+      ${overdueCount ? `<div style="flex:1;background:#FEE2E2;border-radius:10px;padding:8px 10px;text-align:center"><div style="font-size:18px;font-weight:700;color:#DC2626">${overdueCount}</div><div style="font-size:10px;color:#DC2626">已逾期</div></div>` : ''}
+      ${dueToday ? `<div style="flex:1;background:#FEF3C7;border-radius:10px;padding:8px 10px;text-align:center"><div style="font-size:18px;font-weight:700;color:#D97706">${dueToday}</div><div style="font-size:10px;color:#D97706">今日到期</div></div>` : ''}
+      <div style="flex:1;background:var(--accent-bg);border-radius:10px;padding:8px 10px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--accent)">${doneCount}/${displayTasks.length}</div><div style="font-size:10px;color:var(--accent)">已完成</div></div>
+    </div>`;
+  }
+
   const today = TODAY_STR;
-  el.innerHTML = tasks.map(t => {
+  el.innerHTML = bannerHtml + displayTasks.map(t => {
     if (t.type === 'group') {
       return `<div class="mobile-card-group">▶ ${t.name}</div>`;
     }
@@ -4775,6 +4850,8 @@ function switchToDesktop() {
 }
 
 let _mobActiveTab = 'tasks';
+let _mobMineFilter = false; // true = show only my tasks
+
 function mobSwitchTab(tab) {
   _mobActiveTab = tab;
   document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
@@ -4784,7 +4861,8 @@ function mobSwitchTab(tab) {
   const cardList = document.getElementById('mobileCardList');
   const ganttWrap = document.getElementById('mobileGanttWrap');
 
-  if (tab === 'tasks') {
+  if (tab === 'tasks' || tab === 'mine') {
+    _mobMineFilter = (tab === 'mine');
     if (cardList) cardList.style.display = '';
     if (ganttWrap) ganttWrap.style.display = 'none';
     renderMobileView();
@@ -4793,84 +4871,192 @@ function mobSwitchTab(tab) {
     if (ganttWrap) { ganttWrap.style.display = ''; renderMobileGantt(); }
   } else if (tab === 'report') {
     openReportModal();
+    const prev = _mobActiveTab === 'report' ? 'tasks' : _mobActiveTab;
+    _mobActiveTab = prev;
     setTimeout(() => {
       document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
-      if (document.getElementById('mobTab_' + _mobActiveTab))
-        document.getElementById('mobTab_' + (_mobActiveTab === 'report' ? 'tasks' : _mobActiveTab)).classList.add('active');
+      const prevBtn = document.getElementById('mobTab_' + prev);
+      if (prevBtn) prevBtn.classList.add('active');
     }, 300);
-    _mobActiveTab = 'tasks';
-  } else if (tab === 'settings') {
-    openProjModal();
-    setTimeout(() => {
-      document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
-      document.getElementById('mobTab_tasks').classList.add('active');
-    }, 300);
-    _mobActiveTab = 'tasks';
   }
 }
 
+function openMobileNav() {
+  // Sync dark mode checkbox state
+  const cb = document.getElementById('mobileNavDark');
+  if (cb) cb.checked = document.body.classList.contains('dark');
+  // Sync proj name
+  const nameEl = document.getElementById('mobileNavProjName');
+  if (nameEl) nameEl.textContent = curProj()?.name || '切换项目';
+  // Sync zoom buttons
+  const zoomMap = { 3: 'day', 7: 'week', 30: 'month' };
+  const curZoom = Object.entries(PPDS).find(([,v]) => v === PPD)?.[0];
+  ['day','week','month'].forEach(z => {
+    const b = document.getElementById('mznBtn_' + z);
+    if (b) b.style.background = (curZoom === z || (z==='week' && PPD===PPDS.week)) ? 'var(--accent-bg)' : 'var(--surface)';
+  });
+  document.getElementById('mobileNavOverlay').classList.add('open');
+}
+function closeMobileNav() {
+  document.getElementById('mobileNavOverlay').classList.remove('open');
+}
+function setMobileZoom(level) {
+  const map = { day: PPDS.day, week: PPDS.week, month: PPDS.month };
+  if (map[level]) {
+    PPD = map[level];
+    ['day','week','month'].forEach(z => {
+      const b = document.getElementById('mznBtn_' + z);
+      if (b) b.style.background = z === level ? 'var(--accent-bg)' : 'var(--surface)';
+    });
+    render();
+    if (_mobActiveTab === 'gantt') renderMobileGantt();
+    closeMobileNav();
+  }
+}
+function toggleDarkMode(on) {
+  document.body.classList.toggle('dark', on);
+  localStorage.setItem('gantt_theme', on ? 'dark' : 'light');
+}
+function scheduleExport() {
+  // Trigger the export panel if available, else PNG
+  const ep = document.getElementById('exportPanel');
+  if (ep) { ep.classList.add('open'); }
+  else { exportPNG && exportPNG(); }
+}
+
 function renderMobileGantt() {
-  // Clone the real gantt into the mobile gantt wrapper using an iframe-like approach:
-  // Simply embed the full #main temporarily hidden but render to a scrollable mini-view.
-  // Better approach: use the existing chart rendering into a new container.
   const wrap = document.getElementById('mobileGanttInner');
   if (!wrap) return;
-  // Build a simplified horizontal gantt: task names on left, bars on right
   const rows = getVisibleRows ? getVisibleRows() : [];
-  const totalW = Math.max(600, (dateToX ? dateToX(CHART_END.toISOString().slice(0,10)) : 600));
-  let html = `<div style="display:flex;min-width:${totalW+160}px;height:100%">`;
-  // Left labels col
-  html += `<div style="width:160px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);z-index:2;position:sticky;left:0">`;
-  rows.forEach(({task,depth}) => {
-    const indent = depth * 10;
+  if (!rows.length) { wrap.innerHTML = '<div style="padding:40px;text-align:center;color:var(--t4)">暂无任务</div>'; return; }
+
+  const LABEL_W = 150; // px for left sticky label column
+  const ROW_H   = 34;  // px per row
+  const HDR_H   = 28;  // px for date header
+
+  // Chart coordinate helpers — dateToX(CHART_START)===0 always
+  const chartW = Math.round((CHART_END - CHART_START) / 86400000 + 1) * PPD;
+  const totalW = chartW + LABEL_W;
+
+  // Build date header (months)
+  let hdrHtml = '';
+  {
+    let cur = new Date(CHART_START);
+    const end = new Date(CHART_END);
+    while (cur <= end) {
+      const x = dateToX(cur.toISOString().slice(0,10));
+      const monthStart = new Date(cur.getFullYear(), cur.getMonth(), 1);
+      const monthEnd   = new Date(cur.getFullYear(), cur.getMonth()+1, 0);
+      const mEnd = monthEnd < end ? monthEnd : end;
+      const mW = (mEnd - cur) / 86400000 * PPD + PPD;
+      const label = `${cur.getMonth()+1}月`;
+      hdrHtml += `<div style="position:absolute;left:${x}px;width:${Math.round(mW)}px;height:${HDR_H}px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:var(--t3);border-right:1px solid var(--border);box-sizing:border-box;overflow:hidden">${label}</div>`;
+      cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+    }
+  }
+
+  // Build rows
+  let rowsHtml = '';
+  rows.forEach(({task, depth}, i) => {
     const color = task.color || '#5E6AD2';
-    html += `<div style="height:36px;display:flex;align-items:center;padding-left:${8+indent}px;border-bottom:1px solid var(--border);gap:4px;overflow:hidden;cursor:pointer" onclick="openEditModal(${task.id})">
-      ${task.type==='milestone'?`<span style="color:${color};font-size:10px">◆</span>`:`<span style="width:8px;height:8px;border-radius:2px;background:${color};flex-shrink:0;display:inline-block"></span>`}
-      <span style="font-size:11px;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${task.name}</span>
-    </div>`;
-  });
-  html += `</div>`;
-  // Chart area
-  html += `<div style="flex:1;position:relative;overflow:visible">`;
-  // Header: dates
-  const startX = dateToX ? dateToX(CHART_START.toISOString().slice(0,10)) : 0;
-  // Draw rows
-  rows.forEach(({task},i) => {
-    const bg = i%2===0 ? 'transparent' : 'rgba(0,0,0,.018)';
-    html += `<div style="position:absolute;top:${i*36}px;left:0;right:0;height:36px;background:${bg}">`;
-    if (task.type === 'task' && task.start && task.end && task.start !== task.end) {
-      const x1 = (dateToX(task.start) - startX);
-      const x2 = (dateToX(task.end) - startX) + PPD;
-      const w = Math.max(4, x2 - x1);
-      const pct = task.progress ?? task.pct ?? 0;
-      html += `<div style="position:absolute;left:${x1}px;width:${w}px;top:5px;height:26px;border-radius:4px;background:${task.color||'#5E6AD2'};overflow:hidden;cursor:pointer" onclick="openEditModal(${task.id})">
-        <div style="position:absolute;top:0;left:0;bottom:0;width:${pct}%;background:rgba(0,0,0,.2)"></div>
-        ${w>40?`<span style="position:relative;z-index:1;font-size:10px;color:#fff;padding:0 5px;line-height:26px;white-space:nowrap;overflow:hidden;display:block;text-shadow:0 1px 2px rgba(0,0,0,.4)">${task.name}</span>`:''}
-      </div>`;
-    } else if ((task.type === 'milestone') || (task.type === 'task' && task.start && task.start === task.end)) {
+    const top = HDR_H + i * ROW_H;
+    const bg  = i % 2 === 0 ? 'transparent' : 'rgba(0,0,0,.022)';
+    // Alternating stripe
+    rowsHtml += `<div style="position:absolute;left:0;top:${top}px;right:0;height:${ROW_H}px;background:${bg}"></div>`;
+
+    if (task.type === 'task' && task.start && task.end) {
+      const sameDay = task.start === task.end;
+      if (sameDay) {
+        // Zero-duration → diamond
+        const x = dateToX(task.start) + PPD / 2;
+        const dh = 12;
+        rowsHtml += `<div style="position:absolute;left:${x - dh/2}px;top:${top + (ROW_H-dh)/2}px;width:${dh}px;height:${dh}px;background:${color};transform:rotate(45deg);border-radius:2px;cursor:pointer" onclick="openEditModal(${task.id})"></div>`;
+      } else {
+        const x1 = Math.max(0, dateToX(task.start));
+        const x2 = Math.min(chartW, dateToX(task.end) + PPD);
+        const w  = Math.max(4, x2 - x1);
+        const pct = Math.max(0, Math.min(100, task.progress || 0));
+        const done = task.done;
+        const bColor = done ? '#10B981' : color;
+        rowsHtml += `<div style="position:absolute;left:${x1}px;width:${w}px;top:${top+5}px;height:${ROW_H-10}px;border-radius:4px;background:${bColor};overflow:hidden;cursor:pointer" onclick="openEditModal(${task.id})">
+          ${pct>0?`<div style="position:absolute;inset:0;right:${100-pct}%;background:rgba(0,0,0,.18)"></div>`:''}
+          ${done?`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="font-size:10px;color:#fff;opacity:.9">✓</span></div>`:''}
+        </div>`;
+      }
+    } else if (task.type === 'milestone') {
       const d = task.date || task.start;
       if (d) {
-        const x = (dateToX(d) - startX) + PPD/2;
-        html += `<div style="position:absolute;left:${x-8}px;top:9px;width:16px;height:16px;background:${task.color||'#5E6AD2'};transform:rotate(45deg);border-radius:2px;cursor:pointer" onclick="openEditModal(${task.id})"></div>`;
+        const x = dateToX(d) + PPD / 2;
+        const dh = 14;
+        rowsHtml += `<div style="position:absolute;left:${x-dh/2}px;top:${top+(ROW_H-dh)/2}px;width:${dh}px;height:${dh}px;background:${color};transform:rotate(45deg);border-radius:2px;box-shadow:0 1px 4px ${color}77;cursor:pointer" onclick="openEditModal(${task.id})"></div>`;
       }
     } else if (task.type === 'group') {
       const gb = groupBounds ? groupBounds(task.id) : null;
       if (gb && gb.s && gb.e) {
-        const x1 = (dateToX(gb.s) - startX);
-        const x2 = (dateToX(gb.e) - startX) + PPD;
-        const w = Math.max(4, x2 - x1);
-        html += `<div style="position:absolute;left:${x1}px;width:${w}px;top:12px;height:12px;border-radius:2px 2px 0 0;background:${task.color||'#374151'}"></div>`;
+        const x1 = Math.max(0, dateToX(gb.s));
+        const x2 = Math.min(chartW, dateToX(gb.e) + PPD);
+        const w  = Math.max(6, x2 - x1);
+        rowsHtml += `<div style="position:absolute;left:${x1}px;width:${w}px;top:${top+ROW_H/2-5}px;height:10px;border-radius:3px 3px 0 0;background:${color};opacity:.85;cursor:pointer" onclick="openEditModal(${task.id})">
+          <div style="position:absolute;left:0;bottom:-4px;width:8px;height:8px;clip-path:polygon(0 0,100% 0,0 100%);background:${color};opacity:.85"></div>
+          <div style="position:absolute;right:0;bottom:-4px;width:8px;height:8px;clip-path:polygon(0 0,100% 0,100% 100%);background:${color};opacity:.85"></div>
+        </div>`;
       }
     }
-    html += `</div>`;
   });
+
   // Today line
-  if (dateToX) {
-    const tx = dateToX(TODAY_STR) - startX;
-    html += `<div style="position:absolute;left:${tx}px;top:0;bottom:0;width:1.5px;background:#EF4444;opacity:.6;pointer-events:none;z-index:5"></div>`;
+  const tx = dateToX(TODAY_STR);
+  const todayHtml = `<div style="position:absolute;left:${tx}px;top:0;bottom:0;width:2px;background:#EF4444;opacity:.55;pointer-events:none;z-index:4"></div>`;
+
+  // Assemble: outer wrapper uses CSS table-like layout for sticky
+  // Use a table: left col (sticky) + right scroll area
+  const totalRowsH = rows.length * ROW_H + HDR_H;
+
+  wrap.innerHTML = `
+<div style="display:flex;height:100%;overflow:hidden">
+  <!-- Sticky left label column -->
+  <div style="width:${LABEL_W}px;flex-shrink:0;overflow-y:auto;overflow-x:hidden;border-right:1px solid var(--border);background:var(--surface);z-index:10" id="_mgLabelCol">
+    <div style="height:${HDR_H}px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;padding:0 8px">
+      <span style="font-size:10px;font-weight:600;color:var(--t3)">任务名称</span>
+    </div>
+    ${rows.map(({task,depth},i) => {
+      const color = task.color || '#5E6AD2';
+      const indent = Math.min(depth*10, 30);
+      const isGroup = task.type==='group';
+      const isMilestone = task.type==='milestone';
+      return `<div style="height:${ROW_H}px;display:flex;align-items:center;padding-left:${8+indent}px;gap:5px;overflow:hidden;cursor:pointer;border-bottom:1px solid rgba(0,0,0,.04)" onclick="openEditModal(${task.id})">
+        ${isMilestone
+          ? `<span style="color:${color};font-size:9px;flex-shrink:0">◆</span>`
+          : `<span style="width:7px;height:7px;border-radius:${isGroup?'2px':'50%'};background:${color};flex-shrink:0;display:inline-block"></span>`}
+        <span style="font-size:11px;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isGroup?'font-weight:600':''}">${task.name}</span>
+      </div>`;
+    }).join('')}
+  </div>
+  <!-- Scrollable chart area -->
+  <div style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;position:relative" id="_mgChartScroll">
+    <div style="position:relative;width:${chartW}px;height:${totalRowsH}px;min-height:100%">
+      <!-- Date header (sticky top via position:sticky on wrapper) -->
+      <div style="position:sticky;top:0;left:0;right:0;height:${HDR_H}px;background:var(--surface);border-bottom:1px solid var(--border);z-index:3;overflow:hidden">
+        ${hdrHtml}
+      </div>
+      <!-- Rows & bars -->
+      ${rowsHtml}
+      ${todayHtml}
+    </div>
+  </div>
+</div>`;
+
+  // Sync vertical scroll between label col and chart
+  const labelCol = wrap.querySelector('#_mgLabelCol');
+  const chartScroll = wrap.querySelector('#_mgChartScroll');
+  if (labelCol && chartScroll) {
+    chartScroll.addEventListener('scroll', () => {
+      labelCol.scrollTop = chartScroll.scrollTop;
+    }, { passive: true });
+    labelCol.addEventListener('scroll', () => {
+      chartScroll.scrollTop = labelCol.scrollTop;
+    }, { passive: true });
   }
-  html += `</div></div>`;
-  wrap.innerHTML = html;
 }
 
 function checkMobileView() {
