@@ -958,6 +958,34 @@ body.dark .form-ctrl{color-scheme:dark}
   transition:background .12s;
 }
 .chat-send-btn:hover{background:#4b5bd6}
+.chat-msg-reactions{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
+.chat-reaction{
+  display:inline-flex;align-items:center;gap:2px;
+  padding:1px 5px;border-radius:10px;border:1px solid var(--border);
+  font-size:12px;cursor:pointer;background:var(--s2);
+  transition:border-color .12s,background .12s;user-select:none;
+}
+.chat-reaction:hover,.chat-reaction.mine{background:var(--accent-bg);border-color:var(--accent)}
+.chat-reaction-count{font-size:11px;color:var(--t2)}
+.chat-msg-wrap{position:relative}
+.chat-msg-wrap:hover .chat-react-btn{opacity:1}
+.chat-react-btn{
+  position:absolute;right:0;top:0;
+  opacity:0;transition:opacity .15s;
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:2px 5px;font-size:13px;cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+}
+.chat-emoji-picker{
+  position:absolute;right:0;top:-38px;
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:4px 6px;display:flex;gap:2px;
+  box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:10;
+}
+.chat-emoji-opt{font-size:18px;cursor:pointer;padding:2px 3px;border-radius:5px;transition:background .1s}
+.chat-emoji-opt:hover{background:var(--s2)}
+/* Mobile: show react button always on touch devices */
+@media(hover:none){.chat-react-btn{opacity:1}}
 .chat-mention-popup{
   position:absolute;bottom:100%;left:0;right:0;margin-bottom:4px;
   background:var(--surface);border:1px solid var(--border);border-radius:8px;
@@ -1699,6 +1727,7 @@ body:not(.show-wbs) .wbs-code{display:none}
         <div class="menu-dd-item" onclick="exportExcel();closeAllMenus()"><span class="mi-icon">📊</span> 导出 Excel</div>
         <div class="menu-dd-item" onclick="openReportModal();closeAllMenus()"><span class="mi-icon">📊</span> 导出 PPTX</div>
         <div class="menu-dd-item" onclick="exportCSV();closeAllMenus()"><span class="mi-icon">📋</span> 导出 CSV</div>
+        <div class="menu-dd-item" onclick="exportICS();closeAllMenus()"><span class="mi-icon">📅</span> 导出 iCalendar (.ics)</div>
         <div class="menu-dd-sep"></div>
         <div class="menu-dd-item" onclick="openImportModal();closeAllMenus()"><span class="mi-icon">📥</span> 从 Excel/CSV 导入</div>
       </div>
@@ -4662,6 +4691,84 @@ function exportPNG() {
     a.download = filename; a.href = url; a.click();
     setTimeout(()=>URL.revokeObjectURL(url), 2000);
   }, 'image/png');
+}
+
+// 导出 iCalendar (.ics) — 任务和里程碑同步到日历应用
+function exportICS() {
+  const proj = curProj();
+  if (!proj) return;
+  const esc = s => String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+  const fmtDate = str => {
+    if (!str) return null;
+    const d = new Date(str + 'T00:00:00');
+    return d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z');
+  };
+  const fmtDateLocal = str => {
+    if (!str) return null;
+    return str.replace(/-/g,''); // YYYYMMDD for all-day
+  };
+  const uid = () => Math.random().toString(36).slice(2,10) + '@ganttpro';
+  const now = new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z');
+
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//GanttPro//GanttPro 2.0//ZH',
+    `X-WR-CALNAME:${esc(proj.name)}`,
+    'X-WR-TIMEZONE:Asia/Shanghai',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+  ];
+
+  const allTasks = tasks.filter(t => t.type !== 'group');
+  allTasks.forEach(t => {
+    if (t.type === 'milestone') {
+      if (!t.date) return;
+      const dtDate = fmtDateLocal(t.date);
+      const dtEnd = fmtDateLocal(new Date(new Date(t.date).getTime() + 86400000).toISOString().slice(0,10));
+      lines.push('BEGIN:VEVENT');
+      lines.push(`UID:${uid()}`);
+      lines.push(`DTSTAMP:${now}`);
+      lines.push(`DTSTART;VALUE=DATE:${dtDate}`);
+      lines.push(`DTEND;VALUE=DATE:${dtEnd}`);
+      lines.push(`SUMMARY:◆ ${esc(t.name)}`);
+      if (t.assignee) lines.push(`DESCRIPTION:负责人: ${esc(t.assignee)}`);
+      lines.push('END:VEVENT');
+    } else {
+      if (!t.start || !t.end) return;
+      const dtStart = fmtDateLocal(t.start);
+      // DTEND is exclusive for all-day events → end + 1 day
+      const endD = new Date(t.end + 'T00:00:00');
+      endD.setDate(endD.getDate() + 1);
+      const dtEnd = endD.toISOString().slice(0,10).replace(/-/g,'');
+      const pct = t.done ? 100 : (t.progress || 0);
+      const desc = [
+        t.assignee ? `负责人: ${t.assignee}` : '',
+        `进度: ${pct}%`,
+        t.done ? '已完成' : '',
+        t.evidence ? `证明: ${t.evidence}` : '',
+      ].filter(Boolean).join('\\n');
+      lines.push('BEGIN:VEVENT');
+      lines.push(`UID:${uid()}`);
+      lines.push(`DTSTAMP:${now}`);
+      lines.push(`DTSTART;VALUE=DATE:${dtStart}`);
+      lines.push(`DTEND;VALUE=DATE:${dtEnd}`);
+      lines.push(`SUMMARY:${esc(t.name)}${t.done?' ✓':''}`);
+      if (desc) lines.push(`DESCRIPTION:${desc}`);
+      lines.push(`PERCENT-COMPLETE:${pct}`);
+      if (t.done) lines.push('STATUS:COMPLETED');
+      lines.push('END:VEVENT');
+    }
+  });
+
+  lines.push('END:VCALENDAR');
+  const ics = lines.join('\r\n');
+  const blob = new Blob([ics], {type:'text/calendar;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (proj.name||'gantt').replace(/[^\w一-龥]/g,'_') + '.ics';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 
 // 匯出 CSV（UTF-8 BOM，Excel 可直接開啟）
@@ -9665,6 +9772,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let _actLog = [];          // [{ts, text}] recent activity
   let _mSel = -1, _mMatches = [];
   let _connecting = false;
+  const _reactions = {};     // msgKey -> {emoji -> [{uuid,name}]}
+  const REACT_EMOJIS = ['👍','❤️','😂','🎉','✅','🔥'];
 
   function _isTeam() { return location.hostname !== '' && location.protocol !== 'file:'; }
   function _uuid() {
@@ -9738,11 +9847,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     _prevOnlineSet = {...newSet};
   }
 
+  function _msgKey(msg) { return `${msg.uuid}_${msg.ts}`; }
+
   function _renderMsg(msg, isNew) {
     const box=document.getElementById('fcMessages');
     if(!box) return;
+    if(msg.type==='react') { _applyReaction(msg); return; }
     const isSelf=(msg.uuid===_uuid());
     const isSys=(msg.type==='system');
+    const key=_msgKey(msg);
+    const wrap=document.createElement('div');
+    wrap.className='chat-msg-wrap';
+    wrap.dataset.msgkey=key;
     const div=document.createElement('div');
     div.className='chat-msg'+(isSelf?' self':'')+(isSys?' system':'');
     const col=isSys?'':`background:${_color(msg.name)};`;
@@ -9751,14 +9867,84 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="chat-msg-body">
         <div class="chat-msg-meta"><span class="chat-msg-name">${_esc(msg.name)}</span><span class="chat-msg-time">${_fmt(msg.ts)}</span></div>
         <div class="chat-msg-text">${text}</div>
+        <div class="chat-msg-reactions" id="react_${key.replace(/[^a-z0-9]/gi,'_')}"></div>
       </div>`;
-    box.appendChild(div);
+    if(!isSys) {
+      const btn=document.createElement('button');
+      btn.className='chat-react-btn';
+      btn.textContent='😊';
+      btn.title='添加反应';
+      btn.onclick=(e)=>{e.stopPropagation();_showEmojiPicker(btn,key,msg);};
+      wrap.appendChild(btn);
+    }
+    wrap.appendChild(div);
+    box.appendChild(wrap);
     if(isNew) {
       box.scrollTop=box.scrollHeight;
       if(!_open||document.hidden){ _unread++; _badge(); }
       if(!isSelf && msg.text && msg.text.includes('@'+_me())) _notify(msg.name);
     }
   }
+
+  function _showEmojiPicker(btn, msgKey, origMsg) {
+    document.querySelectorAll('.chat-emoji-picker').forEach(p=>p.remove());
+    const picker=document.createElement('div');
+    picker.className='chat-emoji-picker';
+    REACT_EMOJIS.forEach(em=>{
+      const sp=document.createElement('span');
+      sp.className='chat-emoji-opt'; sp.textContent=em;
+      sp.onclick=(e)=>{e.stopPropagation();_sendReaction(msgKey,em,origMsg);picker.remove();};
+      picker.appendChild(sp);
+    });
+    btn.parentNode.style.position='relative';
+    btn.parentNode.appendChild(picker);
+    const close=()=>{picker.remove();document.removeEventListener('click',close);};
+    setTimeout(()=>document.addEventListener('click',close),10);
+  }
+
+  function _sendReaction(msgKey, emoji, origMsg) {
+    if(!_pn) return;
+    _pn.publish({channel:_ch(_curCh),
+      message:{uuid:_uuid(),name:_me(),type:'react',msgKey,emoji,ts:Date.now(),origTs:origMsg.ts}
+    });
+  }
+
+  function _applyReaction(msg) {
+    const key=msg.msgKey; if(!key) return;
+    if(!_reactions[key]) _reactions[key]={};
+    if(!_reactions[key][msg.emoji]) _reactions[key][msg.emoji]=[];
+    const arr=_reactions[key][msg.emoji];
+    const exists=arr.find(r=>r.uuid===msg.uuid);
+    if(exists) { // toggle off
+      _reactions[key][msg.emoji]=arr.filter(r=>r.uuid!==msg.uuid);
+    } else {
+      arr.push({uuid:msg.uuid,name:msg.name});
+    }
+    _renderReactions(key);
+  }
+
+  function _renderReactions(key) {
+    const safeKey=key.replace(/[^a-z0-9]/gi,'_');
+    const el=document.getElementById('react_'+safeKey);
+    if(!el) return;
+    const reacts=_reactions[key]||{};
+    el.innerHTML=Object.entries(reacts)
+      .filter(([,arr])=>arr.length>0)
+      .map(([em,arr])=>{
+        const mine=arr.some(r=>r.uuid===_uuid());
+        const names=arr.map(r=>r.name).join(', ');
+        return `<span class="chat-reaction${mine?' mine':''}" title="${_esc(names)}"
+          onclick="fcReact('${_esc(key)}','${em}')">${em}<span class="chat-reaction-count">${arr.length}</span></span>`;
+      }).join('');
+  }
+
+  window.fcReact = function(key, emoji) {
+    // Find the original message to re-react
+    if(!_pn) return;
+    _pn.publish({channel:_ch(_curCh),
+      message:{uuid:_uuid(),name:_me(),type:'react',msgKey:key,emoji,ts:Date.now()}
+    });
+  };
 
   function _notify(from) {
     if(!('Notification' in window)) return;
