@@ -29,6 +29,8 @@
   --t3:#6B7280;
   --t4:#9CA3AF;
   --accent:#5E6AD2;
+  --accent-rgb:94,106,210;
+  --surface-rgb:255,255,255;
   --accent-bg:#EEF0FF;
   --red:#EF4444;
   --toolbar:52px;
@@ -56,6 +58,7 @@ body{
 body.dark{
   --bg:#0D0E11;
   --surface:#16181D;
+  --surface-rgb:22,24,29;
   --s2:#1C1E25;
   --s-hover:#22242E;
   --border:#2A2D37;
@@ -1366,13 +1369,141 @@ body:not(.show-wbs) .wbs-code{display:none}
 .mobile-card-progress-fill{height:100%;border-radius:2px;transition:width .3s}
 .mobile-card-group{background:var(--surface2);border-left:3px solid var(--accent);padding:8px 12px;border-radius:6px;margin-bottom:6px;font-size:13px;font-weight:700;color:var(--t1)}
 .mobile-card-milestone{border-left:3px solid var(--gold,#F59E0B)}
+/* ══════════════════════════════════════
+   MOBILE (≤767px) — iOS/Android style
+══════════════════════════════════════ */
 @media(max-width:767px){
   #mobileView{display:flex!important}
   #main{display:none!important}
   #appToolbar .quickbar{display:none}
+
+  /* Top bar: frosted glass with accent tint */
+  #appToolbar{
+    position:sticky;top:0;z-index:200;
+    background:rgba(var(--surface-rgb,255,255,255),.72) !important;
+    backdrop-filter:blur(18px) saturate(1.6) !important;
+    -webkit-backdrop-filter:blur(18px) saturate(1.6) !important;
+    border-bottom:1px solid rgba(var(--accent-rgb,94,106,210),.18) !important;
+    box-shadow:0 1px 0 rgba(var(--accent-rgb,94,106,210),.10),
+               0 4px 16px rgba(0,0,0,.08) !important;
+    padding-top:env(safe-area-inset-top,0px);
+  }
+  body.dark #appToolbar{
+    background:rgba(28,30,38,.78) !important;
+    border-bottom-color:rgba(94,106,210,.22) !important;
+  }
+
+  /* Mobile view container */
+  #mobileView{
+    flex-direction:column;
+    background:var(--bg);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+
+  /* Mobile top mini-bar inside mobileView */
+  #mobileTopBar{
+    position:sticky;top:0;z-index:150;
+    display:flex;align-items:center;gap:8px;
+    padding:10px 14px 10px;
+    background:rgba(var(--surface-rgb,255,255,255),.82);
+    backdrop-filter:blur(20px) saturate(1.8);
+    -webkit-backdrop-filter:blur(20px) saturate(1.8);
+    border-bottom:1px solid rgba(var(--accent-rgb,94,106,210),.15);
+    box-shadow:0 2px 12px rgba(0,0,0,.07);
+  }
+  body.dark #mobileTopBar{
+    background:rgba(24,26,34,.85);
+    border-bottom-color:rgba(94,106,210,.25);
+  }
+
+  /* Mobile bottom tab bar */
+  #mobileTabBar{
+    position:sticky;bottom:0;
+    display:flex;align-items:center;justify-content:space-around;
+    padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));
+    background:rgba(var(--surface-rgb,255,255,255),.82);
+    backdrop-filter:blur(20px) saturate(1.8);
+    -webkit-backdrop-filter:blur(20px) saturate(1.8);
+    border-top:1px solid rgba(var(--accent-rgb,94,106,210),.15);
+    box-shadow:0 -2px 12px rgba(0,0,0,.07);
+    z-index:150;
+  }
+  body.dark #mobileTabBar{
+    background:rgba(24,26,34,.85);
+    border-top-color:rgba(94,106,210,.25);
+  }
+  .mob-tab{
+    display:flex;flex-direction:column;align-items:center;gap:2px;
+    padding:4px 12px;border:none;background:none;cursor:pointer;
+    color:var(--t3);font-size:10px;font-family:inherit;border-radius:10px;
+    transition:color .15s;min-width:52px;
+  }
+  .mob-tab .mob-tab-icon{font-size:20px;line-height:1.2}
+  .mob-tab.active{color:var(--accent)}
+  .mob-tab:active{background:rgba(94,106,210,.1)}
+
+  /* Mobile card list — add bottom padding for tab bar */
+  #mobileCardList{
+    padding:8px 10px 12px;
+  }
+
+  /* ── BOTTOM SHEET overlays on mobile ── */
+  .overlay{
+    align-items:flex-end !important;
+    padding:0 !important;
+  }
+  .overlay .modal{
+    width:100% !important;
+    max-width:100% !important;
+    max-height:92dvh !important;
+    border-radius:20px 20px 0 0 !important;
+    padding:0 16px 20px !important;
+    overflow-y:auto !important;
+    animation:slideUpSheet .28s cubic-bezier(.32,1,.42,1) !important;
+    padding-bottom:calc(20px + env(safe-area-inset-bottom,0px)) !important;
+  }
+  /* Drag handle pill */
+  .overlay .modal::before{
+    content:'';
+    display:block;
+    width:36px;height:4px;
+    border-radius:2px;
+    background:rgba(0,0,0,.18);
+    margin:10px auto 14px;
+    flex-shrink:0;
+  }
+  body.dark .overlay .modal::before{
+    background:rgba(255,255,255,.22);
+  }
+  /* Modal title on mobile */
+  .overlay .modal-title{
+    font-size:17px;
+    padding-top:0;
+    margin-bottom:14px;
+  }
+  /* Modal close button repositioned */
+  .overlay .modal-close{
+    position:absolute;
+    right:14px;
+    top:18px;
+  }
+
+  /* Login card on mobile */
+  .login-card{
+    width:calc(100vw - 32px) !important;
+    min-width:0 !important;
+    border-radius:20px !important;
+    padding:28px 20px !important;
+  }
+}
+@keyframes slideUpSheet{
+  from{transform:translateY(60px);opacity:.6}
+  to{transform:translateY(0);opacity:1}
 }
 @media(min-width:768px){
   #mobileView{display:none!important}
+  #mobileTopBar{display:none!important}
+  #mobileTabBar{display:none!important}
 }
 
 /* ── PRINT / PDF EXPORT ── */
@@ -1910,13 +2041,30 @@ body:not(.show-wbs) .wbs-code{display:none}
 
 <!-- MAIN -->
 <!-- MOBILE CARD VIEW -->
-<div id="mobileView" style="display:none;flex-direction:column;height:100%;overflow:hidden">
-  <div style="padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
-    <span style="font-size:13px;font-weight:700;color:var(--t1);flex:1" id="mobileProjName">项目</span>
-    <button class="btn btn-primary" style="font-size:12px;padding:5px 10px" onclick="openModal()">＋ 任务</button>
-    <button class="btn" style="font-size:12px;padding:5px 10px" onclick="switchToDesktop()">🖥 桌面视图</button>
+<div id="mobileView" style="display:none;flex-direction:column;height:100dvh;overflow:hidden">
+  <!-- Frosted-glass top bar -->
+  <div id="mobileTopBar">
+    <button style="font-size:19px;padding:4px 8px;background:none;border:none;line-height:1;cursor:pointer;color:var(--t1)" onclick="openProjModal()" title="切换项目">☰</button>
+    <span id="mobileProjName" style="font-size:14px;font-weight:700;color:var(--t1);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">项目</span>
+    <button style="font-size:13px;padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--t2);cursor:pointer" onclick="switchToDesktop()" title="桌面视图">🖥</button>
   </div>
-  <div style="padding:8px;overflow-y:auto;flex:1" id="mobileCardList"></div>
+  <!-- Scrollable task card list -->
+  <div style="overflow-y:auto;flex:1;padding:8px 10px 4px" id="mobileCardList"></div>
+  <!-- Frosted-glass bottom tab bar -->
+  <div id="mobileTabBar">
+    <button class="mob-tab active" id="mobTab_tasks" onclick="mobSwitchTab('tasks')">
+      <span class="mob-tab-icon">📋</span>任务
+    </button>
+    <button class="mob-tab" id="mobTab_add" onclick="openModal()">
+      <span class="mob-tab-icon" style="font-size:26px;line-height:1;font-weight:300">＋</span>
+    </button>
+    <button class="mob-tab" id="mobTab_report" onclick="mobSwitchTab('report')">
+      <span class="mob-tab-icon">📊</span>报告
+    </button>
+    <button class="mob-tab" id="mobTab_settings" onclick="mobSwitchTab('settings')">
+      <span class="mob-tab-icon">⚙️</span>设置
+    </button>
+  </div>
 </div>
 
 <div class="main" id="main" style="display:none">
@@ -2185,16 +2333,11 @@ const GROUP_PALETTE = [
 ];
 
 function getNextGroupColor() {
-  // Collect all group colors used across all projects
-  const used = new Set(
-    projects.flatMap(p => p.tasks.filter(t => t.type === 'group').map(t => t.color))
-  );
-  // Pick first palette color not yet used
+  const groupTasks = tasks.filter(t => t.type === 'group');
+  const used = new Set(groupTasks.map(t => t.color));
   const pick = GROUP_PALETTE.find(c => !used.has(c));
   if (pick) return pick;
-  // All used → cycle by count of existing groups
-  const total = projects.reduce((s, p) => s + p.tasks.filter(t => t.type === 'group').length, 0);
-  return GROUP_PALETTE[total % GROUP_PALETTE.length];
+  return GROUP_PALETTE[groupTasks.length % GROUP_PALETTE.length];
 }
 
 /* ═══════════════════════════════════════════
@@ -4548,6 +4691,21 @@ function switchToDesktop() {
   localStorage.setItem('gp_force_desktop', '1');
 }
 
+function mobSwitchTab(tab) {
+  document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('mobTab_' + tab);
+  if (btn) btn.classList.add('active');
+  if (tab === 'tasks') {
+    renderMobileView();
+  } else if (tab === 'report') {
+    openReportModal();
+    setTimeout(() => document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active')), 300);
+  } else if (tab === 'settings') {
+    openProjModal();
+    setTimeout(() => document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active')), 300);
+  }
+}
+
 function checkMobileView() {
   const forceDesktop = localStorage.getItem('gp_force_desktop');
   const isMobile = window.innerWidth < 768;
@@ -4629,7 +4787,7 @@ function openArrowStyleModal() {
 
 function toggleSettings() {
   const panel = document.getElementById('settingsPanel');
-  panel.classList.toggle('open');
+  if (panel) panel.classList.toggle('open');
 }
 
 function toggleExportMenu() {
