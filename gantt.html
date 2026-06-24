@@ -313,6 +313,30 @@ body.dark .ms-badge{background:#3d2c00;color:#fbbf24;border-color:#593f00}
   font-size:8.5px;font-weight:700;color:#fff;letter-spacing:.3px;
   margin-left:auto;margin-right:4px;
 }
+/* Resource chip input */
+.res-chips-wrap{
+  display:flex;flex-wrap:wrap;gap:4px;align-items:center;
+  min-height:32px;padding:3px 6px;
+  border:1px solid var(--border);border-radius:6px;
+  background:var(--bg);cursor:text;flex:1;
+}
+.res-chips-wrap:focus-within{border-color:var(--accent);box-shadow:0 0 0 2px rgba(94,106,210,.15)}
+.res-chip{
+  display:inline-flex;align-items:center;gap:4px;
+  background:var(--accent);color:#fff;
+  font-size:11px;font-weight:500;padding:2px 7px 2px 8px;
+  border-radius:12px;line-height:1.4;
+  white-space:nowrap;
+}
+.res-chip-del{
+  cursor:pointer;font-size:13px;line-height:1;opacity:.75;margin-left:1px;
+  display:inline-flex;align-items:center;
+}
+.res-chip-del:hover{opacity:1}
+.res-chip-input{
+  border:none;outline:none;background:transparent;
+  font-size:12px;color:var(--t1);min-width:80px;flex:1;padding:2px 0;
+}
 
 /* ── DATE / WDAY CELLS ── */
 .pin-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--accent);opacity:.65;margin-right:5px;vertical-align:1px}
@@ -509,7 +533,10 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
 .grid-line{position:absolute;top:0;bottom:0;width:1px;background:var(--border);pointer-events:none;z-index:0}
 .grid-month{background:var(--border2)}
 .grid-wknd{background:rgba(0,0,0,0.06);width:1px}
-.wknd-bg{position:absolute;top:0;bottom:0;background:rgba(147,197,253,0.18);pointer-events:none;z-index:0}
+.wknd-bg{position:absolute;top:0;bottom:0;background:rgba(0,0,0,0.04);pointer-events:none;z-index:0}
+body.dark .wknd-bg{background:rgba(255,255,255,0.04)}
+.chart-row:nth-child(even){background:rgba(0,0,0,.018)}
+body.dark .chart-row:nth-child(even){background:rgba(255,255,255,.015)}
 
 .today-line{
   position:absolute;top:0;bottom:0;
@@ -525,27 +552,27 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
 }
 
 /* ── BARS ── */
-/* ── Google Charts Gantt-inspired rounded bar style ── */
+/* ── Google Charts Gantt-inspired bar style ── */
 .gantt-bar{
   position:absolute;
-  height:22px;top:7px;         /* taller bar, Google Charts ~62% of row */
-  border-radius:6px;           /* key: rounded corners */
+  height:26px;top:5px;         /* tall bar, fills ~72% of 36px row */
+  border-radius:3px;           /* flat look like Google Charts */
   cursor:pointer;
-  z-index:2;overflow:hidden;   /* clip children to rounded rect */
+  z-index:2;overflow:hidden;
   transition:filter .12s,box-shadow .12s;
-  box-shadow:0 1px 3px rgba(0,0,0,.18);
+  box-shadow:0 1px 2px rgba(0,0,0,.15);
 }
-.gantt-bar:hover{filter:brightness(1.1);box-shadow:0 2px 8px rgba(0,0,0,.22)}
-.gantt-bar.cp-critical{box-shadow:0 0 0 2.5px #EF4444,0 2px 8px rgba(239,68,68,.25);z-index:3}
-.gantt-bar.overdue{box-shadow:inset 3px 0 0 0 var(--red),0 1px 3px rgba(0,0,0,.18)}
-.dep-pred .gantt-bar,.dep-pred .group-bar{box-shadow:0 0 0 2.5px #F59E0B!important;z-index:4}
-.dep-succ .gantt-bar,.dep-succ .group-bar{box-shadow:0 0 0 2.5px #3B82F6!important;z-index:4}
+.gantt-bar:hover{filter:brightness(1.08);box-shadow:0 2px 6px rgba(0,0,0,.22)}
+.gantt-bar.cp-critical{box-shadow:0 0 0 2px #EF4444,0 2px 6px rgba(239,68,68,.25);z-index:3}
+.gantt-bar.overdue{box-shadow:inset 3px 0 0 0 var(--red),0 1px 2px rgba(0,0,0,.15)}
+.dep-pred .gantt-bar,.dep-pred .group-bar{box-shadow:0 0 0 2px #F59E0B!important;z-index:4}
+.dep-succ .gantt-bar,.dep-succ .group-bar{box-shadow:0 0 0 2px #3B82F6!important;z-index:4}
 .dep-pred .task-row,.dep-pred.task-row{background:rgba(245,158,11,.07)!important}
 .dep-succ .task-row,.dep-succ.task-row{background:rgba(59,130,246,.07)!important}
 .cp-mode .gantt-bar:not(.cp-critical){opacity:0.28;filter:grayscale(.3)}
 
-.bar-bg{position:absolute;inset:0;opacity:.92;border-radius:6px;}
-.bar-prog{position:absolute;top:0;left:0;bottom:0;z-index:1;opacity:.35;border-radius:0;pointer-events:none;background:rgba(0,0,0,.25)}
+.bar-bg{position:absolute;inset:0;border-radius:3px;}
+.bar-prog{position:absolute;top:0;left:0;bottom:0;z-index:1;opacity:1;border-radius:0;pointer-events:none;background:rgba(0,0,0,.2)}
 .baseline-bar{position:absolute;height:4px;border-radius:2px;background:var(--t4);opacity:.55;z-index:0;pointer-events:none}
 .wl-cell{position:absolute;top:6px;bottom:6px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--t1);font-weight:600}
 .bar-rz{border-radius:3px}
@@ -553,11 +580,12 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
 .milestone-ghost{position:absolute;width:10px;height:10px;transform:rotate(45deg);border:2px solid var(--t4);opacity:.5;pointer-events:none}
 .bar-fill{position:absolute;top:0;left:0;bottom:0;}
 .bar-lbl{
-  position:relative;padding:0 8px;
-  font-size:10.5px;font-weight:600;color:#fff;
+  position:relative;padding:0 6px;
+  font-size:11px;font-weight:500;color:#fff;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  z-index:1;line-height:20px;
-  text-shadow:0 1px 2px rgba(0,0,0,.3);
+  z-index:1;line-height:26px;
+  text-shadow:0 1px 2px rgba(0,0,0,.4);
+  letter-spacing:0.01em;
 }
 .bar-sd{
   position:absolute;right:calc(100% + 4px);top:50%;transform:translateY(-50%);
@@ -2026,8 +2054,10 @@ body:not(.show-wbs) .wbs-code{display:none}
       <div id="fDepsTip" style="font-size:11px;color:var(--t3);margin-top:4px;line-height:1.5"></div>
     </div>
     <div class="form-row" id="rowAssignee">
-      <label class="form-lbl">負責人</label>
-      <input class="form-ctrl" id="fAssignee" list="assigneeList" placeholder="輸入姓名（選填）" autocomplete="off">
+      <label class="form-lbl" data-i18n="assignee">負責人</label>
+      <div class="res-chips-wrap" id="resChipsWrap" onclick="document.getElementById('resChipInput').focus()">
+        <input class="res-chip-input" id="resChipInput" autocomplete="off" placeholder="輸入姓名後按 Enter" list="assigneeList">
+      </div>
       <datalist id="assigneeList"></datalist>
     </div>
     <div class="form-row" id="rowDone" style="display:flex;align-items:center;gap:10px;margin-bottom:0">
@@ -2488,12 +2518,12 @@ function renderTaskPanel() {
     empty.className = 'panel-empty';
     const txt = document.createElement('div');
     txt.className = 'panel-empty-txt';
-    txt.textContent = curProj() ? '這個專案還沒有任務' : '還沒有專案';
+    txt.textContent = curProj() ? t('noTasks') : t('noProjects');
     empty.appendChild(txt);
     if (!isReadOnly && !milestoneView) {
       const cta = document.createElement('button');
       cta.className = 'btn btn-primary';
-      cta.textContent = curProj() ? '＋ 新增任務' : '＋ 建立第一個專案';
+      cta.textContent = curProj() ? t('newTask') : t('addFirstProj');
       cta.onclick = () => curProj() ? openModal() : openProjModal();
       empty.appendChild(cta);
     }
@@ -3117,13 +3147,12 @@ function renderBar(row, task) {
 
   const fmt = s => { const [,m,d] = s.split('-'); return `${+m}/${+d}`; };
 
-  // Task name: centered across full bar area
-  if (w > 70) {
+  // Task name inside bar — show when bar wide enough
+  if (w > 40) {
     const lbl = document.createElement('div');
     lbl.className = 'bar-lbl';
-    lbl.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;padding:0 8px;z-index:2;pointer-events:none';
-    const wdayStr = (task.type === 'task' && task.wday) ? ` ${task.wday}d` : '';
-    lbl.textContent = (task.name || '') + wdayStr;
+    lbl.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;padding:0 6px;z-index:2;pointer-events:none';
+    lbl.textContent = task.name || '';
     inner.appendChild(lbl);
   }
 
@@ -4830,7 +4859,54 @@ function addDepToInput(rowNum, type, excludeId) {
   inp.focus();
 }
 
-function openModal(unused, prefillDate) {
+/* ── Resource chips for task modal ── */
+function _resChipNames() {
+  const wrap = document.getElementById('resChipsWrap');
+  if (!wrap) return [];
+  return [...wrap.querySelectorAll('.res-chip')].map(c => c.dataset.name);
+}
+function _resAddChip(name) {
+  name = name.trim();
+  if (!name) return;
+  const wrap = document.getElementById('resChipsWrap');
+  if (!wrap) return;
+  if (_resChipNames().includes(name)) return; // no dupe
+  const chip = document.createElement('span');
+  chip.className = 'res-chip';
+  chip.dataset.name = name;
+  chip.style.background = avColor(name);
+  chip.innerHTML = `${name}<span class="res-chip-del" onclick="this.parentElement.remove()" title="移除">×</span>`;
+  wrap.insertBefore(chip, document.getElementById('resChipInput'));
+}
+function _resSetChips(namesStr) {
+  const wrap = document.getElementById('resChipsWrap');
+  if (!wrap) return;
+  wrap.querySelectorAll('.res-chip').forEach(c => c.remove());
+  (namesStr || '').split(',').map(s => s.trim()).filter(Boolean).forEach(_resAddChip);
+}
+function _resGetValue() {
+  return _resChipNames().join(', ');
+}
+function _resInitInput() {
+  const inp = document.getElementById('resChipInput');
+  if (!inp || inp._resInit) return;
+  inp._resInit = true;
+  inp.addEventListener('keydown', e => {
+    if ((e.key === 'Enter' || e.key === ',') && inp.value.trim()) {
+      e.preventDefault();
+      _resAddChip(inp.value);
+      inp.value = '';
+    } else if (e.key === 'Backspace' && !inp.value) {
+      const chips = document.getElementById('resChipsWrap').querySelectorAll('.res-chip');
+      if (chips.length) chips[chips.length - 1].remove();
+    }
+  });
+  inp.addEventListener('blur', () => {
+    if (inp.value.trim()) { _resAddChip(inp.value); inp.value = ''; }
+  });
+}
+
+function _baseOpenModal(unused, prefillDate) {
   if (isReadOnly) return;
   if (!curProj()) { openProjModal(); return; }
   editingTaskId = null;
@@ -4845,7 +4921,8 @@ function openModal(unused, prefillDate) {
   document.getElementById('fDeps').value = '';
   document.getElementById('fDepsTip').textContent = '';
   document.getElementById('fProgress').value = 0;
-  document.getElementById('fAssignee').value = '';
+  _resSetChips('');
+  _resInitInput();
   if (document.getElementById('fEvidence')) document.getElementById('fEvidence').value = '';
   if (document.getElementById('fPlannedCost')) document.getElementById('fPlannedCost').value = '';
   if (document.getElementById('fActualCost')) document.getElementById('fActualCost').value = '';
@@ -4945,7 +5022,7 @@ function openModalUnder(taskId) {
   setTimeout(() => document.getElementById('fName').focus(), 50);
 }
 
-function openEditModal(taskId) {
+function _baseOpenEditModal(taskId) {
   if (isReadOnly) return;
   const task = taskById(taskId);
   if (!task) return;
@@ -4958,7 +5035,7 @@ function openEditModal(taskId) {
   document.getElementById('fEnd').value = task.end || task.date || TODAY_STR;
   document.getElementById('fWday').value = (task.start && task.end) ? countWorkingDays(task.start, task.end) : 1;
   document.getElementById('fProgress').value = task.done ? 100 : (task.progress || 0);
-  document.getElementById('fAssignee').value = task.assignee || '';
+  _resSetChips(task.assignee || ''); _resInitInput();
   populateModal(taskId, task.deps || [], task.parent, task.done || false);
   selectedSdeps = new Set(task.sdeps || []);
   document.getElementById('fDeps').value = buildDepsText(task);
@@ -5034,7 +5111,7 @@ function executeDeleteTask(id) {
   if (currentUser) saveToCloud();
 }
 
-function submitTask() {
+function _baseSubmitTask() {
   const name = document.getElementById('fName').value.trim();
   if (!name) { document.getElementById('fName').focus(); return; }
 
@@ -5077,7 +5154,7 @@ function submitTask() {
       }
       else if (type === 'milestone') { t.date = start; t.pinStart = true; delete t.start; delete t.end; }
       else { delete t.date; delete t.start; delete t.end; delete t.pinStart; }
-      const asg = document.getElementById('fAssignee').value.trim();
+      const asg = _resGetValue();
       if (type !== 'group' && asg) t.assignee = asg; else delete t.assignee;
     }
   } else {
@@ -5096,7 +5173,7 @@ function submitTask() {
       t.progress = done ? 100 : Math.max(0, Math.min(100, parseInt(document.getElementById('fProgress').value) || 0));
     }
     else if (type === 'milestone') { t.date = start; t.pinStart = true; }
-    const asg = document.getElementById('fAssignee').value.trim();
+    const asg = _resGetValue();
     if (type !== 'group' && asg) t.assignee = asg;
     tasks.push(t);
     curProj().nextId = nextId;
@@ -5848,7 +5925,7 @@ function updateProjUI() {
     const fallback = projects.find(x => !x._isShared) || projects[0];
     if (!fallback) {
       // No projects at all — clear header and show create modal
-      document.getElementById('projSelectorName').textContent = '— 無專案 —';
+      document.getElementById('projSelectorName').textContent = t('noProj');
       document.getElementById('projDot').style.background = '#999';
       renderProjMenu();
       return;
@@ -5954,8 +6031,8 @@ function renderProjMenu() {
     item.innerHTML = `
       <div class="proj-item-dot" style="background:${p.color}"></div>
       <span class="proj-item-name">${p.name}${p._isShared ? ' <span class="collab-shared-badge">共享</span>' : ''}</span>
-      ${!p._isShared ? `<span class="proj-item-edit" onclick="openEditProjModal(${p.id},event)" title="編輯此專案">✎</span>` : ''}
-      ${!p._isShared ? `<span class="proj-item-del" onclick="deleteProject(${p.id},event)" title="刪除此專案">✕</span>` : ''}
+      ${!p._isShared ? `<span class="proj-item-edit" onclick="openEditProjModal(${p.id},event)" title="${t('editProjTip')}">✎</span>` : ''}
+      ${!p._isShared ? `<span class="proj-item-del" onclick="deleteProject(${p.id},event)" title="${t('delProjTip')}">✕</span>` : ''}
     `;
     item.addEventListener('click', () => switchProject(p.id));
     menu.appendChild(item);
@@ -5964,7 +6041,7 @@ function renderProjMenu() {
   menu.appendChild(div);
   const add = document.createElement('div');
   add.className = 'proj-item proj-item-new';
-  add.innerHTML = '＋ 建立新專案';
+  add.innerHTML = t('addNewProj');
   add.onclick = () => { closeProjMenuOnly(); openProjModal(); };
   menu.appendChild(add);
 }
@@ -5973,7 +6050,7 @@ function deleteProject(id, e) {
   e.stopPropagation();
   const p = projects.find(x => x.id === id);
   if (!p || p._isShared) return;
-  if (!confirm(`確定要刪除「${p.name}」嗎？此操作無法復原。`)) return;
+  if (!confirm(t('confirmDelProj').replace('{name}', p.name))) return;
   projects = projects.filter(x => x.id !== id);
   closeProjMenuOnly();
   const ownedLeft = projects.filter(x => !x._isShared);
@@ -6003,8 +6080,8 @@ function openEditProjModal(id, e) {
   const p = projects.find(x => x.id === id);
   if (!p) return;
   _editingProjId = id;
-  document.getElementById('projModalTitle').textContent = '✎ 編輯專案';
-  document.getElementById('projSubmitBtn').textContent = '儲存';
+  document.getElementById('projModalTitle').textContent = t('editProjTitle');
+  document.getElementById('projSubmitBtn').textContent = t('saveProj');
   document.getElementById('pName').value = p.name;
   document.getElementById('pStart').value = p.startDate;
   document.getElementById('projColorDot').style.background = p.color;
@@ -6019,8 +6096,8 @@ function openEditProjModal(id, e) {
 
 function openProjModal() {
   _editingProjId = null;
-  document.getElementById('projModalTitle').textContent = '◆ 建立新專案';
-  document.getElementById('projSubmitBtn').textContent = '建立專案';
+  document.getElementById('projModalTitle').textContent = t('newProjTitle');
+  document.getElementById('projSubmitBtn').textContent = t('createProj');
   document.getElementById('pName').value = '';
   document.getElementById('pStart').value = TODAY_STR;
 
@@ -6033,7 +6110,7 @@ function openProjModal() {
     tplRow.innerHTML =
       '<label class="form-lbl">套用範本</label>' +
       '<select class="form-ctrl" id="pTemplate" onchange="onTemplateChange()">' +
-      '<option value="">— 空白專案 —</option></select>';
+      `<option value="">${t('blankProj')}</option></select>`;
     startRow.insertAdjacentElement('afterend', tplRow);
     const prevDiv = document.createElement('div');
     prevDiv.id = 'templatePreview';
@@ -6043,7 +6120,7 @@ function openProjModal() {
 
   // Fill template options
   const sel = document.getElementById('pTemplate');
-  sel.innerHTML = '<option value="">— 空白專案 —</option>' +
+  sel.innerHTML = `<option value="">${t('blankProj')}</option>` +
     TEMPLATES.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
   sel.value = '';
   document.getElementById('templatePreview').style.display = 'none';
@@ -6999,6 +7076,19 @@ const I18N = {
     wtWorkDays:'工作日设置', wtShifts:'工作时段', wtHoursPerDay:'每日工作小时',
     wtExceptions:'例外日期（节假日）', wtAddExcept:'添加例外', wtExceptName:'名称',
     wtExceptFrom:'开始', wtExceptTo:'结束', wtRecurring:'每年重复',
+    // Project strings
+    proj:'项目', newProjTitle:'◆ 新建项目', editProjTitle:'✎ 编辑项目',
+    blankProj:'— 空白项目 —', createProj:'建立项目', saveProj:'保存',
+    noProj:'— 无项目 —', noTasks:'这个项目还没有任务', noProjects:'还没有项目',
+    addFirstProj:'＋ 建立第一个项目', addNewProj:'＋ 新建项目',
+    editProjTip:'编辑此项目', delProjTip:'删除此项目',
+    confirmDelProj:'确定要删除「{name}」吗？此操作无法复原。',
+    projName:'项目名称', projStart:'开始日期', projTemplate:'套用模板', projColor:'项目颜色',
+    shareProj:'分享项目：', shareReadonly:'此链接为只读链接。只有您（项目建立者）在一般模式下可以编辑。',
+    shareNote:'将此链接分享给其他人，对方可以只读浏览此项目，无法进行任何编辑。',
+    reportTitle:'📝 项目报告', reportCurrent:'当前项目', reportAll:'全部项目',
+    statPeriod:'项目期间：',
+    assignee:'负责人', assigneePlaceholder:'输入姓名（选填）',
   },
   'zh-TW': {
     appName:'GanttPro', newTask:'＋ 新增任務', undo:'復原', today:'📍 今日',
@@ -7035,6 +7125,18 @@ const I18N = {
     wtWorkDays:'工作日設定', wtShifts:'工作時段', wtHoursPerDay:'每日工作小時',
     wtExceptions:'例外日期（節假日）', wtAddExcept:'新增例外', wtExceptName:'名稱',
     wtExceptFrom:'開始', wtExceptTo:'結束', wtRecurring:'每年重複',
+    proj:'專案', newProjTitle:'◆ 建立新專案', editProjTitle:'✎ 編輯專案',
+    blankProj:'— 空白專案 —', createProj:'建立專案', saveProj:'儲存',
+    noProj:'— 無專案 —', noTasks:'這個專案還沒有任務', noProjects:'還沒有專案',
+    addFirstProj:'＋ 建立第一個專案', addNewProj:'＋ 建立新專案',
+    editProjTip:'編輯此專案', delProjTip:'刪除此專案',
+    confirmDelProj:'確定要刪除「{name}」嗎？此操作無法復原。',
+    projName:'專案名稱', projStart:'開始日期', projTemplate:'套用範本', projColor:'專案顏色',
+    shareProj:'分享專案：', shareReadonly:'此連結為唯讀連結。只有您（專案建立者）在一般模式下可以編輯。',
+    shareNote:'將此連結分享給其他人，對方可以唯讀瀏覽此專案，無法進行任何編輯。',
+    reportTitle:'📝 專案報告', reportCurrent:'當前專案', reportAll:'全部專案',
+    statPeriod:'專案期間：',
+    assignee:'負責人', assigneePlaceholder:'輸入姓名（選填）',
   },
   'en': {
     appName:'GanttPro', newTask:'＋ Add Task', undo:'Undo', today:'📍 Today',
@@ -7071,6 +7173,18 @@ const I18N = {
     wtWorkDays:'Work Days', wtShifts:'Work Shifts', wtHoursPerDay:'Hours per Day',
     wtExceptions:'Exceptions (Holidays)', wtAddExcept:'Add Exception', wtExceptName:'Name',
     wtExceptFrom:'From', wtExceptTo:'To', wtRecurring:'Repeat Annually',
+    proj:'Project', newProjTitle:'◆ New Project', editProjTitle:'✎ Edit Project',
+    blankProj:'— Blank Project —', createProj:'Create Project', saveProj:'Save',
+    noProj:'— No Projects —', noTasks:'No tasks in this project', noProjects:'No projects yet',
+    addFirstProj:'＋ Create First Project', addNewProj:'＋ New Project',
+    editProjTip:'Edit project', delProjTip:'Delete project',
+    confirmDelProj:'Delete "{name}"? This cannot be undone.',
+    projName:'Project Name', projStart:'Start Date', projTemplate:'Template', projColor:'Project Color',
+    shareProj:'Share Project:', shareReadonly:'This is a read-only link. Only you (the project creator) can edit.',
+    shareNote:'Share this link with others. They can view this project in read-only mode.',
+    reportTitle:'📝 Project Report', reportCurrent:'Current Project', reportAll:'All Projects',
+    statPeriod:'Project Period:',
+    assignee:'Assignee', assigneePlaceholder:'Enter name (optional)',
   },
   'de': {
     appName:'GanttPro', newTask:'＋ Aufgabe', undo:'Rückgängig', today:'📍 Heute',
@@ -8473,9 +8587,8 @@ async function exportPPTX() {
    MODAL: Link field init
 ═══════════════════════════════════════════ */
 // Patch openModal and openEditModal to handle link/approval fields
-const _origOpenModal = openModal;
 function openModal(typeOrUnused, prefillDate) {
-  _origOpenModal(typeOrUnused, prefillDate);
+  _baseOpenModal(typeOrUnused, prefillDate);
   document.getElementById('fLink').value = '';
   document.getElementById('fApproval').value = '';
   document.getElementById('fEvidence').value = '';
@@ -8489,9 +8602,8 @@ function openModal(typeOrUnused, prefillDate) {
   }
 }
 
-const _origOpenEditModal = openEditModal;
 function openEditModal(taskId) {
-  _origOpenEditModal(taskId);
+  _baseOpenEditModal(taskId);
   const task = taskById(taskId);
   if (task) {
     document.getElementById('fLink').value = task.link || '';
@@ -8505,13 +8617,12 @@ function openEditModal(taskId) {
 }
 
 // Patch submitTask to save link/approval
-const _origSubmitTask = submitTask;
 function submitTask() {
   const link = document.getElementById('fLink')?.value?.trim();
   const approval = document.getElementById('fApproval')?.value;
   const wasEditing = editingTaskId;
   const prevCount = tasks.length;
-  _origSubmitTask();
+  _baseSubmitTask();
   // After original submit, find the just-saved/added task
   let t = null;
   if (wasEditing) {
