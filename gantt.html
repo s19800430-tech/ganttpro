@@ -1566,12 +1566,24 @@ body:not(.show-wbs) .wbs-code{display:none}
     <span class="ver-head-title">🕐 版本紀錄</span>
     <button class="ver-close" onclick="closeVersionPanel()">✕</button>
   </div>
-  <div class="ver-create">
-    <input id="verNameInput" placeholder="版本名稱，如 v1.0 需求確認" maxlength="60"
-      onkeydown="if(event.key==='Enter')createVersion()">
-    <button onclick="createVersion()">建立版本</button>
+  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:8px">
+    <button onclick="switchVerTab('versions')" id="verTabVersions" style="flex:1;padding:6px;background:none;border:none;border-bottom:2px solid var(--accent);font-size:12px;font-weight:600;color:var(--accent);cursor:pointer">版本快照</button>
+    <button onclick="switchVerTab('audit')" id="verTabAudit" style="flex:1;padding:6px;background:none;border:none;border-bottom:2px solid transparent;font-size:12px;color:var(--t3);cursor:pointer">操作審計</button>
   </div>
-  <div class="ver-list" id="verList"></div>
+  <div id="verTabPaneVersions">
+    <div class="ver-create">
+      <input id="verNameInput" placeholder="版本名稱，如 v1.0 需求確認" maxlength="60"
+        onkeydown="if(event.key==='Enter')createVersion()">
+      <button onclick="createVersion()">建立版本</button>
+    </div>
+    <div class="ver-list" id="verList"></div>
+  </div>
+  <div id="verTabPaneAudit" style="display:none">
+    <div style="display:flex;justify-content:flex-end;padding:4px 0 8px">
+      <button onclick="clearAuditLog()" style="font-size:11px;background:none;border:1px solid var(--border);border-radius:4px;padding:2px 8px;color:var(--t4);cursor:pointer">清空記錄</button>
+    </div>
+    <div id="auditLogList" style="font-size:11px;color:var(--t2);overflow-y:auto;max-height:400px"></div>
+  </div>
 </div>
 
 <!-- SHARE MODAL -->
@@ -4651,8 +4663,10 @@ function executeDeleteTask(id) {
     if (t.ffdeps) t.ffdeps = t.ffdeps.filter(d => !toDelete.has(d));
     if (t.sfdeps) t.sfdeps = t.sfdeps.filter(d => !toDelete.has(d));
   });
+  const delName = tasks.find(t => t.id === id)?.name || String(id);
   tasks = tasks.filter(t => !toDelete.has(t.id));
   curProj().tasks = tasks;
+  if (typeof logAudit === 'function') logAudit('刪除任務', delName + (toDelete.size > 1 ? ` (+${toDelete.size-1}個子任務)` : ''));
   render();
   saveToLS();
   if (currentUser) saveToCloud();
@@ -4726,6 +4740,7 @@ function submitTask() {
     curProj().nextId = nextId;
   }
 
+  if (typeof logAudit === 'function') logAudit(editingTaskId !== null ? '編輯任務' : '新增任務', name);
   editingTaskId = null;
   document.getElementById('overlay').classList.remove('open');
   scheduleTasks();
@@ -6070,6 +6085,7 @@ function createVersion() {
   inp.value = '';
   renderVersionList();
   render(); // triggers save
+  if (typeof logAudit === 'function') logAudit('建立版本', name);
   showStatus('✓ 版本「' + name + '」已建立');
 }
 
@@ -6082,6 +6098,7 @@ function restoreVersion(vId) {
   collapsed.clear();
   render();
   closeVersionPanel();
+  if (typeof logAudit === 'function') logAudit('還原版本', v.name);
   showStatus('✓ 已還原至「' + v.name + '」');
 }
 
@@ -6118,6 +6135,64 @@ function renderVersionList() {
     `;
     el.appendChild(item);
   });
+}
+
+/* ═══════════════════════════════════════════
+   AUDIT LOG
+═══════════════════════════════════════════ */
+let _auditLog = JSON.parse(localStorage.getItem('gp_audit_log') || '[]');
+const MAX_AUDIT = 200;
+
+function logAudit(action, detail) {
+  const entry = {
+    ts: new Date().toISOString(),
+    user: currentUser?.displayName || '未知',
+    action,
+    detail: detail || '',
+    proj: curProj()?.name || ''
+  };
+  _auditLog.unshift(entry);
+  if (_auditLog.length > MAX_AUDIT) _auditLog.length = MAX_AUDIT;
+  try { localStorage.setItem('gp_audit_log', JSON.stringify(_auditLog)); } catch(e) {}
+}
+
+function switchVerTab(tab) {
+  const isVersions = tab === 'versions';
+  document.getElementById('verTabPaneVersions').style.display = isVersions ? '' : 'none';
+  document.getElementById('verTabPaneAudit').style.display = isVersions ? 'none' : '';
+  document.getElementById('verTabVersions').style.cssText = isVersions
+    ? 'flex:1;padding:6px;background:none;border:none;border-bottom:2px solid var(--accent);font-size:12px;font-weight:600;color:var(--accent);cursor:pointer'
+    : 'flex:1;padding:6px;background:none;border:none;border-bottom:2px solid transparent;font-size:12px;color:var(--t3);cursor:pointer';
+  document.getElementById('verTabAudit').style.cssText = isVersions
+    ? 'flex:1;padding:6px;background:none;border:none;border-bottom:2px solid transparent;font-size:12px;color:var(--t3);cursor:pointer'
+    : 'flex:1;padding:6px;background:none;border:none;border-bottom:2px solid var(--accent);font-size:12px;font-weight:600;color:var(--accent);cursor:pointer';
+  if (!isVersions) renderAuditLog();
+}
+
+function renderAuditLog() {
+  const el = document.getElementById('auditLogList');
+  if (!el) return;
+  if (!_auditLog.length) {
+    el.innerHTML = '<div style="color:var(--t4);padding:8px 0">尚無操作記錄</div>';
+    return;
+  }
+  el.innerHTML = _auditLog.map(e => {
+    const d = new Date(e.ts);
+    const ts = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    return `<div style="padding:5px 0;border-bottom:1px solid var(--border)">
+      <span style="color:var(--t4)">${ts}</span>
+      <span style="margin:0 6px;color:var(--accent);font-weight:600">${e.action}</span>
+      <span style="color:var(--t2)">${e.detail}</span>
+      ${e.proj ? `<span style="color:var(--t4);margin-left:6px">[${e.proj}]</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function clearAuditLog() {
+  if (!confirm('清空所有操作記錄？')) return;
+  _auditLog = [];
+  localStorage.removeItem('gp_audit_log');
+  renderAuditLog();
 }
 
 /* ═══════════════════════════════════════════
@@ -7844,14 +7919,14 @@ function exportExcel() {
   XLSX.writeFile(wb, `GanttPro-${proj?.name||'export'}-${TODAY_STR}.xlsx`);
   // Also export Gantt chart as PNG if html2canvas is available
   if (typeof html2canvas !== 'undefined') {
-    const ganttEl = document.getElementById('ganttWrap') || document.querySelector('.chart-canvas') || document.getElementById('chartCanvas');
+    const ganttEl = document.getElementById('chartCanvas');
     if (ganttEl) {
-      html2canvas(ganttEl, {scale:1, useCORS:true, backgroundColor: '#ffffff'}).then(canvas => {
+      html2canvas(ganttEl, {scale:2, useCORS:true, backgroundColor: '#ffffff', logging:false}).then(canvas => {
         const link = document.createElement('a');
         link.href = canvas.toDataURL('image/png');
         link.download = `GanttPro-${proj?.name||'export'}-${TODAY_STR}-chart.png`;
         link.click();
-      });
+      }).catch(e => console.warn('html2canvas failed', e));
     }
   }
 }
@@ -7860,21 +7935,18 @@ function exportExcel() {
    GANTT PDF (canvas-based, via print)
 ═══════════════════════════════════════════ */
 function exportGanttPDF() {
-  // Use the PNG canvas approach then open in new window for printing
-  const canvas = document.querySelector('#chartCanvas canvas');
-  if (!canvas) { exportPDF(); return; }
+  // Capture SVG-based chart with html2canvas then open in new window for printing
+  const ganttEl = document.getElementById('chartCanvas');
+  if (!ganttEl || typeof html2canvas === 'undefined') { exportPDF(); return; }
 
-  const taskPanelEl = document.getElementById('taskPanel');
-  const win = window.open('', '_blank');
-  if (!win) { exportPDF(); return; }
-
-  // Build a printable HTML page with the chart image
-  const dataUrl = canvas.toDataURL('image/png');
-  const proj = curProj();
-  const taskCount = tasks.filter(t=>t.type==='task').length;
-  const msCount = tasks.filter(t=>t.type==='milestone').length;
-
-  win.document.write(`<!DOCTYPE html><html><head>
+  html2canvas(ganttEl, {scale:2, useCORS:true, backgroundColor:'#ffffff', logging:false}).then(canvas => {
+    const win = window.open('', '_blank');
+    if (!win) { exportPDF(); return; }
+    const dataUrl = canvas.toDataURL('image/png');
+    const proj = curProj();
+    const taskCount = tasks.filter(t=>t.type==='task').length;
+    const msCount = tasks.filter(t=>t.type==='milestone').length;
+    win.document.write(`<!DOCTYPE html><html><head>
   <meta charset="UTF-8">
   <title>${proj?.name||'GanttPro'}</title>
   <style>
@@ -7882,14 +7954,15 @@ function exportGanttPDF() {
     h1{font-size:18px;margin:0 0 4px}
     p{font-size:12px;color:#555;margin:0 0 16px}
     img{max-width:100%;border:1px solid #eee}
-    @media print{@page{size:A4 landscape;margin:1cm}}
+    @media print{@page{size:A4 landscape;margin:1cm}body{padding:0}}
   </style></head><body>
   <h1>${proj?.name||'甘特圖'}</h1>
   <p>${proj?.startDate||''} — ${proj?.endDate||''} &nbsp;|&nbsp; 任務 ${taskCount} 項 &nbsp;|&nbsp; 里程碑 ${msCount} 項 &nbsp;|&nbsp; 匯出時間 ${TODAY_STR}</p>
   <img src="${dataUrl}">
   <\x3Cscript>window.onload=()=>window.print()<\/script>
   </body></html>`);
-  win.document.close();
+    win.document.close();
+  }).catch(() => exportPDF());
 }
 
 /* ═══════════════════════════════════════════
