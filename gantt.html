@@ -1321,6 +1321,32 @@ body:not(.show-wbs) .wbs-code{display:none}
 .task-ctx-item:hover{background:var(--s-hover)}
 .task-ctx-sep{height:1px;background:var(--border);margin:3px 0}
 
+/* ── IMPORT PREVIEW TABLE ── */
+#importPreviewTable th{padding:5px 10px;background:var(--surface2);color:var(--t2);font-weight:600;text-align:left;white-space:nowrap;border-bottom:1px solid var(--border)}
+#importPreviewTable td{padding:4px 10px;border-bottom:1px solid var(--border);color:var(--t1);white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+#importPreviewTable tr:hover td{background:var(--hover)}
+.import-col-ok{color:var(--green)}
+.import-col-warn{color:var(--amber)}
+
+/* ── MOBILE CARD VIEW ── */
+.mobile-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:box-shadow .15s}
+.mobile-card:active{box-shadow:0 0 0 2px var(--accent)}
+.mobile-card-name{font-size:14px;font-weight:600;color:var(--t1);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.mobile-card-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.mobile-card-meta{font-size:11px;color:var(--t3);display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.mobile-card-progress{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.mobile-card-progress-fill{height:100%;border-radius:2px;transition:width .3s}
+.mobile-card-group{background:var(--surface2);border-left:3px solid var(--accent);padding:8px 12px;border-radius:6px;margin-bottom:6px;font-size:13px;font-weight:700;color:var(--t1)}
+.mobile-card-milestone{border-left:3px solid var(--gold,#F59E0B)}
+@media(max-width:767px){
+  #mobileView{display:flex!important}
+  #main{display:none!important}
+  #appToolbar .quickbar{display:none}
+}
+@media(min-width:768px){
+  #mobileView{display:none!important}
+}
+
 /* ── PRINT / PDF EXPORT ── */
 #printHeader{display:none}
 @media print{
@@ -1402,6 +1428,8 @@ body:not(.show-wbs) .wbs-code{display:none}
         <div class="menu-dd-item" onclick="exportExcel();closeAllMenus()"><span class="mi-icon">📊</span> 导出 Excel</div>
         <div class="menu-dd-item" onclick="openReportModal();closeAllMenus()"><span class="mi-icon">📊</span> 导出 PPTX</div>
         <div class="menu-dd-item" onclick="exportCSV();closeAllMenus()"><span class="mi-icon">📋</span> 导出 CSV</div>
+        <div class="menu-dd-sep"></div>
+        <div class="menu-dd-item" onclick="openImportModal();closeAllMenus()"><span class="mi-icon">📥</span> 从 Excel/CSV 导入</div>
       </div>
     </div>
     <!-- Edit menu -->
@@ -1600,6 +1628,64 @@ body:not(.show-wbs) .wbs-code{display:none}
   </div>
 </div>
 
+<!-- IMPORT MODAL -->
+<div class="overlay" id="importOverlay" onclick="closeImportModal()">
+  <div class="modal" style="max-width:680px;width:95vw;max-height:90vh;overflow-y:auto" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeImportModal()">✕</button>
+    <div class="modal-title">📥 从 Excel / CSV 导入任务</div>
+    <p style="font-size:12px;color:var(--t3);margin:0 0 12px">支持 .xlsx / .xls / .csv 文件。列名自动识别，列顺序不限。</p>
+
+    <!-- Drop zone -->
+    <div id="importDropZone" style="border:2px dashed var(--border2);border-radius:10px;padding:32px;text-align:center;cursor:pointer;transition:border-color .2s;margin-bottom:14px"
+      onclick="document.getElementById('importFileInput').click()"
+      ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+      ondragleave="this.style.borderColor='var(--border2)'"
+      ondrop="event.preventDefault();this.style.borderColor='var(--border2)';handleImportDrop(event)">
+      <div style="font-size:32px;margin-bottom:8px">📂</div>
+      <div style="font-size:14px;font-weight:600;color:var(--t1)">点击选择文件或拖拽到此处</div>
+      <div style="font-size:11px;color:var(--t4);margin-top:4px">.xlsx / .xls / .csv（最大 5MB）</div>
+      <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleImportFile(this.files[0])">
+    </div>
+
+    <!-- Column mapping hint -->
+    <details style="margin-bottom:12px">
+      <summary style="font-size:12px;color:var(--t3);cursor:pointer;user-select:none">支持的列名（点击展开）</summary>
+      <div style="font-size:11px;color:var(--t4);margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:4px 16px">
+        <span>任务名 / 名称 / Name / Task</span><span>→ 任务名称</span>
+        <span>开始 / 开始时间 / Start</span><span>→ 开始日期</span>
+        <span>结束 / 结束时间 / End / Finish</span><span>→ 结束日期</span>
+        <span>工期 / 持续 / Duration / Days</span><span>→ 工期（天）</span>
+        <span>负责人 / 责任人 / Assignee / Owner</span><span>→ 负责人</span>
+        <span>进度 / Progress / %</span><span>→ 进度%</span>
+        <span>前置 / 依赖 / Deps / Predecessors</span><span>→ 前置任务序号</span>
+        <span>备注 / Note / Remark</span><span>→ 备注</span>
+        <span>序号 / ID / No / #</span><span>→ 行号（忽略）</span>
+      </div>
+    </details>
+
+    <!-- Preview table -->
+    <div id="importPreview" style="display:none">
+      <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px" id="importPreviewTitle"></div>
+      <div style="overflow-x:auto;max-height:280px;border:1px solid var(--border);border-radius:8px">
+        <table id="importPreviewTable" style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead id="importPreviewHead" style="position:sticky;top:0;background:var(--surface)"></thead>
+          <tbody id="importPreviewBody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+          <input type="checkbox" id="importAppend" checked>
+          追加到当前项目（不勾选则替换全部任务）
+        </label>
+        <div style="flex:1"></div>
+        <button class="btn" onclick="closeImportModal()">取消</button>
+        <button class="btn btn-primary" id="importConfirmBtn" onclick="confirmImport()">✓ 导入任务</button>
+      </div>
+    </div>
+    <div id="importError" style="display:none;color:var(--red);font-size:12px;margin-top:8px"></div>
+  </div>
+</div>
+
 <!-- COLLAB MODAL -->
 <div class="collab-overlay" id="collabOverlay" onclick="closeCollabModal()">
   <div class="collab-box" onclick="event.stopPropagation()">
@@ -1795,6 +1881,16 @@ body:not(.show-wbs) .wbs-code{display:none}
 </div>
 
 <!-- MAIN -->
+<!-- MOBILE CARD VIEW -->
+<div id="mobileView" style="display:none;flex-direction:column;height:100%;overflow:hidden">
+  <div style="padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+    <span style="font-size:13px;font-weight:700;color:var(--t1);flex:1" id="mobileProjName">项目</span>
+    <button class="btn btn-primary" style="font-size:12px;padding:5px 10px" onclick="openModal()">＋ 任务</button>
+    <button class="btn" style="font-size:12px;padding:5px 10px" onclick="switchToDesktop()">🖥 桌面视图</button>
+  </div>
+  <div style="padding:8px;overflow-y:auto;flex:1" id="mobileCardList"></div>
+</div>
+
 <div class="main" id="main" style="display:none">
   <!-- Left: Task Panel -->
   <div class="task-panel" id="taskPanel" style="position:relative">
@@ -4167,6 +4263,272 @@ function exportCSV() {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
+/* ═══════════════════════════════════════════
+   EXCEL / CSV IMPORT
+═══════════════════════════════════════════ */
+let _importParsed = [];
+
+function openImportModal() {
+  _importParsed = [];
+  document.getElementById('importPreview').style.display = 'none';
+  document.getElementById('importError').style.display = 'none';
+  document.getElementById('importFileInput').value = '';
+  const dz = document.getElementById('importDropZone');
+  dz.style.borderColor = 'var(--border2)';
+  document.getElementById('importOverlay').classList.add('open');
+}
+function closeImportModal() {
+  document.getElementById('importOverlay').classList.remove('open');
+}
+
+function handleImportDrop(e) {
+  const file = e.dataTransfer.files[0];
+  if (file) handleImportFile(file);
+}
+
+function handleImportFile(file) {
+  if (!file) return;
+  const err = document.getElementById('importError');
+  err.style.display = 'none';
+  if (file.size > 5 * 1024 * 1024) { err.textContent = '文件过大（>5MB）'; err.style.display = ''; return; }
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      let rows;
+      if (ext === 'csv') {
+        rows = parseCSVToRows(e.target.result);
+      } else {
+        if (!window.XLSX) { err.textContent = 'Excel 组件加载中，请稍候再试'; err.style.display = ''; return; }
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false, dateNF: 'yyyy-mm-dd' });
+      }
+      processImportRows(rows);
+    } catch(ex) {
+      err.textContent = '解析失败：' + ex.message;
+      err.style.display = '';
+    }
+  };
+  if (ext === 'csv') reader.readAsText(file, 'UTF-8');
+  else reader.readAsArrayBuffer(file);
+}
+
+function parseCSVToRows(text) {
+  text = text.replace(/^﻿/, '');
+  const rows = [];
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const cells = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { inQ = !inQ; continue; }
+      if (ch === ',' && !inQ) { cells.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    cells.push(cur);
+    rows.push(cells.map(c => c.trim()));
+  }
+  return rows;
+}
+
+const _COL_ALIASES = {
+  name:     ['任务名','名称','任務名','名稱','name','task','任务','task name','任務名稱','任务名称'],
+  start:    ['开始','开始时间','开始日期','Start','Start Date','启动时间','开始日','開始','開始時間','開始日期'],
+  end:      ['结束','结束时间','结束日期','End','Finish','End Date','完成时间','結束','結束時間','結束日期'],
+  duration: ['工期','持续','天数','duration','days','持续时间','工作日'],
+  assignee: ['负责人','责任人','assignee','owner','经办人'],
+  progress: ['进度','完成%','progress','%','进度%'],
+  deps:     ['前置','依赖','前置任务','predecessors','deps','depends'],
+  note:     ['备注','note','remark','备忘'],
+  id:       ['序号','id','no','编号','#','num','number'],
+};
+
+function detectColumn(header) {
+  const h = String(header).trim().toLowerCase().replace(/\s+/g, '');
+  for (const [field, aliases] of Object.entries(_COL_ALIASES)) {
+    if (aliases.some(a => a.toLowerCase().replace(/\s+/g,'') === h)) return field;
+  }
+  return null;
+}
+
+function parseDateVal(v) {
+  if (!v || v === '') return null;
+  v = String(v).trim();
+  const m = v.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  const m2 = v.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+  if (m2) return `${m2[3]}-${m2[1].padStart(2,'0')}-${m2[2].padStart(2,'0')}`;
+  const d = new Date(v);
+  if (!isNaN(d)) return d.toISOString().slice(0,10);
+  return null;
+}
+
+function addWorkDays(startStr, days) {
+  let d = new Date(startStr + 'T00:00:00');
+  let n = Math.max(1, parseInt(days) || 1) - 1;
+  while (n > 0) {
+    d.setDate(d.getDate() + 1);
+    if (!_isNonWork(d)) n--;
+  }
+  return d.toISOString().slice(0,10);
+}
+
+function processImportRows(rows) {
+  if (rows.length < 2) throw new Error('文件为空或仅有标题行');
+  const header = rows[0];
+  const colMap = {};
+  header.forEach((h, i) => {
+    const f = detectColumn(h);
+    if (f && !(f in colMap)) colMap[f] = i;
+  });
+
+  if (!('name' in colMap)) throw new Error('找不到任务名称列（"任务名/Name/Task"）');
+
+  _importParsed = [];
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    const name = String(row[colMap.name] ?? '').trim();
+    if (!name) continue;
+
+    let start = 'start' in colMap ? parseDateVal(row[colMap.start]) : null;
+    let end   = 'end'   in colMap ? parseDateVal(row[colMap.end])   : null;
+    const dur = 'duration' in colMap ? parseInt(row[colMap.duration]) || null : null;
+
+    if (start && !end && dur) end = addWorkDays(start, dur);
+    if (end && !start && dur) {
+      let d = new Date(end); d.setDate(d.getDate() - (dur - 1) * 1.5);
+      start = d.toISOString().slice(0,10);
+    }
+    if (!start) start = TODAY_STR;
+    if (!end) end = addWorkDays(start, dur || 1);
+
+    _importParsed.push({
+      name,
+      start,
+      end,
+      assignee: 'assignee' in colMap ? String(row[colMap.assignee] ?? '').trim() : '',
+      progress: 'progress' in colMap ? Math.max(0, Math.min(100, parseInt(row[colMap.progress]) || 0)) : 0,
+      note: 'note' in colMap ? String(row[colMap.note] ?? '').trim() : '',
+      _rawDeps: 'deps' in colMap ? String(row[colMap.deps] ?? '').trim() : '',
+    });
+  }
+
+  if (!_importParsed.length) throw new Error('没有找到有效任务行');
+
+  // Render preview
+  const titleEl = document.getElementById('importPreviewTitle');
+  titleEl.textContent = `预览：共 ${_importParsed.length} 条任务`;
+  const head = document.getElementById('importPreviewHead');
+  const body = document.getElementById('importPreviewBody');
+  head.innerHTML = `<tr>${['任务名称','开始日期','结束日期','负责人','进度%'].map(h=>`<th>${h}</th>`).join('')}</tr>`;
+  body.innerHTML = _importParsed.slice(0,50).map(t =>
+    `<tr><td title="${t.name}">${t.name}</td><td>${t.start}</td><td>${t.end}</td><td>${t.assignee||'—'}</td><td>${t.progress||0}</td></tr>`
+  ).join('') + (_importParsed.length > 50 ? `<tr><td colspan="5" style="color:var(--t4);text-align:center">…还有 ${_importParsed.length-50} 条</td></tr>` : '');
+
+  document.getElementById('importError').style.display = 'none';
+  document.getElementById('importPreview').style.display = '';
+}
+
+function confirmImport() {
+  if (!_importParsed.length) return;
+  const append = document.getElementById('importAppend').checked;
+  pushHistory();
+  if (!append) {
+    tasks = [];
+    nextId = 1;
+  }
+  const startId = nextId;
+  const idxMap = {}; // row-index → task id (for dep resolution)
+  _importParsed.forEach((t, i) => {
+    const id = nextId++;
+    idxMap[i+1] = id;
+    tasks.push({
+      id, name: t.name, type: 'task',
+      start: t.start, end: t.end,
+      assignee: t.assignee || undefined,
+      progress: t.progress, done: t.progress >= 100,
+      color: '#5E6AD2', parent: null,
+      note: t.note || undefined,
+      pinStart: true,
+    });
+  });
+  // Resolve deps by row number
+  _importParsed.forEach((t, i) => {
+    if (!t._rawDeps) return;
+    const ids = t._rawDeps.split(/[,;，；\s]+/).map(n => idxMap[parseInt(n)]).filter(Boolean);
+    if (ids.length) tasks[tasks.length - _importParsed.length + i].deps = ids;
+  });
+  curProj().tasks = tasks;
+  curProj().nextId = nextId;
+  if (typeof logAudit === 'function') logAudit('导入任务', `${_importParsed.length} 条（${append?'追加':'替换'}）`);
+  scheduleTasks(); recalcProjEnd(); render(); saveToCloud();
+  closeImportModal();
+  showStatus(`✓ 已导入 ${_importParsed.length} 条任务`);
+}
+
+/* ═══════════════════════════════════════════
+   MOBILE CARD VIEW
+═══════════════════════════════════════════ */
+function renderMobileView() {
+  const proj = curProj();
+  const el = document.getElementById('mobileCardList');
+  const nameEl = document.getElementById('mobileProjName');
+  if (!el) return;
+  if (nameEl) nameEl.textContent = proj?.name || '项目';
+  if (!tasks.length) {
+    el.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--t4)"><div style="font-size:40px;margin-bottom:10px">📋</div><div>暂无任务</div><div style="font-size:12px;margin-top:6px">点击右上角 ＋ 新增</div></div>';
+    return;
+  }
+  const today = TODAY_STR;
+  el.innerHTML = tasks.map(t => {
+    if (t.type === 'group') {
+      return `<div class="mobile-card-group">▶ ${t.name}</div>`;
+    }
+    if (t.type === 'milestone') {
+      const overdue = t.date && t.date < today && !t.done;
+      return `<div class="mobile-card mobile-card-milestone" onclick="openEditModal(${t.id})">
+        <div class="mobile-card-name"><span style="font-size:16px">◆</span> ${t.name} ${t.done?'<span style="color:var(--green)">✓</span>':''}</div>
+        <div class="mobile-card-meta"><span>${t.date||''}</span>${overdue?'<span style="color:var(--red)">⚠ 已逾期</span>':''}</div>
+      </div>`;
+    }
+    const pct = t.done ? 100 : (t.progress || 0);
+    const overdue = t.end && t.end < today && !t.done;
+    const color = t.done ? '#10B981' : overdue ? '#EF4444' : (t.color || '#5E6AD2');
+    return `<div class="mobile-card" onclick="openEditModal(${t.id})">
+      <div class="mobile-card-name">
+        <span class="mobile-card-dot" style="background:${color}"></span>
+        ${t.name}${t.done?' <span style="color:var(--green);font-size:12px">✓</span>':''}
+        ${overdue?' <span style="color:var(--red);font-size:11px">逾期</span>':''}
+      </div>
+      <div class="mobile-card-meta">
+        <span>📅 ${t.start||''}${t.end&&t.end!==t.start?' → '+t.end:''}</span>
+        ${t.assignee?`<span>👤 ${t.assignee}</span>`:''}
+        <span>${pct}%</span>
+      </div>
+      <div class="mobile-card-progress"><div class="mobile-card-progress-fill" style="width:${pct}%;background:${color}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function switchToDesktop() {
+  document.getElementById('mobileView').style.display = 'none';
+  document.getElementById('main').style.display = 'flex';
+  localStorage.setItem('gp_force_desktop', '1');
+}
+
+function checkMobileView() {
+  const forceDesktop = localStorage.getItem('gp_force_desktop');
+  const isMobile = window.innerWidth < 768;
+  if (isMobile && !forceDesktop) {
+    document.getElementById('mobileView').style.display = 'flex';
+    document.getElementById('main').style.display = 'none';
+    renderMobileView();
+  }
+}
+
 function onSettingBarDatesChange() {
   showBarDates = document.getElementById('settingBarDates').checked;
   render();
@@ -6217,6 +6579,7 @@ function render() {
   renderTaskPanel();
   renderChartHeader();
   renderChartBody();
+  if (document.getElementById('mobileView')?.style.display !== 'none') renderMobileView();
   const undoBtn = document.getElementById('undoBtn');
   if (undoBtn) undoBtn.disabled = _history.length === 0;
   if (isReadOnly) return;
@@ -6495,7 +6858,13 @@ async function signOut() {
 function showApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appToolbar').style.display = 'flex';
-  document.getElementById('main').style.display = 'flex';
+  const isMobile = window.innerWidth < 768 && !localStorage.getItem('gp_force_desktop');
+  if (isMobile) {
+    document.getElementById('mobileView').style.display = 'flex';
+    document.getElementById('main').style.display = 'none';
+  } else {
+    document.getElementById('main').style.display = 'flex';
+  }
 }
 
 
