@@ -1029,6 +1029,27 @@ body.dark mark.chat-hl{background:#854d0e;color:#fef9c3}
   #fcPanel{width:calc(100vw - 20px);right:10px;bottom:72px;height:calc(100vh - 120px);border-radius:16px 16px 0 0}
   #chatFab{bottom:65px;right:14px}
 }
+/* ── RISK REGISTER ── */
+.risk-matrix{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;margin:10px 0}
+.risk-cell{
+  height:36px;border-radius:4px;display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:#fff;cursor:default;
+}
+.risk-low{background:#22c55e}.risk-med{background:#f59e0b}.risk-high{background:#ef4444}
+.risk-table{width:100%;border-collapse:collapse;font-size:13px}
+.risk-table th{padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);color:var(--t3);font-size:11px;font-weight:600}
+.risk-table td{padding:6px 8px;border-bottom:1px solid var(--border);color:var(--t2);vertical-align:top}
+.risk-score{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;color:#fff;
+}
+.risk-add-btn{
+  display:flex;align-items:center;gap:6px;padding:6px 12px;margin-top:8px;
+  background:var(--accent-bg);color:var(--accent);border:1px dashed var(--accent);
+  border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;width:100%;
+  transition:background .12s;
+}
+.risk-add-btn:hover{background:var(--accent);color:#fff}
 /* ── TOOLTIP ── */
 .tooltip{
   position:fixed;
@@ -1820,6 +1841,9 @@ body:not(.show-wbs) .wbs-code{display:none}
         <div class="menu-dd-sep"></div>
         <div class="menu-dd-item" onclick="openResourceModal();closeAllMenus()"><span class="mi-icon">👤</span> 资源池</div>
         <div class="menu-dd-item" onclick="toggleChat();closeAllMenus()"><span class="mi-icon">💬</span> 聊天</div>
+        <div class="menu-dd-sep"></div>
+        <div class="menu-dd-item" onclick="openRiskModal();closeAllMenus()"><span class="mi-icon">⚠️</span> 风险登记册</div>
+        <div class="menu-dd-item" onclick="openWebhookModal();closeAllMenus()"><span class="mi-icon">🔔</span> Webhook 通知</div>
       </div>
     </div>
     <!-- Help menu -->
@@ -6003,7 +6027,12 @@ function _baseSubmitTask() {
     curProj().nextId = nextId;
   }
 
-  if (typeof logAudit === 'function') logAudit(editingTaskId !== null ? '編輯任務' : '新增任務', name);
+  const _isNew = editingTaskId === null;
+  if (typeof logAudit === 'function') logAudit(_isNew ? '新增任務' : '編輯任務', name);
+  if (typeof _fireWebhook === 'function') {
+    if (_isNew) _fireWebhook('create', name);
+    else _fireWebhook('update', name);
+  }
   // Auto-spawn next recurrence when a recurring task is marked done
   if (editingTaskId !== null) {
     const savedTask = taskById(editingTaskId);
@@ -9865,7 +9894,181 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => document.getElementById('localNameInput')?.focus(), 100);
   }
 });
+
+// ── RISK REGISTER ──────────────────────────────────────────────────
+function openRiskModal() {
+  const proj = curProj(); if (!proj) return;
+  if (!proj.risks) proj.risks = [];
+  renderRisks();
+  document.getElementById('riskOverlay').classList.add('open');
+}
+function closeRiskModal() {
+  document.getElementById('riskOverlay').classList.remove('open');
+}
+function renderRisks() {
+  const proj = curProj(); if (!proj) return;
+  const risks = proj.risks || [];
+  const scoreColor = s => s <= 5 ? '#16a34a' : s <= 10 ? '#d97706' : '#dc2626';
+  const statusOpts = ['open','mitigated','closed'];
+  const statusLabel = {'open':'开放','mitigated':'已应对','closed':'已关闭'};
+  const tbody = document.getElementById('riskTbody');
+  if (!tbody) return;
+  tbody.innerHTML = risks.map((r, i) => {
+    const score = (r.prob||1) * (r.impact||1);
+    const col = scoreColor(score);
+    return `<tr data-ri="${i}">
+      <td><input class="form-ctrl" style="width:100%;min-width:120px" value="${_escHtml(r.name||'')}" onchange="updateRiskField(${i},'name',this.value)"></td>
+      <td><select class="form-ctrl" style="width:60px" onchange="updateRiskField(${i},'prob',+this.value)">${[1,2,3,4,5].map(v=>`<option${r.prob==v?' selected':''}>${v}</option>`).join('')}</select></td>
+      <td><select class="form-ctrl" style="width:60px" onchange="updateRiskField(${i},'impact',+this.value)">${[1,2,3,4,5].map(v=>`<option${r.impact==v?' selected':''}>${v}</option>`).join('')}</select></td>
+      <td><span class="risk-score" style="background:${col};margin:auto">${score}</span></td>
+      <td><input class="form-ctrl" style="width:80px" value="${_escHtml(r.owner||'')}" onchange="updateRiskField(${i},'owner',this.value)"></td>
+      <td><input class="form-ctrl" style="width:120px" value="${_escHtml(r.mitigation||'')}" onchange="updateRiskField(${i},'mitigation',this.value)"></td>
+      <td><select class="form-ctrl" style="width:80px" onchange="updateRiskField(${i},'status',this.value)">${statusOpts.map(s=>`<option value="${s}"${r.status===s?' selected':''}>${statusLabel[s]}</option>`).join('')}</select></td>
+      <td><button style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:16px" onclick="deleteRisk(${i})" title="删除">🗑</button></td>
+    </tr>`;
+  }).join('');
+}
+function updateRiskField(idx, field, val) {
+  const proj = curProj(); if (!proj) return;
+  if (!proj.risks) proj.risks = [];
+  if (!proj.risks[idx]) return;
+  proj.risks[idx][field] = val;
+  renderRisks();
+  saveNow();
+}
+function addRisk() {
+  const proj = curProj(); if (!proj) return;
+  if (!proj.risks) proj.risks = [];
+  proj.risks.push({id: Date.now(), name: '新风险', prob: 2, impact: 2, owner: '', mitigation: '', status: 'open'});
+  renderRisks();
+  saveNow();
+}
+function deleteRisk(idx) {
+  const proj = curProj(); if (!proj) return;
+  proj.risks.splice(idx, 1);
+  renderRisks();
+  saveNow();
+}
+function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── WEBHOOK NOTIFICATIONS ──────────────────────────────────────────
+(function(){
+  const LS_KEY = 'gp_webhooks';
+  function _loadWH() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY)||'{}'); } catch(e){ return {}; }
+  }
+  function _saveWH(cfg) { localStorage.setItem(LS_KEY, JSON.stringify(cfg)); }
+
+  window.openWebhookModal = function() {
+    const cfg = _loadWH();
+    const f = (id, val) => { const el=document.getElementById(id); if(el) el.value=val||''; };
+    const cb = (id, val) => { const el=document.getElementById(id); if(el) el.checked=!!val; };
+    f('wh_feishu', cfg.feishu); f('wh_dingtalk', cfg.dingtalk); f('wh_generic', cfg.generic);
+    cb('wh_oncreate', cfg.oncreate!==false);
+    cb('wh_oncomplete', cfg.oncomplete!==false);
+    cb('wh_onupdate', cfg.onupdate);
+    document.getElementById('webhookOverlay').classList.add('open');
+  };
+  window.closeWebhookModal = function() {
+    document.getElementById('webhookOverlay').classList.remove('open');
+  };
+  window.saveWebhookSettings = function() {
+    const g = id => document.getElementById(id);
+    const cfg = {
+      feishu: g('wh_feishu')?.value.trim()||'',
+      dingtalk: g('wh_dingtalk')?.value.trim()||'',
+      generic: g('wh_generic')?.value.trim()||'',
+      oncreate: g('wh_oncreate')?.checked,
+      oncomplete: g('wh_oncomplete')?.checked,
+      onupdate: g('wh_onupdate')?.checked
+    };
+    _saveWH(cfg);
+    closeWebhookModal();
+    toast('Webhook 设置已保存');
+  };
+  window.testWebhook = function() {
+    const proj = curProj();
+    _fireWebhook('create', '测试任务', proj?.name||'GanttPro');
+    toast('测试通知已发送');
+  };
+  window._fireWebhook = function(event, taskName, projName) {
+    const cfg = _loadWH();
+    const skip = (event==='create' && !cfg.oncreate) ||
+                 (event==='complete' && !cfg.oncomplete) ||
+                 (event==='update' && !cfg.onupdate);
+    if (skip) return;
+    const proj = projName || curProj()?.name || 'GanttPro';
+    const eventLabel = event==='create'?'新增任务':event==='complete'?'任务已完成':'任务已更新';
+    const text = `[${proj}] ${eventLabel}：${taskName}`;
+    if (cfg.feishu) {
+      fetch(cfg.feishu, {method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({msg_type:'text',content:{text}})}).catch(()=>{});
+    }
+    if (cfg.dingtalk) {
+      fetch(cfg.dingtalk, {method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({msgtype:'text',text:{content:text}})}).catch(()=>{});
+    }
+    if (cfg.generic) {
+      fetch(cfg.generic, {method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({event, taskName, projName:proj, text, ts:Date.now()})}).catch(()=>{});
+    }
+  };
+})();
 </script>
+
+<!-- ── RISK REGISTER OVERLAY ── -->
+<div class="overlay" id="riskOverlay" onclick="if(event.target===this)closeRiskModal()" style="z-index:1050">
+  <div class="modal" style="max-width:700px;width:96%">
+    <button class="modal-close" onclick="closeRiskModal()">✕</button>
+    <div class="modal-title">⚠️ 风险登记册</div>
+    <p style="font-size:12px;color:var(--t3);margin-bottom:10px">概率 × 影响 = 风险评分（1–5 级）。绿色 ≤5，黄色 6–10，红色 ≥11</p>
+    <div id="riskTableWrap" style="overflow-x:auto">
+      <table class="risk-table" id="riskTable">
+        <thead><tr>
+          <th>风险描述</th><th>概率</th><th>影响</th><th>评分</th><th>负责人</th><th>应对措施</th><th>状态</th><th></th>
+        </tr></thead>
+        <tbody id="riskTbody"></tbody>
+      </table>
+    </div>
+    <button class="risk-add-btn" onclick="addRisk()">＋ 新增风险</button>
+  </div>
+</div>
+
+<!-- ── WEBHOOK SETTINGS OVERLAY ── -->
+<div class="overlay" id="webhookOverlay" onclick="if(event.target===this)closeWebhookModal()" style="z-index:1050">
+  <div class="modal" style="max-width:480px">
+    <button class="modal-close" onclick="closeWebhookModal()">✕</button>
+    <div class="modal-title">🔔 Webhook 通知设置</div>
+    <p style="font-size:12px;color:var(--t3);margin-bottom:12px">任务创建/完成/更新时，自动向以下地址发送通知。</p>
+    <div class="form-row">
+      <label class="form-lbl">飞书机器人 Webhook URL</label>
+      <input class="form-ctrl" id="wh_feishu" type="url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/…">
+    </div>
+    <div class="form-row">
+      <label class="form-lbl">钉钉机器人 Webhook URL</label>
+      <input class="form-ctrl" id="wh_dingtalk" type="url" placeholder="https://oapi.dingtalk.com/robot/send?access_token=…">
+    </div>
+    <div class="form-row">
+      <label class="form-lbl">通用 Webhook（POST JSON）</label>
+      <input class="form-ctrl" id="wh_generic" type="url" placeholder="https://your-server.com/hook">
+    </div>
+    <div class="form-row" style="display:flex;align-items:center;gap:8px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2);cursor:pointer">
+        <input type="checkbox" id="wh_oncreate" checked style="accent-color:var(--accent)"> 新增任务
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2);cursor:pointer">
+        <input type="checkbox" id="wh_oncomplete" checked style="accent-color:var(--accent)"> 任务完成
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2);cursor:pointer">
+        <input type="checkbox" id="wh_onupdate" style="accent-color:var(--accent)"> 任务更新
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="testWebhook()">🧪 测试发送</button>
+      <button class="btn btn-primary" onclick="saveWebhookSettings()">保存</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── SLACK-LIKE CHAT (floating) ── -->
 <button id="chatFab" onclick="fcToggle()" title="团队聊天" style="display:none">
