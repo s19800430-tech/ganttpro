@@ -986,6 +986,26 @@ body.dark .form-ctrl{color-scheme:dark}
 .chat-emoji-opt:hover{background:var(--s2)}
 /* Mobile: show react button always on touch devices */
 @media(hover:none){.chat-react-btn{opacity:1}}
+.chat-search-bar{
+  display:flex;align-items:center;gap:6px;padding:6px 10px;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+  background:var(--surface2);
+}
+.chat-search-bar input{
+  flex:1;border:1px solid var(--border);border-radius:6px;
+  padding:4px 8px;font-size:12px;color:var(--t1);background:var(--surface);
+  outline:none;font-family:inherit;
+}
+.chat-search-bar input:focus{border-color:var(--accent)}
+.chat-search-close{background:none;border:none;cursor:pointer;color:var(--t3);font-size:14px;padding:0 2px}
+mark.chat-hl{background:#fef08a;color:#713f12;border-radius:2px;padding:0 1px}
+body.dark mark.chat-hl{background:#854d0e;color:#fef9c3}
+/* recurrence badge on task cards */
+.task-recur-badge{
+  display:inline-flex;align-items:center;gap:2px;
+  font-size:10px;color:var(--accent);background:var(--accent-bg);
+  border-radius:4px;padding:0 4px;margin-left:4px;
+}
 .chat-mention-popup{
   position:absolute;bottom:100%;left:0;right:0;margin-bottom:4px;
   background:var(--surface);border:1px solid var(--border);border-radius:8px;
@@ -2452,6 +2472,27 @@ body:not(.show-wbs) .wbs-code{display:none}
           <input class="form-ctrl" type="number" id="fPlannedCost" min="0" step="0.01" placeholder="计划" style="flex:1">
           <span style="color:var(--t4);font-size:12px">/</span>
           <input class="form-ctrl" type="number" id="fActualCost" min="0" step="0.01" placeholder="实际" style="flex:1">
+        </div>
+      </div>
+      <div class="form-row" id="rowRecur">
+        <label class="form-lbl">循环周期</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select class="form-ctrl" id="fRecurType" style="flex:1" onchange="document.getElementById('fRecurInterval').disabled=this.value===''">
+            <option value="">不重复</option>
+            <option value="daily">每天</option>
+            <option value="weekly">每周</option>
+            <option value="biweekly">每两周</option>
+            <option value="monthly">每月</option>
+          </select>
+          <input class="form-ctrl" type="number" id="fRecurInterval" min="1" max="99" value="1" placeholder="间隔" style="width:60px;text-align:center" title="间隔数" disabled>
+          <span style="font-size:11px;color:var(--t3)">次</span>
+        </div>
+        <div style="margin-top:4px;display:flex;gap:6px;align-items:center">
+          <label class="form-lbl" style="margin:0;white-space:nowrap">结束于</label>
+          <input class="form-ctrl" type="date" id="fRecurEnd" style="flex:1" title="循环截止日期（空=无限）">
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--t2);white-space:nowrap;cursor:pointer">
+            <input type="checkbox" id="fRecurAutoCreate" checked style="accent-color:var(--accent)"> 自动创建
+          </label>
         </div>
       </div>
     </div>
@@ -5092,7 +5133,7 @@ function renderMobileView() {
     return `<div class="mobile-card" onclick="openEditModal(${t.id})">
       <div class="mobile-card-name">
         <span class="mobile-card-dot" style="background:${color}"></span>
-        ${t.name}${t.done?' <span style="color:var(--green);font-size:12px">✓</span>':''}
+        ${t.name}${t.done?' <span style="color:var(--green);font-size:12px">✓</span>':''}${t.recur?.type?`<span class="task-recur-badge">🔄 ${{'daily':'日','weekly':'周','biweekly':'双周','monthly':'月'}[t.recur.type]||t.recur.type}</span>`:''}
         ${overdue?' <span style="color:var(--red);font-size:11px">逾期</span>':''}
       </div>
       <div class="mobile-card-meta">
@@ -5963,6 +6004,13 @@ function _baseSubmitTask() {
   }
 
   if (typeof logAudit === 'function') logAudit(editingTaskId !== null ? '編輯任務' : '新增任務', name);
+  // Auto-spawn next recurrence when a recurring task is marked done
+  if (editingTaskId !== null) {
+    const savedTask = taskById(editingTaskId);
+    if (savedTask?.done && savedTask?.recur?.type && typeof _spawnNextRecurrence === 'function') {
+      setTimeout(() => _spawnNextRecurrence(savedTask), 50);
+    }
+  }
   editingTaskId = null;
   document.getElementById('overlay').classList.remove('open');
   scheduleTasks();
@@ -9527,6 +9575,39 @@ function _autoExpandModalAdvanced(task) {
   toggleModalAdvanced(hasAdv);
 }
 
+function _resetRecurFields() {
+  const rt = document.getElementById('fRecurType');
+  const ri = document.getElementById('fRecurInterval');
+  const re = document.getElementById('fRecurEnd');
+  const rac = document.getElementById('fRecurAutoCreate');
+  if(rt) rt.value = '';
+  if(ri) { ri.value = 1; ri.disabled = true; }
+  if(re) re.value = '';
+  if(rac) rac.checked = true;
+}
+function _loadRecurFields(task) {
+  const r = task?.recur;
+  const rt = document.getElementById('fRecurType');
+  const ri = document.getElementById('fRecurInterval');
+  const re = document.getElementById('fRecurEnd');
+  const rac = document.getElementById('fRecurAutoCreate');
+  if(!r) { _resetRecurFields(); return; }
+  if(rt) rt.value = r.type || '';
+  if(ri) { ri.value = r.interval || 1; ri.disabled = !r.type; }
+  if(re) re.value = r.endDate || '';
+  if(rac) rac.checked = r.autoCreate !== false;
+}
+function _readRecurFields() {
+  const type = document.getElementById('fRecurType')?.value;
+  if(!type) return null;
+  return {
+    type,
+    interval: parseInt(document.getElementById('fRecurInterval')?.value)||1,
+    endDate: document.getElementById('fRecurEnd')?.value||'',
+    autoCreate: document.getElementById('fRecurAutoCreate')?.checked !== false,
+  };
+}
+
 function openModal(typeOrUnused, prefillDate) {
   _baseOpenModal(typeOrUnused, prefillDate);
   document.getElementById('fLink').value = '';
@@ -9535,6 +9616,7 @@ function openModal(typeOrUnused, prefillDate) {
   document.getElementById('fPlannedCost').value = '';
   document.getElementById('fActualCost').value = '';
   document.getElementById('modal-approval-btn').style.display = 'none';
+  _resetRecurFields();
   _syncProgressRange(0);
   const needExpand = typeOrUnused === 'milestone' || typeOrUnused === 'group';
   if (needExpand) {
@@ -9553,6 +9635,7 @@ function openEditModal(taskId) {
     document.getElementById('fEvidence').value = task.evidence || '';
     document.getElementById('fPlannedCost').value = task.plannedCost || '';
     document.getElementById('fActualCost').value = task.actualCost || '';
+    _loadRecurFields(task);
     const canApprove = isAdmin() || (curProj() && !curProj()._isShared);
     document.getElementById('modal-approval-btn').style.display = (task.approval === 'pending' && canApprove) ? '' : 'none';
     _syncProgressRange(task.progress || 0);
@@ -9586,8 +9669,61 @@ function submitTask() {
     const actualCost = parseFloat(document.getElementById('fActualCost')?.value) || 0;
     if (plannedCost) t.plannedCost = plannedCost; else delete t.plannedCost;
     if (actualCost) t.actualCost = actualCost; else delete t.actualCost;
+    const recur = _readRecurFields();
+    if (recur) t.recur = recur; else delete t.recur;
     if (currentUser) saveToCloud();
   }
+}
+
+// ── Recurring task auto-creation ──
+// Called after a recurring task is marked done; spawns the next occurrence
+function _spawnNextRecurrence(task) {
+  if (!task?.recur?.type || !task.recur.autoCreate) return;
+  const r = task.recur;
+  const baseEnd = task.end || task.date;
+  if (!baseEnd) return;
+
+  const msPerDay = 86400000;
+  const interval = r.interval || 1;
+  let days = 0;
+  if (r.type === 'daily')     days = interval;
+  else if (r.type === 'weekly')    days = 7 * interval;
+  else if (r.type === 'biweekly') days = 14 * interval;
+  else if (r.type === 'monthly')  days = 30 * interval; // approximate
+
+  const nextStart = new Date(new Date(task.start || task.date).getTime() + days * msPerDay);
+  const nextEnd   = new Date(new Date(baseEnd).getTime() + days * msPerDay);
+  const toStr = d => d.toISOString().slice(0,10);
+
+  if (r.endDate && toStr(nextStart) > r.endDate) return; // past recurrence end
+
+  const next = {
+    id: nextId++,
+    name: task.name,
+    type: task.type,
+    parent: task.parent,
+    color: task.color,
+    deps: [], sdeps: [],
+    recur: {...r},
+    pinStart: true,
+  };
+  if (task.type === 'milestone') {
+    next.date = toStr(nextStart);
+  } else {
+    next.start = toStr(nextStart);
+    next.end = toStr(nextEnd);
+    next.wday = task.wday;
+    next.done = false;
+    next.progress = 0;
+  }
+  if (task.assignee) next.assignee = task.assignee;
+
+  // Insert right after the current task
+  const idx = tasks.indexOf(task);
+  tasks.splice(idx + 1, 0, next);
+  curProj().nextId = nextId;
+  scheduleTasks(); recalcProjEnd(); render();
+  logAudit('循环新增', next.name);
 }
 
 /* ═══════════════════════════════════════════
@@ -9739,7 +9875,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   <div class="chat-header">
     <div class="chat-header-title">💬 团队频道</div>
     <div class="chat-header-online" id="fcOnlineCount"></div>
+    <button class="chat-close-btn" onclick="fcSearchToggle()" title="搜索消息">🔍</button>
     <button class="chat-close-btn" onclick="fcToggle()">✕</button>
+  </div>
+  <div class="chat-search-bar" id="fcSearchBar" style="display:none">
+    <input type="search" id="fcSearchInput" placeholder="搜索消息…" oninput="fcSearchFilter(this.value)" onkeydown="if(event.key==='Escape')fcSearchToggle()">
+    <button class="chat-search-close" onclick="fcSearchToggle()">✕</button>
   </div>
   <div class="chat-channels" id="fcChannels">
     <button class="chat-ch-btn active" data-ch="general" onclick="fcSwitchCh('general')"># 综合</button>
@@ -10124,6 +10265,51 @@ document.addEventListener('DOMContentLoaded', async () => {
       _renderPresence();
     }, 90000);
   }
+
+  // ── Message search ──
+  let _searchActive = false;
+  window.fcSearchToggle = function() {
+    _searchActive = !_searchActive;
+    const bar = document.getElementById('fcSearchBar');
+    if(bar) bar.style.display = _searchActive ? 'flex' : 'none';
+    if(_searchActive) {
+      const inp = document.getElementById('fcSearchInput');
+      if(inp) { inp.value=''; inp.focus(); }
+    } else {
+      fcSearchFilter(''); // clear highlights
+    }
+  };
+
+  window.fcSearchFilter = function(query) {
+    const q = (query||'').toLowerCase().trim();
+    const box = document.getElementById('fcMessages');
+    if(!box) return;
+    const wraps = box.querySelectorAll('.chat-msg-wrap');
+    wraps.forEach(wrap => {
+      const textEl = wrap.querySelector('.chat-msg-text');
+      if(!textEl) return;
+      const origText = textEl.dataset.orig || textEl.innerHTML;
+      textEl.dataset.orig = origText; // cache original HTML
+      if(!q) {
+        textEl.innerHTML = origText;
+        wrap.style.display = '';
+        return;
+      }
+      // strip tags for matching
+      const plain = origText.replace(/<[^>]+>/g,'');
+      if(plain.toLowerCase().includes(q)) {
+        wrap.style.display = '';
+        // highlight matches (only in text nodes, rough approach via regex on plain)
+        const escaped = q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+        textEl.innerHTML = origText.replace(
+          new RegExp(`(${escaped})`, 'gi'),
+          '<mark class="chat-hl">$1</mark>'
+        );
+      } else {
+        wrap.style.display = 'none';
+      }
+    });
+  };
 
   document.addEventListener('DOMContentLoaded', ()=>{
     const tryInit=()=>{
