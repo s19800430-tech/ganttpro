@@ -1389,6 +1389,8 @@ body.theme-dunhuang{
 .sprint-col-head{padding:10px 14px;font-size:12px;font-weight:700;color:var(--t2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .sprint-col-count{font-size:10px;padding:1px 7px;border-radius:8px;background:var(--s2);color:var(--t4)}
 .sprint-col-body{flex:1;overflow-y:auto;padding:8px}
+.sprint-col-dragover{outline:2px dashed var(--accent);background:var(--accent-bg)}
+.sprint-card[draggable]{cursor:grab}
 .sprint-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:border-color .12s,box-shadow .12s}
 .sprint-card:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.08)}
 .sprint-card-name{font-size:12px;font-weight:600;color:var(--t1);margin-bottom:5px}
@@ -9220,10 +9222,34 @@ function renderSprintView() {
   cols.forEach(c => taskMap[c.id] = []);
   tasks.filter(t => t.type === 'task').forEach(t => taskMap[getStatus(t)].push(t));
 
-  el.innerHTML = `<div style="font-size:16px;font-weight:700;color:var(--t1);margin-bottom:14px">🏃 看板視圖</div>
+  function applyKanbanStatus(taskId, colId) {
+    const t = tasks.find(x => x.id === taskId); if (!t) return;
+    if (colId === 'done') { t.done = true; t.progress = 100; if (typeof _fireWebhook==='function') _fireWebhook('complete', t.name); }
+    else if (colId === 'inprogress') { t.done = false; if (!t.progress || t.progress < 1) t.progress = 10; }
+    else if (colId === 'review') { t.done = false; t.approval = 'pending'; }
+    else { t.done = false; t.progress = 0; delete t.approval; }
+    if (colId !== 'done') { delete t.approval; }
+    if (colId !== 'review' && t.approval === 'pending') delete t.approval;
+    saveToLS(); if (currentUser) saveToCloud();
+    renderSprintView(); render();
+  }
+  window._kanbanDrop = function(ev, colId) {
+    ev.preventDefault();
+    const tid = +ev.dataTransfer.getData('text/plain');
+    if (tid) applyKanbanStatus(tid, colId);
+    ev.currentTarget.classList.remove('sprint-col-dragover');
+  };
+  window._kanbanDragOver = function(ev) {
+    ev.preventDefault(); ev.currentTarget.classList.add('sprint-col-dragover');
+  };
+  window._kanbanDragLeave = function(ev) {
+    ev.currentTarget.classList.remove('sprint-col-dragover');
+  };
+
+  el.innerHTML = `<div style="font-size:16px;font-weight:700;color:var(--t1);margin-bottom:14px">🏃 看板视图</div>
   <div class="sprint-board">
     ${cols.map(c => `
-      <div class="sprint-col">
+      <div class="sprint-col" ondrop="_kanbanDrop(event,'${c.id}')" ondragover="_kanbanDragOver(event)" ondragleave="_kanbanDragLeave(event)">
         <div class="sprint-col-head">
           <span style="display:flex;align-items:center;gap:6px">
             <span style="width:8px;height:8px;border-radius:50%;background:${c.color}"></span>
@@ -9233,10 +9259,11 @@ function renderSprintView() {
         </div>
         <div class="sprint-col-body">
           ${taskMap[c.id].map(t => `
-            <div class="sprint-card" onclick="openEditModal(${t.id})">
+            <div class="sprint-card" draggable="true" ondragstart="event.dataTransfer.setData('text/plain','${t.id}')"
+              onclick="openEditModal(${t.id})">
               <div class="sprint-card-name">${t.name}</div>
               <div class="sprint-card-meta">
-                <span class="sprint-card-dot" style="background:${t.color}"></span>
+                <span class="sprint-card-dot" style="background:${t.color||'var(--accent)'}"></span>
                 ${t.assignee ? `<span>${t.assignee}</span>` : ''}
                 ${t.end ? `<span>${t.end}</span>` : ''}
               </div>
@@ -10290,7 +10317,22 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
     });
   };
 
+  function _playMentionSound() {
+    try {
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      const o1 = ctx.createOscillator(); const o2 = ctx.createOscillator();
+      const g = ctx.createGain();
+      o1.type='sine'; o1.frequency.value=880;
+      o2.type='sine'; o2.frequency.value=1100;
+      g.gain.setValueAtTime(0.18, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.4);
+      o1.connect(g); o2.connect(g); g.connect(ctx.destination);
+      o1.start(); o2.start();
+      o1.stop(ctx.currentTime+0.18); o2.start(ctx.currentTime+0.22); o2.stop(ctx.currentTime+0.4);
+    } catch(e) {}
+  }
   function _notify(from) {
+    _playMentionSound();
     if(!('Notification' in window)) return;
     if(Notification.permission==='granted')
       new Notification(`@你 — ${from}`,{body:'在团队频道提到了你'});
