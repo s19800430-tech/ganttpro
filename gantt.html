@@ -967,15 +967,33 @@ body.dark .form-ctrl{color-scheme:dark}
 }
 .chat-reaction:hover,.chat-reaction.mine{background:var(--accent-bg);border-color:var(--accent)}
 .chat-reaction-count{font-size:11px;color:var(--t2)}
+/* Thread reply styles */
+.chat-reply-quote{
+  font-size:11px;color:var(--t3);background:var(--s2);
+  border-left:2px solid var(--accent);border-radius:0 4px 4px 0;
+  padding:2px 6px;margin-bottom:4px;max-width:220px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.chat-reply-name{font-weight:600;color:var(--accent);margin-right:4px}
+.chat-reply-bar-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-reply-cancel{background:none;border:none;cursor:pointer;color:var(--t3);font-size:14px;padding:0 4px;flex-shrink:0}
+.chat-reply-cancel:hover{color:var(--t1)}
+/* Message action buttons (reply + emoji) */
 .chat-msg-wrap{position:relative}
-.chat-msg-wrap:hover .chat-react-btn{opacity:1}
-.chat-react-btn{
-  position:absolute;right:0;top:0;
+.chat-msg-wrap:hover .chat-msg-actions{opacity:1}
+.chat-msg-actions{
+  position:absolute;right:0;top:-2px;
+  display:flex;gap:2px;
   opacity:0;transition:opacity .15s;
+}
+.chat-act-btn{
   background:var(--surface);border:1px solid var(--border);border-radius:8px;
-  padding:2px 5px;font-size:13px;cursor:pointer;
+  padding:2px 6px;font-size:12px;cursor:pointer;color:var(--t2);
   box-shadow:0 2px 8px rgba(0,0,0,.08);
 }
+.chat-act-btn:hover{background:var(--s2);color:var(--t1)}
+.chat-react-btn{font-size:13px}
+@media(hover:none){.chat-msg-actions{opacity:1}}
 .chat-emoji-picker{
   position:absolute;right:0;top:-38px;
   background:var(--surface);border:1px solid var(--border);border-radius:10px;
@@ -10122,6 +10140,7 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
   <div class="chat-presence-bar" id="fcPresenceBar"></div>
   <div id="fcActivityLog" style="padding:0 10px 4px;font-size:11px;color:var(--t3);max-height:48px;overflow:hidden;border-bottom:1px solid var(--border)"></div>
   <div class="chat-messages" id="fcMessages"></div>
+  <div id="fcReplyBar" style="display:none;align-items:center;gap:6px;padding:4px 10px;background:var(--accent-bg);border-top:1px solid var(--border);font-size:12px;color:var(--t2)"></div>
   <div class="chat-input-row" style="position:relative">
     <div id="fcMentionPopup" class="chat-mention-popup" style="display:none"></div>
     <textarea class="chat-input" id="fcInput" rows="1" placeholder="发消息… 用@提及队友"
@@ -10144,6 +10163,7 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
   let _mSel = -1, _mMatches = [];
   let _connecting = false;
   const _reactions = {};     // msgKey -> {emoji -> [{uuid,name}]}
+  let _replyTo = null;       // {key, name, text} — current reply target
   const REACT_EMOJIS = ['👍','❤️','😂','🎉','✅','🔥'];
 
   function _isTeam() { return location.hostname !== '' && location.protocol !== 'file:'; }
@@ -10234,19 +10254,27 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
     div.className='chat-msg'+(isSelf?' self':'')+(isSys?' system':'');
     const col=isSys?'':`background:${_color(msg.name)};`;
     const text=_linkify(_mentionify(_esc(msg.text||'')));
+    const replyHtml = msg.replyTo
+      ? `<div class="chat-reply-quote"><span class="chat-reply-name">${_esc(msg.replyTo.name)}</span>${_esc((msg.replyTo.text||'').slice(0,60))}${(msg.replyTo.text||'').length>60?'…':''}</div>`
+      : '';
     div.innerHTML=`<div class="chat-msg-avatar" style="${col}">${isSys?'ℹ️':_letter(msg.name)}</div>
       <div class="chat-msg-body">
         <div class="chat-msg-meta"><span class="chat-msg-name">${_esc(msg.name)}</span><span class="chat-msg-time">${_fmt(msg.ts)}</span></div>
+        ${replyHtml}
         <div class="chat-msg-text">${text}</div>
         <div class="chat-msg-reactions" id="react_${key.replace(/[^a-z0-9]/gi,'_')}"></div>
       </div>`;
     if(!isSys) {
-      const btn=document.createElement('button');
-      btn.className='chat-react-btn';
-      btn.textContent='😊';
-      btn.title='添加反应';
-      btn.onclick=(e)=>{e.stopPropagation();_showEmojiPicker(btn,key,msg);};
-      wrap.appendChild(btn);
+      const actWrap=document.createElement('div');
+      actWrap.className='chat-msg-actions';
+      const replyBtn=document.createElement('button');
+      replyBtn.className='chat-act-btn'; replyBtn.textContent='回复'; replyBtn.title='回复此消息';
+      replyBtn.onclick=(e)=>{e.stopPropagation();_setReply(key,msg);};
+      const emojiBtn=document.createElement('button');
+      emojiBtn.className='chat-act-btn chat-react-btn'; emojiBtn.textContent='😊'; emojiBtn.title='添加反应';
+      emojiBtn.onclick=(e)=>{e.stopPropagation();_showEmojiPicker(emojiBtn,key,msg);};
+      actWrap.appendChild(replyBtn); actWrap.appendChild(emojiBtn);
+      wrap.appendChild(actWrap);
     }
     wrap.appendChild(div);
     box.appendChild(wrap);
@@ -10372,15 +10400,34 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
     _loadHistory(chKey);
   };
 
+  function _setReply(key, msg) {
+    _replyTo = {key, name: msg.name, text: msg.text||''};
+    const bar = document.getElementById('fcReplyBar');
+    if(bar) {
+      bar.innerHTML = `<span class="chat-reply-bar-text">↩ 回复 <b>${_esc(msg.name)}</b>：${_esc((msg.text||'').slice(0,50))}${(msg.text||'').length>50?'…':''}</span>
+        <button class="chat-reply-cancel" onclick="fcCancelReply()">✕</button>`;
+      bar.style.display='flex';
+    }
+    document.getElementById('fcInput')?.focus();
+  }
+  window.fcCancelReply = function() {
+    _replyTo = null;
+    const bar=document.getElementById('fcReplyBar');
+    if(bar){bar.style.display='none';bar.innerHTML='';}
+  };
+
   window.fcSend = function() {
     const inp=document.getElementById('fcInput');
     const text=(inp?.value||'').trim();
     if(!text) return;
     if(_pn) {
-      _pn.publish({channel:_ch(_curCh), message:{uuid:_uuid(),name:_me(),text,ts:Date.now(),type:'msg'}});
+      const msgObj={uuid:_uuid(),name:_me(),text,ts:Date.now(),type:'msg'};
+      if(_replyTo) msgObj.replyTo=_replyTo;
+      _pn.publish({channel:_ch(_curCh), message:msgObj});
     }
     inp.value=''; inp.style.height='';
     window.fcHideMention();
+    window.fcCancelReply();
   };
 
   window.fcInputKeydown = function(e) {
