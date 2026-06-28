@@ -1784,7 +1784,7 @@ body:not(.show-wbs) .wbs-code{display:none}
         <div class="menu-dd-item" onclick="openVersionPanel();closeAllMenus()"><span class="mi-icon">🕐</span> 保存版本</div>
         <div class="menu-dd-sep"></div>
         <div class="menu-dd-item" onclick="exportPNG();closeAllMenus()"><span class="mi-icon">🖼</span> 导出 PNG</div>
-        <div class="menu-dd-item" onclick="exportPDF();closeAllMenus()"><span class="mi-icon">📄</span> 导出 PDF</div>
+        <div class="menu-dd-item" onclick="openPrintModal();closeAllMenus()"><span class="mi-icon">🖨</span> 打印 / PDF… <span class="mi-kbd">⌘P</span></div>
         <div class="menu-dd-item" onclick="exportExcel();closeAllMenus()"><span class="mi-icon">📊</span> 导出 Excel</div>
         <div class="menu-dd-item" onclick="openReportModal();closeAllMenus()"><span class="mi-icon">📊</span> 导出 PPTX</div>
         <div class="menu-dd-item" onclick="exportCSV();closeAllMenus()"><span class="mi-icon">📋</span> 导出 CSV</div>
@@ -8411,7 +8411,7 @@ function setupKeyboard() {
     const ctrl = e.ctrlKey || e.metaKey;
 
     if (ctrl && e.key === 'z') { e.preventDefault(); undo(); return; }
-    if (ctrl && e.key === 'p') { e.preventDefault(); exportPDF(); return; }
+    if (ctrl && e.key === 'p') { e.preventDefault(); openPrintModal(); return; }
     if (ctrl && e.key === 's') { e.preventDefault(); if (currentUser) saveToCloud(); return; }
 
     if (inInput) return;
@@ -9940,6 +9940,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
+// ── PRINT / PDF ────────────────────────────────────────────────────
+function openPrintModal() {
+  document.getElementById('printOverlay').classList.add('open');
+}
+function closePrintModal() {
+  document.getElementById('printOverlay').classList.remove('open');
+}
+function doPrint() {
+  const size = document.getElementById('pr_size')?.value || 'A4 landscape';
+  const showList = document.getElementById('pr_tasklist')?.checked !== false;
+  const showLegend = document.getElementById('pr_legend')?.checked !== false;
+  // Inject a temporary <style> for the chosen page size and options
+  const styleId = '_printStyle';
+  let st = document.getElementById(styleId);
+  if (!st) { st = document.createElement('style'); st.id = styleId; document.head.appendChild(st); }
+  st.textContent = `@media print {
+    @page { size: ${size}; margin: 1.2cm 1cm; }
+    .task-panel { display: ${showList ? 'block' : 'none'} !important; }
+    #printLegend { display: ${showLegend ? 'block' : 'none'} !important; }
+    .toolbar, #chatFab, #fcPanel, .overlay { display: none !important; }
+    body { background: #fff !important; }
+    .main { display: flex !important; height: auto !important; overflow: visible !important; }
+    .chart-area, #chartScroll { overflow: visible !important; height: auto !important; }
+    .task-panel, .task-body { overflow: visible !important; height: auto !important; max-height: none !important; }
+  }`;
+  closePrintModal();
+  setTimeout(() => { window.print(); }, 80);
+}
+
 // ── RISK REGISTER ──────────────────────────────────────────────────
 function openRiskModal() {
   const proj = curProj(); if (!proj) return;
@@ -10060,6 +10089,35 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
   };
 })();
 </script>
+
+<!-- ── PRINT SETTINGS OVERLAY ── -->
+<div class="overlay" id="printOverlay" onclick="if(event.target===this)closePrintModal()" style="z-index:1050">
+  <div class="modal" style="max-width:400px">
+    <button class="modal-close" onclick="closePrintModal()">✕</button>
+    <div class="modal-title">🖨 打印 / 导出 PDF</div>
+    <div class="form-row">
+      <label class="form-lbl">纸张大小</label>
+      <select class="form-ctrl" id="pr_size">
+        <option value="A4 landscape">A4 横向（推荐）</option>
+        <option value="A4 portrait">A4 纵向</option>
+        <option value="A3 landscape">A3 横向</option>
+        <option value="A3 portrait">A3 纵向</option>
+      </select>
+    </div>
+    <div class="form-row" style="display:flex;align-items:center;gap:8px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2);cursor:pointer">
+        <input type="checkbox" id="pr_tasklist" checked style="accent-color:var(--accent)"> 显示任务列表
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2);cursor:pointer">
+        <input type="checkbox" id="pr_legend" checked style="accent-color:var(--accent)"> 显示图例
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closePrintModal()">取消</button>
+      <button class="btn btn-primary" onclick="doPrint()">🖨 打印</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── RISK REGISTER OVERLAY ── -->
 <div class="overlay" id="riskOverlay" onclick="if(event.target===this)closeRiskModal()" style="z-index:1050">
