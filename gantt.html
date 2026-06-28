@@ -1791,6 +1791,9 @@ body:not(.show-wbs) .wbs-code{display:none}
         <div class="menu-dd-item" onclick="exportICS();closeAllMenus()"><span class="mi-icon">📅</span> 导出 iCalendar (.ics)</div>
         <div class="menu-dd-sep"></div>
         <div class="menu-dd-item" onclick="openImportModal();closeAllMenus()"><span class="mi-icon">📥</span> 从 Excel/CSV 导入</div>
+        <div class="menu-dd-item" onclick="openJiraImportModal();closeAllMenus()"><span class="mi-icon">🔧</span> 从 Jira CSV 导入</div>
+        <div class="menu-dd-sep"></div>
+        <div class="menu-dd-item" onclick="openAIWBSModal();closeAllMenus()"><span class="mi-icon">🤖</span> AI 任务分解 (WBS)</div>
       </div>
     </div>
     <!-- Edit menu -->
@@ -9940,6 +9943,217 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
+// ── AI WBS (Claude API) ────────────────────────────────────────────
+function openAIWBSModal() {
+  document.getElementById('aiWBSOverlay').classList.add('open');
+  document.getElementById('aiWBSStatus').textContent = '';
+  // Restore saved key if any
+  const saved = localStorage.getItem('gp_ai_key');
+  if (saved) document.getElementById('aiWBSKey').value = saved;
+}
+function closeAIWBSModal() {
+  document.getElementById('aiWBSOverlay').classList.remove('open');
+}
+async function runAIWBS() {
+  const desc = (document.getElementById('aiWBSDesc')?.value || '').trim();
+  const key = (document.getElementById('aiWBSKey')?.value || '').trim();
+  if (!desc) { alert('请输入项目描述'); return; }
+  if (!key) { alert('请输入 Claude API Key'); return; }
+  localStorage.setItem('gp_ai_key', key);
+  const btn = document.getElementById('aiWBSBtn');
+  const stat = document.getElementById('aiWBSStatus');
+  btn.disabled = true; stat.textContent = '⏳ AI 分析中，请稍候…';
+  const prompt = `你是一个项目管理专家。根据以下项目描述，生成一个详细的工作分解结构（WBS）。
+
+项目描述：
+${desc}
+
+要求：
+1. 输出纯 JSON 数组，不要有任何其他文字
+2. 每个任务包含：name（任务名）、type（"group"/"task"/"milestone"）、duration（工作天数，整数）、children（子任务数组，可为空）
+3. 层级最多3层：群组 > 任务 > 里程碑
+4. 群组不设 duration，任务 duration 1-20天，里程碑 duration 0
+5. 总任务数 10-25 个
+
+JSON格式示例：
+[{"name":"需求分析","type":"group","children":[{"name":"用户调研","type":"task","duration":3},{"name":"需求文档","type":"task","duration":2},{"name":"需求确认","type":"milestone","duration":0}]}]`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-calls': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2000,
+        messages: [{role: 'user', content: prompt}]
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err.error?.message || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) throw new Error('AI 返回格式不正确');
+    const tree = JSON.parse(jsonMatch[0]);
+    _insertAIWBSTasks(tree);
+    stat.textContent = `✅ 成功生成并导入 WBS 任务树`;
+    setTimeout(() => closeAIWBSModal(), 1200);
+  } catch(e) {
+    stat.textContent = `❌ 错误：${e.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+function _insertAIWBSTasks(tree, parentId) {
+  const proj = curProj(); if (!proj) return;
+  let startDate = TODAY_STR;
+  function _addNode(node, pid, startStr) {
+    const id = nextId++;
+    let d = new Date(startStr + 'T00:00:00');
+    const dur = node.duration || 1;
+    let endStr = addWorkDays ? addWorkDays(startStr, dur) : startStr;
+    const t = {
+      id, name: node.name, type: node.type || 'task',
+      start: startStr, end: endStr,
+      done: false, progress: 0, color: '#5E6AD2',
+      parent: pid || 0, deps: [], pinStart: false
+    };
+    if (node.type === 'milestone') { t.type = 'milestone'; t.date = startStr; delete t.start; delete t.end; }
+    if (node.type === 'group') { delete t.start; delete t.end; }
+    tasks.push(t);
+    let childStart = startStr;
+    (node.children || []).forEach(child => {
+      _addNode(child, id, childStart);
+      const dur2 = child.duration || 1;
+      const d2 = new Date(childStart + 'T00:00:00');
+      d2.setDate(d2.getDate() + Math.ceil(dur2 * 1.4));
+      childStart = d2.toISOString().slice(0,10);
+    });
+    return id;
+  }
+  tree.forEach(node => _addNode(node, parentId || 0, startDate));
+  curProj().nextId = nextId;
+  scheduleTasks(); recalcProjEnd(); render(); saveNow();
+  logAudit('AI WBS', `导入 ${tree.length} 个顶层任务`);
+  if (typeof _fireWebhook === 'function') _fireWebhook('create', 'AI WBS 任务组');
+}
+
+// ── JIRA CSV IMPORT ────────────────────────────────────────────────
+let _jiraParsed = [];
+function openJiraImportModal() {
+  _jiraParsed = [];
+  document.getElementById('jiraPreview').innerHTML = '';
+  document.getElementById('jiraImportBtn').disabled = true;
+  const fi = document.getElementById('jiraFile');
+  if (fi) fi.value = '';
+  document.getElementById('jiraOverlay').classList.add('open');
+}
+function closeJiraImportModal() {
+  document.getElementById('jiraOverlay').classList.remove('open');
+}
+function previewJiraCSV(input) {
+  const file = input.files?.[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      _parseJiraCSV(e.target.result);
+      _renderJiraPreview();
+      document.getElementById('jiraImportBtn').disabled = _jiraParsed.length === 0;
+    } catch(err) {
+      document.getElementById('jiraPreview').innerHTML = `<span style="color:var(--red)">❌ ${err.message}</span>`;
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+function _parseJiraCSV(text) {
+  _jiraParsed = [];
+  const lines = text.split(/\r?\n/);
+  if (lines.length < 2) throw new Error('CSV 文件为空');
+  // Parse header
+  const header = _splitCSVRow(lines[0]).map(h => h.trim().toLowerCase());
+  const col = k => header.indexOf(k);
+  const iName = col('summary') >= 0 ? col('summary') : col('issue summary') >= 0 ? col('issue summary') : col('name') >= 0 ? col('name') : 0;
+  const iType = col('issue type') >= 0 ? col('issue type') : col('issuetype');
+  const iStatus = col('status') >= 0 ? col('status') : -1;
+  const iAssign = col('assignee') >= 0 ? col('assignee') : -1;
+  const iStart = col('custom field (start date)') >= 0 ? col('custom field (start date)') : col('created') >= 0 ? col('created') : -1;
+  const iDue = col('due date') >= 0 ? col('due date') : col('custom field (due date)');
+  const iKey = col('issue key') >= 0 ? col('issue key') : col('key');
+
+  for (let i = 1; i < lines.length; i++) {
+    const row = _splitCSVRow(lines[i]);
+    if (row.length < 2) continue;
+    const name = (row[iName] || '').trim(); if (!name) continue;
+    const issueType = iType >= 0 ? (row[iType]||'').trim().toLowerCase() : 'task';
+    let type = 'task';
+    if (issueType.includes('epic')) type = 'group';
+    else if (issueType.includes('milestone') || issueType.includes('release')) type = 'milestone';
+    const status = iStatus >= 0 ? (row[iStatus]||'').toLowerCase() : '';
+    const done = status.includes('done') || status.includes('closed') || status.includes('resolved');
+    const progress = done ? 100 : status.includes('progress') ? 50 : 0;
+    const assignee = iAssign >= 0 ? (row[iAssign]||'').trim() : '';
+    const startRaw = iStart >= 0 ? (row[iStart]||'').trim() : '';
+    const endRaw = iDue >= 0 ? (row[iDue]||'').trim() : '';
+    const key = iKey >= 0 ? (row[iKey]||'').trim() : '';
+    const parseD = s => { if (!s) return TODAY_STR; const d = new Date(s); return isNaN(d)?TODAY_STR:d.toISOString().slice(0,10); };
+    const start = parseD(startRaw);
+    const end = endRaw ? parseD(endRaw) : addWorkDays ? addWorkDays(start, 3) : start;
+    _jiraParsed.push({name: key ? `[${key}] ${name}` : name, type, start, end, done, progress, assignee});
+  }
+  if (!_jiraParsed.length) throw new Error('未找到有效的 Jira Issue 行');
+}
+function _splitCSVRow(line) {
+  const result = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { if (inQ && line[i+1]==='"') { cur+='"'; i++; } else inQ=!inQ; }
+    else if (c === ',' && !inQ) { result.push(cur); cur=''; }
+    else cur += c;
+  }
+  result.push(cur); return result;
+}
+function _renderJiraPreview() {
+  const el = document.getElementById('jiraPreview');
+  const typeIcon = t => t==='group'?'▶':t==='milestone'?'◆':'▸';
+  el.innerHTML = `<div style="margin-bottom:6px;font-weight:600">预览：共 ${_jiraParsed.length} 条 Issue</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <tr style="color:var(--t3)"><th style="text-align:left;padding:2px 4px">类型</th><th style="text-align:left;padding:2px 4px">名称</th><th style="padding:2px 4px">开始</th><th style="padding:2px 4px">截止</th><th style="padding:2px 4px">负责人</th></tr>
+      ${_jiraParsed.slice(0,30).map(t=>`
+        <tr style="border-top:1px solid var(--border)">
+          <td style="padding:2px 4px;color:var(--accent)">${typeIcon(t.type)}</td>
+          <td style="padding:2px 4px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(t.name)}</td>
+          <td style="padding:2px 4px;color:var(--t3)">${t.start}</td>
+          <td style="padding:2px 4px;color:var(--t3)">${t.end}</td>
+          <td style="padding:2px 4px;color:var(--t3)">${_escHtml(t.assignee)}</td>
+        </tr>`).join('')}
+      ${_jiraParsed.length>30?`<tr><td colspan="5" style="padding:4px;color:var(--t3);text-align:center">…还有 ${_jiraParsed.length-30} 条</td></tr>`:''}
+    </table>`;
+}
+function doJiraImport() {
+  if (!_jiraParsed.length) return;
+  const proj = curProj(); if (!proj) return;
+  _jiraParsed.forEach(t => {
+    const id = nextId++;
+    const task = {id, name: t.name, type: t.type, start: t.start, end: t.end,
+      done: t.done, progress: t.progress, assignee: t.assignee,
+      color: '#5E6AD2', parent: 0, deps: [], pinStart: true};
+    if (t.type === 'milestone') { task.date = t.start; delete task.start; delete task.end; }
+    tasks.push(task);
+  });
+  curProj().nextId = nextId;
+  scheduleTasks(); recalcProjEnd(); render(); saveNow();
+  logAudit('Jira导入', `${_jiraParsed.length} 条`);
+  closeJiraImportModal();
+  toast(`已导入 ${_jiraParsed.length} 条 Jira Issue`);
+}
+
 // ── PRINT / PDF ────────────────────────────────────────────────────
 function openPrintModal() {
   document.getElementById('printOverlay').classList.add('open');
@@ -10089,6 +10303,48 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
   };
 })();
 </script>
+
+<!-- ── AI WBS MODAL ── -->
+<div class="overlay" id="aiWBSOverlay" onclick="if(event.target===this)closeAIWBSModal()" style="z-index:1060">
+  <div class="modal" style="max-width:520px">
+    <button class="modal-close" onclick="closeAIWBSModal()">✕</button>
+    <div class="modal-title">🤖 AI 任务分解 (WBS)</div>
+    <p style="font-size:12px;color:var(--t3);margin-bottom:10px">输入项目描述，AI 自动生成工作分解结构（WBS）任务树并导入甘特图。</p>
+    <div class="form-row">
+      <label class="form-lbl">项目描述</label>
+      <textarea class="form-ctrl" id="aiWBSDesc" rows="5" placeholder="例：开发一个电商网站，包括用户注册登录、商品展示、购物车、支付宝支付、订单管理，预计3个月完成，团队3人…" style="resize:vertical"></textarea>
+    </div>
+    <div class="form-row">
+      <label class="form-lbl">Claude API Key <span style="color:var(--t3);font-weight:400">（仅本地使用，不会上传）</span></label>
+      <input class="form-ctrl" id="aiWBSKey" type="password" placeholder="sk-ant-api03-…">
+      <p style="font-size:11px;color:var(--t3);margin:4px 0 0">Key 仅在本次请求中使用，可在 console.anthropic.com 获取免费额度。</p>
+    </div>
+    <div id="aiWBSStatus" style="font-size:12px;color:var(--accent);min-height:20px;margin-bottom:8px"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAIWBSModal()">取消</button>
+      <button class="btn btn-primary" id="aiWBSBtn" onclick="runAIWBS()">🤖 生成任务</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── JIRA CSV IMPORT MODAL ── -->
+<div class="overlay" id="jiraOverlay" onclick="if(event.target===this)closeJiraImportModal()" style="z-index:1060">
+  <div class="modal" style="max-width:560px">
+    <button class="modal-close" onclick="closeJiraImportModal()">✕</button>
+    <div class="modal-title">🔧 从 Jira CSV 导入</div>
+    <p style="font-size:12px;color:var(--t3);margin-bottom:10px">从 Jira 导出 CSV（Issues → Export → CSV），上传后自动识别 Epic/Story/Task 层级。</p>
+    <div class="form-row">
+      <label class="form-lbl" style="display:flex;align-items:center;gap:8px">
+        <input type="file" id="jiraFile" accept=".csv" onchange="previewJiraCSV(this)" style="font-size:12px">
+      </label>
+    </div>
+    <div id="jiraPreview" style="font-size:12px;color:var(--t2);margin-top:8px;max-height:220px;overflow-y:auto"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeJiraImportModal()">取消</button>
+      <button class="btn btn-primary" id="jiraImportBtn" onclick="doJiraImport()" disabled>导入</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── PRINT SETTINGS OVERLAY ── -->
 <div class="overlay" id="printOverlay" onclick="if(event.target===this)closePrintModal()" style="z-index:1050">
