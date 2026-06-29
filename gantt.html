@@ -1793,7 +1793,7 @@ body:not(.show-wbs) .wbs-code{display:none}
         <div class="menu-dd-item" onclick="openImportModal();closeAllMenus()"><span class="mi-icon">📥</span> 从 Excel/CSV 导入</div>
         <div class="menu-dd-item" onclick="openJiraImportModal();closeAllMenus()"><span class="mi-icon">🔧</span> 从 Jira CSV 导入</div>
         <div class="menu-dd-sep"></div>
-        <div class="menu-dd-item" onclick="openAIWBSModal();closeAllMenus()"><span class="mi-icon">🤖</span> AI 任务分解 (WBS)</div>
+        <div class="menu-dd-item" onclick="openAIWBSModal();closeAllMenus()"><span class="mi-icon">🤖</span> AI 项目助手（报告/WBS）</div>
       </div>
     </div>
     <!-- Edit menu -->
@@ -10075,19 +10075,36 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// ── AI WBS (Claude API) ────────────────────────────────────────────
+// ── AI ASSISTANT (DeepSeek V4 / Claude) ───────────────────────────
+let _aiTab = 'report';
+
 function openAIWBSModal() {
   document.getElementById('aiWBSOverlay').classList.add('open');
   document.getElementById('aiWBSStatus').textContent = '';
+  document.getElementById('aiReportOutput').style.display = 'none';
   const provider = localStorage.getItem('gp_ai_provider') || 'deepseek';
   const sel = document.getElementById('aiWBSProvider');
   if (sel) sel.value = provider;
   const saved = localStorage.getItem('gp_ai_key_' + provider);
   if (saved) document.getElementById('aiWBSKey').value = saved;
   aiWBSProviderChange();
+  aiSwitchTab(_aiTab);
 }
 function closeAIWBSModal() {
   document.getElementById('aiWBSOverlay').classList.remove('open');
+}
+function aiSwitchTab(tab) {
+  _aiTab = tab;
+  document.getElementById('aiPane_report').style.display = tab === 'report' ? '' : 'none';
+  document.getElementById('aiPane_wbs').style.display   = tab === 'wbs'    ? '' : 'none';
+  const btnLabel = tab === 'report' ? '🤖 生成报告' : '🤖 生成任务';
+  document.getElementById('aiWBSBtn').textContent = btnLabel;
+  ['report','wbs'].forEach(t => {
+    const el = document.getElementById('aiTab_'+t);
+    if (!el) return;
+    el.style.background = t === tab ? 'var(--accent)' : 'var(--surface)';
+    el.style.color = t === tab ? '#fff' : 'var(--t2)';
+  });
 }
 function aiWBSProviderChange() {
   const provider = document.getElementById('aiWBSProvider')?.value || 'deepseek';
@@ -10098,77 +10115,110 @@ function aiWBSProviderChange() {
   const saved = localStorage.getItem('gp_ai_key_' + provider);
   if (inp) inp.value = saved || '';
   if (provider === 'deepseek') {
-    if (lbl) lbl.innerHTML = 'DeepSeek API Key <span style="color:var(--t3);font-weight:400">（仅本地使用）</span>';
-    if (hint) hint.innerHTML = 'Key 可在 <a href="https://platform.deepseek.com" target="_blank" style="color:var(--accent)">platform.deepseek.com</a> 获取，价格约 $0.001/千 token。';
+    if (lbl) lbl.innerHTML = 'DeepSeek API Key <span style="color:var(--t3);font-weight:400">（仅本地存储）</span>';
+    if (hint) hint.innerHTML = 'Key 可在 <a href="https://platform.deepseek.com" target="_blank" style="color:var(--accent)">platform.deepseek.com</a> 获取。';
     if (inp) inp.placeholder = 'sk-…';
   } else {
-    if (lbl) lbl.innerHTML = 'Claude API Key <span style="color:var(--t3);font-weight:400">（仅本地使用）</span>';
+    if (lbl) lbl.innerHTML = 'Claude API Key <span style="color:var(--t3);font-weight:400">（仅本地存储）</span>';
     if (hint) hint.innerHTML = 'Key 可在 <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a> 获取。';
     if (inp) inp.placeholder = 'sk-ant-api03-…';
   }
 }
-async function runAIWBS() {
-  const desc = (document.getElementById('aiWBSDesc')?.value || '').trim();
-  const key = (document.getElementById('aiWBSKey')?.value || '').trim();
+
+async function _callAI(provider, key, system, user, maxTokens) {
+  if (provider === 'deepseek') {
+    const res = await fetch('https://api.deepseek.com/chat/completions', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body: JSON.stringify({model:'deepseek-chat', max_tokens: maxTokens||2000,
+        messages:[{role:'system',content:system},{role:'user',content:user}]})
+    });
+    if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error?.message||`HTTP ${res.status}`); }
+    const d = await res.json(); return d.choices?.[0]?.message?.content || '';
+  } else {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':key,
+        'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-calls':'true'},
+      body: JSON.stringify({model:'claude-haiku-4-5-20251001', max_tokens:maxTokens||2000,
+        system, messages:[{role:'user',content:user}]})
+    });
+    if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error?.message||`HTTP ${res.status}`); }
+    const d = await res.json(); return d.content?.[0]?.text || '';
+  }
+}
+
+function _buildProjectSnapshot() {
+  const proj = curProj(); if (!proj) return '（无项目数据）';
+  const total = tasks.filter(t=>t.type==='task').length;
+  const done  = tasks.filter(t=>t.type==='task'&&t.done).length;
+  const overdue = tasks.filter(t=>t.type==='task'&&!t.done&&t.end&&t.end<TODAY_STR);
+  const upcoming = tasks.filter(t=>!t.done&&t.end&&t.end>=TODAY_STR)
+    .sort((a,b)=>a.end<b.end?-1:1).slice(0,5);
+  const milestones = tasks.filter(t=>t.type==='milestone').map(t=>`${t.name}（${t.date}${t.done?' ✓':''}）`);
+  const risks = (proj.risks||[]).filter(r=>r.status==='open')
+    .map(r=>`${r.name}（评分:${(r.prob||1)*(r.impact||1)}）`);
+  return `项目名称：${proj.name}
+今日日期：${TODAY_STR}
+总任务：${total}，已完成：${done}（${total?Math.round(done/total*100):0}%）
+逾期未完成：${overdue.length} 项${overdue.length?'：'+overdue.map(t=>t.name+'('+t.end+')').join('、'):''}
+近期任务（截止日期最近5项）：${upcoming.map(t=>`${t.name}[${t.end}]进度${t.progress||0}%`).join('、')||'无'}
+里程碑：${milestones.join('、')||'无'}
+开放风险：${risks.join('、')||'无'}`;
+}
+
+window.runAIAction = async function() {
+  const key = (document.getElementById('aiWBSKey')?.value||'').trim();
   const provider = document.getElementById('aiWBSProvider')?.value || 'deepseek';
-  if (!desc) { alert('请输入项目描述'); return; }
   if (!key) { alert('请输入 API Key'); return; }
-  localStorage.setItem('gp_ai_key_' + provider, key);
+  localStorage.setItem('gp_ai_key_'+provider, key);
   const btn = document.getElementById('aiWBSBtn');
   const stat = document.getElementById('aiWBSStatus');
   btn.disabled = true;
-  stat.textContent = `⏳ ${provider==='deepseek'?'DeepSeek':'Claude'} 分析中，请稍候…`;
-
-  const sysPrompt = '你是一个项目管理专家，擅长工作分解结构（WBS）设计。只输出JSON，不要有任何解释文字。';
-  const userPrompt = `根据以下项目描述，生成工作分解结构（WBS）。
-
-项目描述：${desc}
-
-输出要求：
-1. 纯JSON数组，无任何其他文字
-2. 字段：name（任务名）、type（"group"/"task"/"milestone"）、duration（整数工作天数）、children（子任务数组）
-3. 层级≤3层：群组>任务>里程碑；群组省略duration；里程碑duration=0
-4. 总任务10-25个，覆盖完整项目生命周期
-
-示例：[{"name":"需求分析","type":"group","children":[{"name":"用户调研","type":"task","duration":3},{"name":"需求评审","type":"milestone","duration":0}]}]`;
+  const model = provider==='deepseek' ? 'DeepSeek V4' : 'Claude Haiku';
+  stat.textContent = `⏳ ${model} 生成中…`;
 
   try {
-    let text = '';
-    if (provider === 'deepseek') {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json','Authorization':'Bearer '+key},
-        body: JSON.stringify({
-          model: 'deepseek-chat',
-          max_tokens: 2000,
-          messages: [{role:'system',content:sysPrompt},{role:'user',content:userPrompt}]
-        })
-      });
-      if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error?.message||`HTTP ${res.status}`); }
-      const data = await res.json();
-      text = data.choices?.[0]?.message?.content || '';
+    if (_aiTab === 'report') {
+      const rtype = document.getElementById('aiReportType')?.value || 'weekly';
+      const note  = (document.getElementById('aiReportNote')?.value||'').trim();
+      const snapshot = _buildProjectSnapshot();
+      const typeMap = {weekly:'项目周报',summary:'项目总结报告',risk:'风险分析报告'};
+      const sys = '你是一个专业的项目管理助手，擅长撰写简洁、专业的项目报告。用中文输出。';
+      const user = `请根据以下项目数据生成一份${typeMap[rtype]}，格式清晰，包含：本周进展、逾期风险、下周计划、建议。${note?'额外说明：'+note:''}
+
+项目数据：
+${snapshot}`;
+      const text = await _callAI(provider, key, sys, user, 1500);
+      document.getElementById('aiReportText').value = text;
+      document.getElementById('aiReportOutput').style.display = '';
+      stat.textContent = `✅ ${typeMap[rtype]}已生成（${model}）`;
     } else {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-calls':'true'},
-        body: JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:2000,system:sysPrompt,messages:[{role:'user',content:userPrompt}]})
-      });
-      if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error?.message||`HTTP ${res.status}`); }
-      const data = await res.json();
-      text = data.content?.[0]?.text || '';
+      const desc = (document.getElementById('aiWBSDesc')?.value||'').trim();
+      if (!desc) { alert('请输入项目描述'); btn.disabled=false; return; }
+      const sys = '你是项目管理专家，擅长WBS设计。只输出JSON，不含其他文字。';
+      const user = `根据以下项目描述生成WBS：${desc}
+
+输出：纯JSON数组，字段：name、type("group"/"task"/"milestone")、duration(整数工作天)、children(数组)。层级≤3层，总任务10-25个。
+示例：[{"name":"需求","type":"group","children":[{"name":"调研","type":"task","duration":3},{"name":"评审","type":"milestone","duration":0}]}]`;
+      const text = await _callAI(provider, key, sys, user, 2000);
+      const m = text.match(/\[[\s\S]*\]/);
+      if (!m) throw new Error('AI 返回格式不正确，请重试');
+      _insertAIWBSTasks(JSON.parse(m[0]));
+      stat.textContent = `✅ WBS 已导入（${model}）`;
+      setTimeout(()=>closeAIWBSModal(), 1400);
     }
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) throw new Error('AI 返回格式不正确，请重试');
-    const tree = JSON.parse(jsonMatch[0]);
-    _insertAIWBSTasks(tree);
-    stat.textContent = `✅ 成功生成并导入 WBS 任务树（${provider==='deepseek'?'DeepSeek V3':'Claude Haiku'}）`;
-    setTimeout(() => closeAIWBSModal(), 1400);
   } catch(e) {
     stat.textContent = `❌ 错误：${e.message}`;
   } finally {
     btn.disabled = false;
   }
-}
+};
+window.copyAIReport = function() {
+  const el = document.getElementById('aiReportText');
+  if (!el) return;
+  navigator.clipboard?.writeText(el.value).then(()=>toast('已复制到剪贴板')).catch(()=>{el.select();document.execCommand('copy');toast('已复制');});
+};
 function _insertAIWBSTasks(tree, parentId) {
   const proj = curProj(); if (!proj) return;
   let startDate = TODAY_STR;
@@ -10462,32 +10512,71 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
 })();
 </script>
 
-<!-- ── AI WBS MODAL ── -->
+<!-- ── AI ASSISTANT MODAL ── -->
 <div class="overlay" id="aiWBSOverlay" onclick="if(event.target===this)closeAIWBSModal()" style="z-index:1060">
-  <div class="modal" style="max-width:520px">
+  <div class="modal" style="max-width:580px">
     <button class="modal-close" onclick="closeAIWBSModal()">✕</button>
-    <div class="modal-title">🤖 AI 任务分解 (WBS)</div>
-    <p style="font-size:12px;color:var(--t3);margin-bottom:10px">输入项目描述，AI 自动生成工作分解结构（WBS）任务树并导入甘特图。</p>
-    <div class="form-row">
-      <label class="form-lbl">项目描述</label>
-      <textarea class="form-ctrl" id="aiWBSDesc" rows="5" placeholder="例：开发一个电商网站，包括用户注册登录、商品展示、购物车、支付宝支付、订单管理，预计3个月完成，团队3人…" style="resize:vertical"></textarea>
+    <div class="modal-title">🤖 AI 项目助手</div>
+    <!-- Mode tabs -->
+    <div style="display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+      <button id="aiTab_report" onclick="aiSwitchTab('report')"
+        style="flex:1;padding:8px;font-size:13px;border:none;cursor:pointer;background:var(--accent);color:#fff;font-family:inherit">📋 进度报告</button>
+      <button id="aiTab_wbs" onclick="aiSwitchTab('wbs')"
+        style="flex:1;padding:8px;font-size:13px;border:none;cursor:pointer;background:var(--surface);color:var(--t2);font-family:inherit">🗂 任务分解 WBS</button>
     </div>
+
+    <!-- Report mode -->
+    <div id="aiPane_report">
+      <p style="font-size:12px;color:var(--t3);margin-bottom:10px">根据当前项目的任务数据，AI 自动生成项目进度周报。</p>
+      <div class="form-row">
+        <label class="form-lbl">报告类型</label>
+        <select class="form-ctrl" id="aiReportType">
+          <option value="weekly">📅 周报</option>
+          <option value="summary">📊 项目总结</option>
+          <option value="risk">⚠️ 风险分析</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-lbl">补充说明（可选）</label>
+        <textarea class="form-ctrl" id="aiReportNote" rows="2" placeholder="本周重点事项、需要特别说明的情况…" style="resize:vertical"></textarea>
+      </div>
+      <div id="aiReportOutput" style="display:none;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:12px;font-weight:600;color:var(--t2)">生成结果</span>
+          <button class="btn" onclick="copyAIReport()" style="font-size:11px;padding:3px 10px">📋 复制</button>
+        </div>
+        <textarea id="aiReportText" rows="10" readonly
+          style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--border);border-radius:8px;
+                 font-size:12px;background:var(--s2);color:var(--t1);resize:vertical;font-family:inherit;line-height:1.6"></textarea>
+      </div>
+    </div>
+
+    <!-- WBS mode -->
+    <div id="aiPane_wbs" style="display:none">
+      <p style="font-size:12px;color:var(--t3);margin-bottom:10px">输入项目描述，AI 自动生成工作分解结构并导入甘特图。</p>
+      <div class="form-row">
+        <label class="form-lbl">项目描述</label>
+        <textarea class="form-ctrl" id="aiWBSDesc" rows="4" placeholder="例：开发一个电商网站，包括用户注册登录、商品展示、购物车、支付宝支付、订单管理，预计3个月，团队3人…" style="resize:vertical"></textarea>
+      </div>
+    </div>
+
+    <!-- Shared: model + key -->
     <div class="form-row">
       <label class="form-lbl">AI 模型</label>
       <select class="form-ctrl" id="aiWBSProvider" onchange="aiWBSProviderChange()">
-        <option value="deepseek">DeepSeek V3（推荐，价格低）</option>
+        <option value="deepseek">DeepSeek V4（推荐）</option>
         <option value="claude">Claude Haiku（Anthropic）</option>
       </select>
     </div>
     <div class="form-row">
-      <label class="form-lbl" id="aiWBSKeyLabel">DeepSeek API Key <span style="color:var(--t3);font-weight:400">（仅本地使用）</span></label>
+      <label class="form-lbl" id="aiWBSKeyLabel">DeepSeek API Key <span style="color:var(--t3);font-weight:400">（仅本地存储）</span></label>
       <input class="form-ctrl" id="aiWBSKey" type="password" placeholder="sk-…">
-      <p style="font-size:11px;color:var(--t3);margin:4px 0 0" id="aiWBSKeyHint">Key 可在 <a href="https://platform.deepseek.com" target="_blank" style="color:var(--accent)">platform.deepseek.com</a> 获取，价格约 $0.001/千 token。</p>
+      <p style="font-size:11px;color:var(--t3);margin:4px 0 0" id="aiWBSKeyHint">Key 可在 <a href="https://platform.deepseek.com" target="_blank" style="color:var(--accent)">platform.deepseek.com</a> 获取。</p>
     </div>
-    <div id="aiWBSStatus" style="font-size:12px;color:var(--accent);min-height:20px;margin-bottom:8px"></div>
+    <div id="aiWBSStatus" style="font-size:12px;color:var(--accent);min-height:18px;margin-bottom:6px"></div>
     <div class="modal-footer">
-      <button class="btn" onclick="closeAIWBSModal()">取消</button>
-      <button class="btn btn-primary" id="aiWBSBtn" onclick="runAIWBS()">🤖 生成任务</button>
+      <button class="btn" onclick="closeAIWBSModal()">关闭</button>
+      <button class="btn btn-primary" id="aiWBSBtn" onclick="runAIAction()">🤖 生成</button>
     </div>
   </div>
 </div>
