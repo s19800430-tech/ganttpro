@@ -1730,6 +1730,12 @@ body:not(.show-wbs) .wbs-code{display:none}
   .gantt-bar,.bar-bg,.bar-fill{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 }
 </style>
+<!-- PWA manifest (inline data URI) -->
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22GanttPro%22%2C%22short_name%22%3A%22GanttPro%22%2C%22description%22%3A%22%E7%A6%BB%E7%BA%BF%E7%94%9A%E7%89%B9%E5%9B%BE%E9%A1%B9%E7%9B%AE%E7%AE%A1%E7%90%86%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23ffffff%22%2C%22theme_color%22%3A%22%235E6AD2%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%2520viewBox%3D%270%200%2096%2096%27%253E%253Crect%2520width%3D%2796%27%2520height%3D%2796%27%2520rx%3D%2716%27%2520fill%3D%27%235E6AD2%27%2F%253E%253Ctext%2520x%3D%2748%27%2520y%3D%2766%27%2520font-size%3D%2756%27%2520text-anchor%3D%27middle%27%2520fill%3D%27white%27%253E%25F0%259F%2593%258A%253C%2Ftext%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%2296x96%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="GanttPro">
 </head>
 <body>
 
@@ -2357,6 +2363,9 @@ body:not(.show-wbs) .wbs-code{display:none}
         </button>
         <button onclick="closeMobileNav();shareProject()" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:none;background:var(--bg);cursor:pointer;text-align:left;width:100%">
           <span style="font-size:20px">📱</span><span style="font-size:14px;color:var(--t1)">分享项目摘要</span>
+        </button>
+        <button id="pwaInstallBtn" onclick="closeMobileNav();pwaInstall()" style="display:none;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:none;background:var(--accent-bg);cursor:pointer;text-align:left;width:100%">
+          <span style="font-size:20px">⬇️</span><span style="font-size:14px;color:var(--accent);font-weight:600">安装到主屏幕</span>
         </button>
         <button onclick="closeMobileNav();switchToDesktop()" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:none;background:var(--bg);cursor:pointer;text-align:left;width:100%">
           <span style="font-size:20px">🖥</span><span style="font-size:14px;color:var(--t1)">切换到桌面模式</span>
@@ -11462,6 +11471,54 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
     };
     setTimeout(tryInit, 1200);
   });
+})();
+
+// ── PWA SERVICE WORKER & INSTALL PROMPT ───────────────────────────────────
+(function() {
+  // Register inline service worker for offline caching
+  if ('serviceWorker' in navigator) {
+    const swCode = `
+const CACHE = 'ganttpro-v1';
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', './index.html'])).catch(()=>{}));
+  self.skipWaiting();
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));
+  self.clients.claim();
+});
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  e.respondWith(caches.match(e.request).then(cached => {
+    const net = fetch(e.request).then(res => {
+      if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+      return res;
+    }).catch(()=>{});
+    return cached || net;
+  }));
+});`;
+    const blob = new Blob([swCode], {type:'text/javascript'});
+    const swUrl = URL.createObjectURL(blob);
+    navigator.serviceWorker.register(swUrl, {scope: './'}).catch(()=>{});
+  }
+
+  // Install prompt (A2HS)
+  let _deferredInstall = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    _deferredInstall = e;
+    const btn = document.getElementById('pwaInstallBtn');
+    if (btn) btn.style.display = '';
+  });
+  window.pwaInstall = async function() {
+    if (!_deferredInstall) { toast('请使用浏览器菜单添加到主屏幕'); return; }
+    _deferredInstall.prompt();
+    const {outcome} = await _deferredInstall.userChoice;
+    if (outcome === 'accepted') toast('GanttPro 已添加到主屏幕 🎉');
+    _deferredInstall = null;
+    const btn = document.getElementById('pwaInstallBtn');
+    if (btn) btn.style.display = 'none';
+  };
 })();
 
 // ── CUSTOM FIELDS ──────────────────────────────────────────────────────────
