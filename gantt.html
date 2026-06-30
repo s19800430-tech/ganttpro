@@ -4877,6 +4877,13 @@ function submitProject() {
   if (!name) { document.getElementById('pName').focus(); return; }
   const start = document.getElementById('pStart').value;
 
+  // 重複名稱提醒：與其他專案同名容易混淆，提示使用者改名（建立與編輯模式皆適用）
+  const dupName = projects.some(p => p.id !== _editingProjId && p.name === name);
+  if (dupName && !confirm(`已有名稱為「${name}」的專案，重複名稱容易混淆，建議改用不同名稱。\n\n仍要使用這個名稱嗎？`)) {
+    document.getElementById('pName').focus();
+    return;
+  }
+
   // 編輯模式：更新現有專案
   if (_editingProjId !== null) {
     const p = projects.find(x => x.id === _editingProjId);
