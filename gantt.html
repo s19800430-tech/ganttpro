@@ -10165,12 +10165,13 @@ function closeAIWBSModal() {
 }
 function aiSwitchTab(tab) {
   _aiTab = tab;
-  document.getElementById('aiPane_report').style.display   = tab === 'report'   ? '' : 'none';
-  document.getElementById('aiPane_wbs').style.display      = tab === 'wbs'      ? '' : 'none';
-  document.getElementById('aiPane_estimate').style.display = tab === 'estimate' ? '' : 'none';
-  const btnLabel = tab === 'report' ? '🤖 生成报告' : tab === 'estimate' ? '🤖 估算工期' : '🤖 生成任务';
+  document.getElementById('aiPane_report').style.display    = tab === 'report'   ? '' : 'none';
+  document.getElementById('aiPane_wbs').style.display       = tab === 'wbs'      ? '' : 'none';
+  document.getElementById('aiPane_estimate').style.display  = tab === 'estimate' ? '' : 'none';
+  document.getElementById('aiPane_schedule').style.display  = tab === 'schedule' ? '' : 'none';
+  const btnLabel = tab === 'report' ? '🤖 生成报告' : tab === 'estimate' ? '🤖 估算工期' : tab === 'schedule' ? '🤖 分析排期' : '🤖 生成任务';
   document.getElementById('aiWBSBtn').textContent = btnLabel;
-  ['report','wbs','estimate'].forEach(t => {
+  ['report','wbs','estimate','schedule'].forEach(t => {
     const el = document.getElementById('aiTab_'+t);
     if (!el) return;
     el.style.background = t === tab ? 'var(--accent)' : 'var(--surface)';
@@ -10249,6 +10250,23 @@ function _buildProjectSnapshot() {
 }
 
 let _aiEstResult = null;
+let _aiSchedResult = null;
+
+window.applyAISched = function() {
+  if (!_aiSchedResult) return;
+  pushHistory();
+  let applied = 0;
+  (_aiSchedResult.tasks||[]).forEach(rec => {
+    const t = tasks.find(x=>x.id===rec.id||x.name===rec.name);
+    if (!t || t.type!=='task') return;
+    if (rec.start) { t.start = rec.start; t.pinStart = true; applied++; }
+    if (rec.end)   { t.end   = rec.end; }
+  });
+  scheduleTasks(); recalcProjEnd(); render(); saveNow();
+  toast(`✅ 已应用 ${applied} 条排期调整`);
+  document.getElementById('aiSchedOutput').style.display = 'none';
+};
+
 window.applyAIEstimate = function() {
   if (!_aiEstResult) return;
   const taskId = +document.getElementById('aiEstTaskSel')?.value;
@@ -10300,6 +10318,33 @@ ${extra?'补充信息：'+extra:''}
       rl.innerHTML = (r.risks||[]).map(s=>`<li>${_escHtml(s)}</li>`).join('');
       document.getElementById('aiEstOutput').style.display = '';
       stat.textContent = `✅ 工期估算完成（${model}）`;
+    } else if (_aiTab === 'schedule') {
+      const proj = curProj();
+      const taskList = tasks.filter(t=>t.type==='task'&&!t.done).map(t=>
+        `ID:${t.id} 名称:${t.name} 开始:${t.start||'?'} 结束:${t.end||'?'} 负责人:${t.assignee||'无'} 前置:${(t.deps||[]).join(',')}`
+      ).join('\n');
+      if (!taskList) { alert('没有未完成的任务'); btn.disabled=false; return; }
+      const sys = '你是项目管理专家。必须只输出JSON，不含其他文字。';
+      const userMsg = `分析以下项目任务的排期，找出问题（同一负责人并行过多、依赖链有空白、关键路径瓶颈等），给出优化后的建议开始/结束日期。
+今日：${TODAY_STR}
+项目：${proj?.name||''}
+
+任务列表（工作天制）：
+${taskList}
+
+输出JSON：{"issues":["问题描述1","问题描述2"],"tasks":[{"id":任务ID,"name":"任务名","start":"YYYY-MM-DD","end":"YYYY-MM-DD","reason":"改动原因"}]}
+只包含需要调整的任务，不变的不要输出。`;
+      const text = await _callAI(provider, key, sys, userMsg, 2000);
+      const m = text.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error('AI 返回格式不正确');
+      _aiSchedResult = JSON.parse(m[0]);
+      const issues = (_aiSchedResult.issues||[]).map(s=>`• ${s}`).join('<br>');
+      document.getElementById('aiSchedIssues').innerHTML = issues || '（无明显排期问题）';
+      const changes = (_aiSchedResult.tasks||[]);
+      document.getElementById('aiSchedChanges').textContent = changes.length
+        ? `共 ${changes.length} 个任务建议调整时间` : '无需调整';
+      document.getElementById('aiSchedOutput').style.display = '';
+      stat.textContent = `✅ 排期分析完成（${model}）`;
     } else if (_aiTab === 'report') {
       const rtype = document.getElementById('aiReportType')?.value || 'weekly';
       const note  = (document.getElementById('aiReportNote')?.value||'').trim();
@@ -10644,6 +10689,8 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
         style="flex:1;padding:8px;font-size:13px;border:none;cursor:pointer;background:var(--accent);color:#fff;font-family:inherit">📋 进度报告</button>
       <button id="aiTab_estimate" onclick="aiSwitchTab('estimate')"
         style="flex:1;padding:8px;font-size:13px;border:none;cursor:pointer;background:var(--surface);color:var(--t2);font-family:inherit">⏱ 工期估算</button>
+      <button id="aiTab_schedule" onclick="aiSwitchTab('schedule')"
+        style="flex:1;padding:8px;font-size:13px;border:none;cursor:pointer;background:var(--surface);color:var(--t2);font-family:inherit">🗓 智能排期</button>
       <button id="aiTab_wbs" onclick="aiSwitchTab('wbs')"
         style="flex:1;padding:8px;font-size:13px;border:none;cursor:pointer;background:var(--surface);color:var(--t2);font-family:inherit">🗂 WBS 分解</button>
     </div>
@@ -10695,6 +10742,17 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
         <div style="font-size:13px;color:var(--t1);margin-bottom:8px" id="aiEstReason"></div>
         <ul id="aiEstRisks" style="font-size:12px;color:var(--t2);margin:0;padding-left:16px;line-height:1.8"></ul>
         <button class="btn btn-primary" onclick="applyAIEstimate()" style="margin-top:10px;font-size:12px;padding:4px 14px">✅ 应用到任务</button>
+      </div>
+    </div>
+
+    <!-- Smart schedule mode -->
+    <div id="aiPane_schedule" style="display:none">
+      <p style="font-size:12px;color:var(--t3);margin-bottom:10px">AI 分析当前任务的依赖关系、负责人冲突和工期，给出优化排期建议，并可一键应用。</p>
+      <div id="aiSchedOutput" style="display:none;margin-bottom:10px">
+        <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:6px">排期优化建议</div>
+        <div id="aiSchedIssues" style="font-size:12px;color:var(--t1);line-height:1.7;margin-bottom:8px;max-height:200px;overflow-y:auto;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:8px"></div>
+        <div id="aiSchedChanges" style="font-size:12px;color:var(--t2);margin-bottom:8px"></div>
+        <button class="btn btn-primary" onclick="applyAISched()" style="font-size:12px;padding:4px 14px">✅ 应用建议排期</button>
       </div>
     </div>
 
