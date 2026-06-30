@@ -1792,6 +1792,7 @@ body:not(.show-wbs) .wbs-code{display:none}
         <div class="menu-dd-sep"></div>
         <div class="menu-dd-item" onclick="openImportModal();closeAllMenus()"><span class="mi-icon">📥</span> 从 Excel/CSV 导入</div>
         <div class="menu-dd-item" onclick="openJiraImportModal();closeAllMenus()"><span class="mi-icon">🔧</span> 从 Jira CSV 导入</div>
+        <div class="menu-dd-item" onclick="shareProject();closeAllMenus()"><span class="mi-icon">📱</span> 分享项目摘要</div>
         <div class="menu-dd-sep"></div>
         <div class="menu-dd-item" onclick="openAIWBSModal();closeAllMenus()"><span class="mi-icon">🤖</span> AI 项目助手（报告/WBS）</div>
       </div>
@@ -2353,6 +2354,9 @@ body:not(.show-wbs) .wbs-code{display:none}
       <div style="display:flex;flex-direction:column;gap:2px">
         <button onclick="closeMobileNav();scheduleExport()" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:none;background:var(--bg);cursor:pointer;text-align:left;width:100%">
           <span style="font-size:20px">📤</span><span style="font-size:14px;color:var(--t1)">导出项目</span>
+        </button>
+        <button onclick="closeMobileNav();shareProject()" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:none;background:var(--bg);cursor:pointer;text-align:left;width:100%">
+          <span style="font-size:20px">📱</span><span style="font-size:14px;color:var(--t1)">分享项目摘要</span>
         </button>
         <button onclick="closeMobileNav();switchToDesktop()" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:none;background:var(--bg);cursor:pointer;text-align:left;width:100%">
           <span style="font-size:20px">🖥</span><span style="font-size:14px;color:var(--t1)">切换到桌面模式</span>
@@ -5316,6 +5320,34 @@ function scheduleExport() {
   const ep = document.getElementById('exportPanel');
   if (ep) { ep.classList.add('open'); }
   else { exportPNG && exportPNG(); }
+}
+
+async function shareProject() {
+  const proj = curProj(); if (!proj) { toast('请先选择项目'); return; }
+  const total = tasks.filter(t=>t.type==='task').length;
+  const done  = tasks.filter(t=>t.type==='task'&&t.done).length;
+  const overdue = tasks.filter(t=>t.type==='task'&&!t.done&&t.end&&t.end<TODAY_STR).length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  const summary = `📊 ${proj.name}\n完成率：${pct}%（${done}/${total}）\n逾期：${overdue} 项\n今日：${TODAY_STR}`;
+
+  if (navigator.share) {
+    try {
+      // Try sharing as JSON file first
+      const data = JSON.stringify({project: proj, tasks, exportedAt: new Date().toISOString()}, null, 2);
+      const file = new File([data], `${proj.name}.json`, {type:'application/json'});
+      if (navigator.canShare && navigator.canShare({files:[file]})) {
+        await navigator.share({title: proj.name, text: summary, files: [file]});
+      } else {
+        await navigator.share({title: proj.name, text: summary});
+      }
+    } catch(e) {
+      if (e.name !== 'AbortError') toast('分享失败：' + e.message);
+    }
+  } else {
+    // Fallback: copy summary to clipboard
+    navigator.clipboard?.writeText(summary).then(() => toast('项目摘要已复制到剪贴板'))
+      .catch(() => { alert(summary); });
+  }
 }
 
 function renderMobileGantt() {
