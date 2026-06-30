@@ -1866,6 +1866,7 @@ body:not(.show-wbs) .wbs-code{display:none}
         <div class="menu-dd-item" onclick="toggleChat();closeAllMenus()"><span class="mi-icon">💬</span> 聊天</div>
         <div class="menu-dd-sep"></div>
         <div class="menu-dd-item" onclick="openRiskModal();closeAllMenus()"><span class="mi-icon">⚠️</span> 风险登记册</div>
+        <div class="menu-dd-item" onclick="openCFManager();closeAllMenus()"><span class="mi-icon">🏷</span> 自定义字段</div>
         <div class="menu-dd-item" onclick="openWebhookModal();closeAllMenus()"><span class="mi-icon">🔔</span> Webhook 通知</div>
       </div>
     </div>
@@ -2574,6 +2575,9 @@ body:not(.show-wbs) .wbs-code{display:none}
         </div>
       </div>
     </div>
+
+    <!-- Custom fields injected here -->
+    <div id="cfTaskRows"></div>
 
     <div class="modal-footer" style="margin-top:14px">
       <button class="btn" onclick="closeModal()">取消</button>
@@ -10120,16 +10124,27 @@ function closeAIWBSModal() {
 }
 function aiSwitchTab(tab) {
   _aiTab = tab;
-  document.getElementById('aiPane_report').style.display = tab === 'report' ? '' : 'none';
-  document.getElementById('aiPane_wbs').style.display   = tab === 'wbs'    ? '' : 'none';
-  const btnLabel = tab === 'report' ? '🤖 生成报告' : '🤖 生成任务';
+  document.getElementById('aiPane_report').style.display   = tab === 'report'   ? '' : 'none';
+  document.getElementById('aiPane_wbs').style.display      = tab === 'wbs'      ? '' : 'none';
+  document.getElementById('aiPane_estimate').style.display = tab === 'estimate' ? '' : 'none';
+  const btnLabel = tab === 'report' ? '🤖 生成报告' : tab === 'estimate' ? '🤖 估算工期' : '🤖 生成任务';
   document.getElementById('aiWBSBtn').textContent = btnLabel;
-  ['report','wbs'].forEach(t => {
+  ['report','wbs','estimate'].forEach(t => {
     const el = document.getElementById('aiTab_'+t);
     if (!el) return;
     el.style.background = t === tab ? 'var(--accent)' : 'var(--surface)';
     el.style.color = t === tab ? '#fff' : 'var(--t2)';
   });
+  if (tab === 'estimate') _refreshEstimateTaskList();
+}
+
+function _refreshEstimateTaskList() {
+  const sel = document.getElementById('aiEstTaskSel'); if (!sel) return;
+  const ts = (tasks||[]).filter(t=>t.type==='task');
+  sel.innerHTML = ts.map(t=>`<option value="${t.id}">${_escHtml(t.name)}</option>`).join('') ||
+    '<option value="">（无任务）</option>';
+  _aiEstResult = null;
+  const out = document.getElementById('aiEstOutput'); if(out) out.style.display = 'none';
 }
 function aiWBSProviderChange() {
   const provider = document.getElementById('aiWBSProvider')?.value || 'deepseek';
@@ -10192,6 +10207,17 @@ function _buildProjectSnapshot() {
 开放风险：${risks.join('、')||'无'}`;
 }
 
+let _aiEstResult = null;
+window.applyAIEstimate = function() {
+  if (!_aiEstResult) return;
+  const taskId = +document.getElementById('aiEstTaskSel')?.value;
+  const t = tasks.find(x=>x.id===taskId); if (!t) return;
+  t.end = addWorkDays ? addWorkDays(t.start||TODAY_STR, _aiEstResult.duration) : t.end;
+  toast(`✅ 工期已更新：${_aiEstResult.duration} 天`);
+  scheduleTasks(); recalcProjEnd(); render(); saveNow();
+  document.getElementById('aiEstOutput').style.display = 'none';
+};
+
 window.runAIAction = async function() {
   const key = (document.getElementById('aiWBSKey')?.value||'').trim();
   const provider = document.getElementById('aiWBSProvider')?.value || 'deepseek';
@@ -10204,7 +10230,36 @@ window.runAIAction = async function() {
   stat.textContent = `⏳ ${model} 生成中…`;
 
   try {
-    if (_aiTab === 'report') {
+    if (_aiTab === 'estimate') {
+      const taskId = +document.getElementById('aiEstTaskSel')?.value;
+      const t = tasks.find(x=>x.id===taskId);
+      if (!t) { alert('请选择任务'); btn.disabled=false; return; }
+      const teamSize = (document.getElementById('aiEstTeamSize')?.value||'1').trim();
+      const extra = (document.getElementById('aiEstNote')?.value||'').trim();
+      const proj = curProj();
+      const totalTasks = tasks.filter(x=>x.type==='task').length;
+      const sys = '你是项目管理专家，擅长精准工期估算。必须只输出JSON，不含其他文字。';
+      const userMsg = `请为以下任务估算合理工期：
+任务名称：${t.name}
+${t.desc?'任务描述：'+t.desc:''}
+项目名称：${proj?.name||''}，项目总任务数：${totalTasks}
+团队人数：${teamSize}
+${extra?'补充信息：'+extra:''}
+
+输出JSON格式：{"duration":整数工作天,"range":{"min":最乐观天数,"max":最悲观天数},"reason":"简短理由，100字以内","risks":["风险点1","风险点2"]}`;
+      const text = await _callAI(provider, key, sys, userMsg, 800);
+      const m = text.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error('AI 返回格式不正确');
+      _aiEstResult = JSON.parse(m[0]);
+      const r = _aiEstResult;
+      document.getElementById('aiEstDuration').textContent = r.duration + ' 工作天';
+      document.getElementById('aiEstRange').textContent = `乐观 ${r.range?.min??r.duration} 天 ～ 悲观 ${r.range?.max??r.duration} 天`;
+      document.getElementById('aiEstReason').textContent = r.reason || '';
+      const rl = document.getElementById('aiEstRisks');
+      rl.innerHTML = (r.risks||[]).map(s=>`<li>${_escHtml(s)}</li>`).join('');
+      document.getElementById('aiEstOutput').style.display = '';
+      stat.textContent = `✅ 工期估算完成（${model}）`;
+    } else if (_aiTab === 'report') {
       const rtype = document.getElementById('aiReportType')?.value || 'weekly';
       const note  = (document.getElementById('aiReportNote')?.value||'').trim();
       const snapshot = _buildProjectSnapshot();
@@ -10546,8 +10601,10 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
     <div style="display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
       <button id="aiTab_report" onclick="aiSwitchTab('report')"
         style="flex:1;padding:8px;font-size:13px;border:none;cursor:pointer;background:var(--accent);color:#fff;font-family:inherit">📋 进度报告</button>
+      <button id="aiTab_estimate" onclick="aiSwitchTab('estimate')"
+        style="flex:1;padding:8px;font-size:13px;border:none;cursor:pointer;background:var(--surface);color:var(--t2);font-family:inherit">⏱ 工期估算</button>
       <button id="aiTab_wbs" onclick="aiSwitchTab('wbs')"
-        style="flex:1;padding:8px;font-size:13px;border:none;cursor:pointer;background:var(--surface);color:var(--t2);font-family:inherit">🗂 任务分解 WBS</button>
+        style="flex:1;padding:8px;font-size:13px;border:none;cursor:pointer;background:var(--surface);color:var(--t2);font-family:inherit">🗂 WBS 分解</button>
     </div>
 
     <!-- Report mode -->
@@ -10573,6 +10630,30 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
         <textarea id="aiReportText" rows="10" readonly
           style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--border);border-radius:8px;
                  font-size:12px;background:var(--s2);color:var(--t1);resize:vertical;font-family:inherit;line-height:1.6"></textarea>
+      </div>
+    </div>
+
+    <!-- Estimate mode -->
+    <div id="aiPane_estimate" style="display:none">
+      <p style="font-size:12px;color:var(--t3);margin-bottom:10px">选择任务，AI 综合任务名称、项目背景自动估算合理工期，并提供悲观/乐观范围。</p>
+      <div class="form-row">
+        <label class="form-lbl">选择任务</label>
+        <select class="form-ctrl" id="aiEstTaskSel"></select>
+      </div>
+      <div class="form-row">
+        <label class="form-lbl">团队人数</label>
+        <input class="form-ctrl" id="aiEstTeamSize" type="number" min="1" value="1" style="width:80px">
+      </div>
+      <div class="form-row">
+        <label class="form-lbl">补充信息（可选）</label>
+        <textarea class="form-ctrl" id="aiEstNote" rows="2" placeholder="技术栈、依赖情况、复杂度说明…" style="resize:vertical"></textarea>
+      </div>
+      <div id="aiEstOutput" style="display:none;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">
+        <div style="font-size:20px;font-weight:700;color:var(--accent);margin-bottom:4px" id="aiEstDuration"></div>
+        <div style="font-size:12px;color:var(--t3);margin-bottom:8px" id="aiEstRange"></div>
+        <div style="font-size:13px;color:var(--t1);margin-bottom:8px" id="aiEstReason"></div>
+        <ul id="aiEstRisks" style="font-size:12px;color:var(--t2);margin:0;padding-left:16px;line-height:1.8"></ul>
+        <button class="btn btn-primary" onclick="applyAIEstimate()" style="margin-top:10px;font-size:12px;padding:4px 14px">✅ 应用到任务</button>
       </div>
     </div>
 
@@ -10602,6 +10683,39 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
     <div class="modal-footer">
       <button class="btn" onclick="closeAIWBSModal()">关闭</button>
       <button class="btn btn-primary" id="aiWBSBtn" onclick="runAIAction()">🤖 生成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CUSTOM FIELDS MANAGER MODAL ── -->
+<div class="overlay" id="cfOverlay" onclick="if(event.target===this)closeCFManager()" style="z-index:1060">
+  <div class="modal" style="max-width:520px">
+    <button class="modal-close" onclick="closeCFManager()">✕</button>
+    <div class="modal-title">🏷 自定义字段</div>
+    <p style="font-size:12px;color:var(--t3);margin-bottom:10px">为当前项目的任务添加自定义字段（文本、数字、下拉选项），字段值保存在每条任务中。</p>
+    <div id="cfDefList" style="margin-bottom:12px"></div>
+    <div style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:12px">
+      <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:8px">添加新字段</div>
+      <div class="form-row">
+        <label class="form-lbl">字段名称</label>
+        <input class="form-ctrl" id="cfNewLabel" placeholder="例：预算、负责部门、优先级…">
+      </div>
+      <div class="form-row">
+        <label class="form-lbl">字段类型</label>
+        <select class="form-ctrl" id="cfNewType" onchange="cfTypeChange()">
+          <option value="text">文本</option>
+          <option value="number">数字</option>
+          <option value="select">下拉选项</option>
+        </select>
+      </div>
+      <div class="form-row" id="cfOptionsRow" style="display:none">
+        <label class="form-lbl">选项列表</label>
+        <input class="form-ctrl" id="cfNewOptions" placeholder="用英文逗号分隔，例：低,中,高">
+      </div>
+      <button class="btn btn-primary" onclick="addCFDef()" style="margin-top:4px">+ 添加字段</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeCFManager()">完成</button>
     </div>
   </div>
 </div>
@@ -11316,6 +11430,137 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
     };
     setTimeout(tryInit, 1200);
   });
+})();
+
+// ── CUSTOM FIELDS ──────────────────────────────────────────────────────────
+(function() {
+  function _cfDefs() { return curProj()?.customFields || []; }
+  function _saveCfDefs(defs) {
+    const p = curProj(); if (!p) return;
+    p.customFields = defs; saveNow();
+  }
+
+  window.openCFManager = function() {
+    _renderCFList();
+    document.getElementById('cfOverlay').classList.add('open');
+  };
+  window.closeCFManager = function() {
+    document.getElementById('cfOverlay').classList.remove('open');
+  };
+
+  function _renderCFList() {
+    const defs = _cfDefs();
+    const el = document.getElementById('cfDefList');
+    if (!el) return;
+    if (!defs.length) { el.innerHTML = '<div style="font-size:12px;color:var(--t4);padding:4px 0">尚无自定义字段</div>'; return; }
+    el.innerHTML = defs.map((f,i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="flex:1;font-size:13px">${_escHtml(f.label)}</span>
+        <span style="font-size:11px;color:var(--t3);background:var(--s2);padding:2px 7px;border-radius:10px">${{text:'文本',number:'数字',select:'选项'}[f.type]||f.type}</span>
+        <button class="btn" style="padding:2px 8px;font-size:11px" onclick="_cfMoveUp(${i})">↑</button>
+        <button class="btn" style="padding:2px 8px;font-size:11px" onclick="_cfMoveDown(${i})">↓</button>
+        <button class="btn" style="padding:2px 8px;font-size:11px;color:var(--red)" onclick="_cfDelete(${i})">删除</button>
+      </div>`).join('');
+  }
+
+  window._cfMoveUp = function(i) {
+    const d = _cfDefs(); if (i===0) return;
+    [d[i-1],d[i]]=[d[i],d[i-1]]; _saveCfDefs(d); _renderCFList();
+  };
+  window._cfMoveDown = function(i) {
+    const d = _cfDefs(); if (i>=d.length-1) return;
+    [d[i],d[i+1]]=[d[i+1],d[i]]; _saveCfDefs(d); _renderCFList();
+  };
+  window._cfDelete = function(i) {
+    const d = _cfDefs(); d.splice(i,1); _saveCfDefs(d); _renderCFList();
+  };
+
+  window.cfTypeChange = function() {
+    const t = document.getElementById('cfNewType')?.value;
+    const optRow = document.getElementById('cfOptionsRow');
+    if (optRow) optRow.style.display = t === 'select' ? '' : 'none';
+  };
+
+  window.addCFDef = function() {
+    const label = (document.getElementById('cfNewLabel')?.value||'').trim();
+    const type  = document.getElementById('cfNewType')?.value || 'text';
+    if (!label) { alert('请输入字段名称'); return; }
+    const d = _cfDefs();
+    if (d.some(x=>x.label===label)) { alert('字段名称已存在'); return; }
+    const id = 'cf_' + Date.now();
+    const def = {id, label, type};
+    if (type === 'select') {
+      const opts = (document.getElementById('cfNewOptions')?.value||'').split(',').map(s=>s.trim()).filter(Boolean);
+      def.options = opts;
+    }
+    d.push(def);
+    _saveCfDefs(d);
+    document.getElementById('cfNewLabel').value = '';
+    document.getElementById('cfNewOptions').value = '';
+    _renderCFList();
+  };
+
+  // Render custom field inputs in task edit modal
+  window._renderCFTaskRows = function(task) {
+    const el = document.getElementById('cfTaskRows'); if (!el) return;
+    const defs = _cfDefs();
+    if (!defs.length) { el.innerHTML = ''; return; }
+    const cf = task?.cf || {};
+    el.innerHTML = '<div style="font-size:11px;font-weight:600;color:var(--t3);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.5px">自定义字段</div>' +
+      defs.map(f => {
+        let inp;
+        const val = cf[f.id] !== undefined ? _escHtml(String(cf[f.id])) : '';
+        if (f.type === 'number') {
+          inp = `<input class="form-ctrl" type="number" id="cf_inp_${f.id}" value="${val}">`;
+        } else if (f.type === 'select') {
+          const opts = (f.options||[]).map(o=>`<option${o===cf[f.id]?' selected':''}>${_escHtml(o)}</option>`).join('');
+          inp = `<select class="form-ctrl" id="cf_inp_${f.id}"><option value=""></option>${opts}</select>`;
+        } else {
+          inp = `<input class="form-ctrl" id="cf_inp_${f.id}" value="${val}" placeholder="${_escHtml(f.label)}">`;
+        }
+        return `<div class="form-row"><label class="form-lbl">${_escHtml(f.label)}</label>${inp}</div>`;
+      }).join('');
+  };
+
+  // Read custom field values from modal and apply to task object
+  window._readCFFromModal = function(task) {
+    const defs = _cfDefs(); if (!defs.length) return;
+    if (!task.cf) task.cf = {};
+    defs.forEach(f => {
+      const inp = document.getElementById('cf_inp_' + f.id);
+      if (!inp) return;
+      const v = inp.value;
+      if (v === '' || v === null || v === undefined) { delete task.cf[f.id]; }
+      else { task.cf[f.id] = f.type === 'number' ? parseFloat(v) : v; }
+    });
+    if (!Object.keys(task.cf).length) delete task.cf;
+  };
+
+  // Patch submitTask to save CF values — capture editingTaskId before original runs
+  const _origSubmit = window.submitTask;
+  window.submitTask = function() {
+    const wasEditing = editingTaskId; // capture before original clears it
+    _origSubmit && _origSubmit();
+    // After submit, find task and apply CF values
+    const t = wasEditing !== null ? taskById(wasEditing) : tasks[tasks.length-1];
+    if (t) { window._readCFFromModal(t); saveNow(); }
+  };
+
+  // Patch modal open to render CF rows
+  const _origBaseOpen = window._baseOpenEditModal;
+  if (_origBaseOpen) {
+    window._baseOpenEditModal = function(taskId) {
+      _origBaseOpen(taskId);
+      window._renderCFTaskRows(taskById(taskId));
+    };
+  }
+  const _origOpenNew = window.openAddModal;
+  if (_origOpenNew) {
+    window.openAddModal = function(parentId) {
+      _origOpenNew(parentId);
+      window._renderCFTaskRows(null);
+    };
+  }
 })();
 </script>
 </body>
