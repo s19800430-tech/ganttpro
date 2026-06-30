@@ -9232,15 +9232,40 @@ function renderDashboard() {
   </div>
 
   <div class="dash-section">
-    <div class="dash-section-title">🏢 各项目健康度</div>
-    ${projBars.map(p => `
-      <div class="proj-health-bar">
-        <div class="phb-name" title="${p.name}">${p.name}</div>
-        <div class="phb-track"><div class="phb-fill" style="width:${p.pct}%;background:${p.color}"></div></div>
-        <div class="phb-pct">${p.pct}%</div>
-      </div>
-    `).join('')}
+    <div class="dash-section-title">🏢 各项目健康度 <span style="font-size:11px;color:var(--t3);font-weight:400">（点击切换）</span></div>
+    ${projects.map(p => {
+      const pt=(p.tasks||[]).filter(t=>t.type==='task');
+      const pd=pt.filter(t=>t.done).length;
+      const pp=pt.length?Math.round(pd/pt.length*100):0;
+      const pod=pt.filter(t=>!t.done&&t.end&&t.end<TODAY_STR).length;
+      const pms=(p.tasks||[]).filter(t=>t.type==='milestone');
+      const color=pp>=80?'#10B981':pp>=40?'#F59E0B':'#EF4444';
+      const isActive=p.id===currentProjId;
+      return `<div class="proj-health-bar${isActive?' phb-active':''}" onclick="switchProject('${p.id}');setChartView('gantt')" style="cursor:pointer">
+        <div class="phb-name" title="${p.name}" style="max-width:160px">${isActive?'▶ ':''}<b>${p.name}</b></div>
+        <div class="phb-track"><div class="phb-fill" style="width:${pp}%;background:${color}"></div></div>
+        <div class="phb-pct">${pp}%</div>
+        <span style="font-size:11px;color:var(--t3);white-space:nowrap">${pt.length}任务${pod?` ⚠️${pod}逾期`:''} ${pms.length?`◆${pms.filter(m=>m.done).length}/${pms.length}`:''}</span>
+      </div>`;
+    }).join('')}
   </div>
+
+  ${(() => {
+    const risks = projects.flatMap(p=>(p.risks||[]).filter(r=>r.status!=='closed').map(r=>({...r,projName:p.name,score:(r.prob||1)*(r.impact||1)})));
+    if(!risks.length) return '';
+    risks.sort((a,b)=>b.score-a.score);
+    const scoreColor=s=>s<=5?'#16a34a':s<=10?'#d97706':'#dc2626';
+    return `<div class="dash-section">
+      <div class="dash-section-title">⚠️ 开放风险（跨项目）</div>
+      ${risks.slice(0,8).map(r=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+          <span style="width:22px;height:22px;border-radius:50%;background:${scoreColor(r.score)};color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${r.score}</span>
+          <span style="flex:1;font-size:12px;color:var(--t1)">${r.name||'未命名'}</span>
+          <span style="font-size:11px;color:var(--t3)">${r.projName}</span>
+          <span style="font-size:11px;padding:1px 6px;border-radius:8px;background:var(--s2);color:var(--t3)">${r.status==='mitigated'?'已应对':'开放'}</span>
+        </div>`).join('')}
+    </div>`;
+  })()}
 
   <div class="dash-section">
     <div class="dash-section-title">👤 人員工作量</div>
@@ -10988,6 +11013,11 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
     const inp=document.getElementById('fcInput');
     const text=(inp?.value||'').trim();
     if(!text) return;
+    // Intercept slash commands
+    if(text.startsWith('/')) {
+      const exact=SLASH_CMDS.find(c=>c.cmd===text.split(' ')[0]);
+      if(exact){ inp.value=''; inp.style.height=''; window.fcHideMention(); _execSlashCmd(exact.cmd); return; }
+    }
     if(_pn) {
       const msgObj={uuid:_uuid(),name:_me(),text,ts:Date.now(),type:'msg'};
       if(_replyTo) msgObj.replyTo=_replyTo;
@@ -11002,18 +11032,126 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
     const popup=document.getElementById('fcMentionPopup');
     const vis=popup&&popup.style.display!=='none';
     if(vis) {
-      if(e.key==='ArrowDown'){e.preventDefault();_mSel=Math.min(_mSel+1,_mMatches.length-1);_renderMention();return;}
-      if(e.key==='ArrowUp'){e.preventDefault();_mSel=Math.max(_mSel-1,0);_renderMention();return;}
-      if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();if(_mMatches[_mSel])_insertMention(_mMatches[_mSel]);return;}
-      if(e.key==='Escape'){window.fcHideMention();return;}
+      // Slash command popup navigation
+      if(_slashMatches.length) {
+        if(e.key==='ArrowDown'){e.preventDefault();_slashSel=Math.min(_slashSel+1,_slashMatches.length-1);_updateSlashSel();return;}
+        if(e.key==='ArrowUp'){e.preventDefault();_slashSel=Math.max(_slashSel-1,0);_updateSlashSel();return;}
+        if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();fcRunSlash(_slashMatches[_slashSel].cmd);return;}
+        if(e.key==='Escape'){window.fcHideMention();return;}
+      } else {
+        if(e.key==='ArrowDown'){e.preventDefault();_mSel=Math.min(_mSel+1,_mMatches.length-1);_renderMention();return;}
+        if(e.key==='ArrowUp'){e.preventDefault();_mSel=Math.max(_mSel-1,0);_renderMention();return;}
+        if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();if(_mMatches[_mSel])_insertMention(_mMatches[_mSel]);return;}
+        if(e.key==='Escape'){window.fcHideMention();return;}
+      }
     }
     if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();fcSend();return;}
     const inp=e.target; inp.style.height='auto'; inp.style.height=Math.min(inp.scrollHeight,80)+'px';
   };
+  function _updateSlashSel() {
+    const popup=document.getElementById('fcMentionPopup'); if(!popup) return;
+    popup.querySelectorAll('.chat-mention-item').forEach((el,i)=>el.classList.toggle('sel',i===_slashSel));
+  }
+
+  // ── Slash commands ──────────────────────────────────────────────
+  const SLASH_CMDS = [
+    {cmd:'/状态',  desc:'显示项目完成率和逾期任务'},
+    {cmd:'/今日',  desc:'今日到期和进行中任务'},
+    {cmd:'/风险',  desc:'列出开放风险'},
+    {cmd:'/里程碑',desc:'列出所有里程碑进度'},
+    {cmd:'/报告',  desc:'用 AI 生成进度周报'},
+    {cmd:'/帮助',  desc:'显示所有可用命令'},
+  ];
+  let _slashMatches=[], _slashSel=0;
+
+  function _showSlashPopup(matches) {
+    _slashMatches=matches; _slashSel=0;
+    const popup=document.getElementById('fcMentionPopup');
+    if(!popup) return;
+    popup.innerHTML=matches.map((c,i)=>
+      `<div class="chat-mention-item${i===0?' sel':''}" onclick="fcRunSlash('${c.cmd}')">
+        <strong style="color:var(--accent)">${c.cmd}</strong>
+        <span style="color:var(--t3);font-size:11px;margin-left:6px">${c.desc}</span>
+      </div>`
+    ).join('');
+    popup.style.display='block';
+  }
+
+  window.fcRunSlash = function(cmd) {
+    window.fcHideMention();
+    const inp=document.getElementById('fcInput');
+    if(inp){inp.value='';inp.style.height='';}
+    _execSlashCmd(cmd);
+  };
+
+  function _execSlashCmd(cmd) {
+    const proj = (typeof curProj==='function') ? curProj() : null;
+    const ts = (typeof tasks!=='undefined') ? tasks : [];
+    const today = (typeof TODAY_STR!=='undefined') ? TODAY_STR : new Date().toISOString().slice(0,10);
+
+    if (cmd==='/帮助') {
+      const text = SLASH_CMDS.map(c=>`${c.cmd} — ${c.desc}`).join('\n');
+      _sendSystemMsg('📖 可用命令：\n'+text); return;
+    }
+    if (cmd==='/状态') {
+      const all=ts.filter(t=>t.type==='task');
+      const done=all.filter(t=>t.done).length;
+      const overdue=all.filter(t=>!t.done&&t.end&&t.end<today);
+      const pct=all.length?Math.round(done/all.length*100):0;
+      _sendSystemMsg(`📊 项目状态 — ${proj?.name||'当前项目'}\n✅ 完成：${done}/${all.length}（${pct}%）\n⚠️ 逾期：${overdue.length} 项${overdue.length?'：'+overdue.map(t=>t.name).join('、'):''}`);
+      return;
+    }
+    if (cmd==='/今日') {
+      const dueToday=ts.filter(t=>!t.done&&t.end===today);
+      const inprog=ts.filter(t=>!t.done&&(t.progress||0)>0&&t.type==='task').slice(0,5);
+      _sendSystemMsg(`📅 今日（${today}）\n截止今日：${dueToday.length?dueToday.map(t=>t.name).join('、'):'无'}\n进行中：${inprog.length?inprog.map(t=>`${t.name}(${t.progress}%)`).join('、'):'无'}`);
+      return;
+    }
+    if (cmd==='/风险') {
+      const risks=(proj?.risks||[]).filter(r=>r.status!=='closed');
+      if(!risks.length){_sendSystemMsg('✅ 无开放风险');return;}
+      const lines=risks.map(r=>`⚠️ ${r.name} 评分:${(r.prob||1)*(r.impact||1)} [${r.status==='mitigated'?'已应对':'开放'}]`);
+      _sendSystemMsg('风险登记册（开放）：\n'+lines.join('\n'));
+      return;
+    }
+    if (cmd==='/里程碑') {
+      const ms=ts.filter(t=>t.type==='milestone');
+      if(!ms.length){_sendSystemMsg('暂无里程碑');return;}
+      const lines=ms.map(t=>`${t.done?'✅':'◆'} ${t.name}（${t.date}）`);
+      _sendSystemMsg('里程碑：\n'+lines.join('\n'));
+      return;
+    }
+    if (cmd==='/报告') {
+      const key=localStorage.getItem('gp_ai_key_deepseek')||localStorage.getItem('gp_ai_key_claude');
+      if(!key){_sendSystemMsg('⚠️ 请先在「文件→AI项目助手」中设置 API Key，再使用 /报告');return;}
+      _sendSystemMsg('⏳ AI 生成周报中…');
+      const provider=localStorage.getItem('gp_ai_key_deepseek')?'deepseek':'claude';
+      const snap=typeof _buildProjectSnapshot==='function'?_buildProjectSnapshot():'（数据获取失败）';
+      const sys='你是专业项目管理助手，用中文写简洁周报。';
+      const user=`根据以下数据生成项目周报（本周进展/逾期风险/下周计划/建议）：\n${snap}`;
+      _callAI(provider,key,sys,user,1000).then(text=>{
+        _sendSystemMsg('📋 AI 周报：\n'+text);
+      }).catch(e=>_sendSystemMsg('❌ AI 报告失败：'+e.message));
+      return;
+    }
+  }
+
+  function _sendSystemMsg(text) {
+    _renderMsg({uuid:'system',name:'系统',text,ts:Date.now(),type:'system'}, true);
+  }
 
   window.fcInputChange = function(e) {
     const inp=e.target, val=inp.value, pos=inp.selectionStart;
     const before=val.slice(0,pos);
+    // Slash command detection
+    if(val.startsWith('/')) {
+      const q=val.toLowerCase();
+      const hits=SLASH_CMDS.filter(c=>c.cmd.startsWith(q));
+      if(hits.length){_showSlashPopup(hits);return;}
+      // Exact match — ready to submit
+      window.fcHideMention(); return;
+    }
+    // @mention detection
     const m=before.match(/@([\w一-龥]*)$/);
     if(m) {
       const q=m[1].toLowerCase();
@@ -11034,7 +11172,7 @@ function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'
 
   window.fcHideMention = function() {
     const p=document.getElementById('fcMentionPopup'); if(p) p.style.display='none';
-    _mMatches=[]; _mSel=-1;
+    _mMatches=[]; _mSel=-1; _slashMatches=[]; _slashSel=0;
   };
 
   window.fcInsertMention = function(name) { _insertMention(name); };
