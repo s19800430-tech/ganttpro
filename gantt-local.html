@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>GanttPro — 專案甘特圖 (本地模式)</title>
+<script src="https://cdn.jsdelivr.net/npm/pouchdb@9.0.0/dist/pouchdb.min.js"></script>
+<script async src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css" onload="this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css"></noscript>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#F0F1F5;
+  --surface:#FFFFFF;
+  --s2:#F9FAFB;
+  --s-hover:#F3F4F6;
+  --border:#E5E7EB;
+  --border2:#D1D5DB;
+  --t1:#111827;
+  --t2:#374151;
+  --t3:#6B7280;
+  --t4:#9CA3AF;
+  --accent:#5E6AD2;
+  --accent-bg:#EEF0FF;
+  --red:#EF4444;
+}
+
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;
+  font-size:13px;
+  background:var(--bg);
+  color:var(--t1);
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+#loginScreen{
+  position:fixed;inset:0;z-index:9999;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;flex-direction:column;
+  gap:32px;
+}
+
+#loginScreen.hidden{
+  display:none;
+}
+
+.login-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;padding:40px;
+  display:flex;flex-direction:column;align-items:center;gap:24px;
+  box-shadow:0 4px 24px rgba(0,0,0,.08);min-width:320px;
+}
+
+.login-logo{font-size:22px;font-weight:800;color:var(--accent);display:flex;align-items:center;gap:8px}
+.login-logo-icon{width:40px;height:40px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:800}
+.login-subtitle{color:var(--t3);font-size:13px;text-align:center;margin-top:-16px}
+
+.google-btn{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 20px;border:1px solid var(--border);border-radius:8px;
+  background:var(--surface);color:var(--t1);font-size:13px;font-weight:500;
+  cursor:pointer;transition:background .12s,border-color .12s;white-space:nowrap;
+  font-family:inherit;width:100%;justify-content:center;
+}
+.google-btn:hover{background:var(--s-hover);border-color:var(--border2)}
+.google-btn:disabled{opacity:.5;cursor:not-allowed}
+
+.nickname-input-wrap{
+  width:100%;display:flex;gap:8px;flex-direction:column;
+}
+
+#registerNickname{
+  width:100%;height:40px;
+  border:1px solid var(--border);border-radius:8px;
+  padding:0 12px;font-size:13px;background:var(--surface);color:var(--t1);
+  font-family:inherit;outline:none;transition:border-color .12s,box-shadow .12s;
+}
+#registerNickname:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94,106,210,.15)}
+
+.nickname-btn{
+  width:100%;height:40px;
+  border:none;border-radius:8px;
+  background:var(--accent);color:#fff;font-size:13px;font-weight:600;
+  cursor:pointer;transition:background .12s;
+  font-family:inherit;
+}
+.nickname-btn:hover:not(:disabled){background:#4f5bc0}
+.nickname-btn:disabled{opacity:.6;cursor:not-allowed}
+
+.mode-badge{
+  position:fixed;bottom:16px;right:16px;
+  background:#FEF3C7;color:#92400E;
+  padding:8px 12px;border-radius:6px;font-size:11px;font-weight:600;
+  border:1px solid #FDE68A;z-index:100;
+}
+
+.app-container{
+  display:none;
+  flex:1;
+  flex-direction:column;
+}
+
+.app-header{
+  height:50px;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  padding:0 20px;
+  gap:16px;
+}
+
+.app-content{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:20px;
+}
+
+.user-info{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-left:auto;
+}
+
+.user-avatar{
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  background:var(--accent);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:600;
+  font-size:14px;
+}
+
+.user-name{
+  font-size:13px;
+  color:var(--t2);
+}
+
+.logout-btn{
+  padding:6px 12px;
+  border:1px solid var(--border);
+  border-radius:6px;
+  background:var(--surface);
+  color:var(--t2);
+  font-size:12px;
+  cursor:pointer;
+  transition:background .12s;
+}
+
+.logout-btn:hover{background:var(--s-hover)}
+</style>
+</head>
+<body>
+
+<!-- 本地开发模式登录界面 -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">◻</div>
+      GanttPro
+    </div>
+    <p class="login-subtitle">本地开发模式 - 快速测试</p>
+    
+    <div class="nickname-input-wrap">
+      <label for="registerNickname" style="font-size:12px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.4px">昵称</label>
+      <input 
+        type="text" 
+        id="registerNickname" 
+        placeholder="输入你的昵称..." 
+        autocomplete="off"
+      >
+    </div>
+    
+    <button class="nickname-btn" id="localLoginBtn">进入 (本地模式)</button>
+    
+    <hr style="width:100%;border:none;border-top:1px solid var(--border);margin:8px 0">
+    
+    <button class="google-btn" id="demoBtn">
+      📊 使用演示数据
+    </button>
+  </div>
+  
+  <div class="mode-badge">💻 本地模式 (无后端验证)</div>
+</div>
+
+<!-- 应用容器 -->
+<div class="app-container">
+  <div class="app-header">
+    <div class="login-logo" style="font-size:16px;gap:6px">
+      <div class="login-logo-icon" style="width:28px;height:28px;font-size:14px">◻</div>
+      GanttPro
+    </div>
+    
+    <div class="user-info">
+      <div class="user-avatar" id="userAvatar">U</div>
+      <div class="user-name" id="userName">User</div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </div>
+  
+  <div class="app-content">
+    <h2>欢迎来到 GanttPro</h2>
+    <p style="color:var(--t3);font-size:13px">本地开发模式已启用 ✓</p>
+    <p style="color:var(--t3);font-size:12px;max-width:400px;text-align:center;line-height:1.6">
+      在这个演示版本中，所有数据保存在浏览器本地存储中。<br>
+      刷新页面时数据会保留，清除浏览器缓存会删除数据。
+    </p>
+    <button class="google-btn" style="width:200px;margin-top:20px" onclick="alert('Gantt 图表功能即将实现')">
+      📅 查看甘特图
+    </button>
+  </div>
+</div>
+
+<script>
+// 本地开发认证系统
+class LocalAuthManager {
+  constructor() {
+    this.storageKey = 'ganttpro_local_user';
+    this.init();
+  }
+  
+  init() {
+    // 检查本地存储中的用户
+    const savedUser = localStorage.getItem(this.storageKey);
+    if (savedUser) {
+      try {
+        this.user = JSON.parse(savedUser);
+        this.showApp();
+        return;
+      } catch(e) {
+        console.error('用户数据解析失败:', e);
+        localStorage.removeItem(this.storageKey);
+      }
+    }
+    
+    // 绑定事件
+    this.bindEvents();
+  }
+  
+  bindEvents() {
+    const nicknameInput = document.getElementById('registerNickname');
+    const localLoginBtn = document.getElementById('localLoginBtn');
+    const demoBtn = document.getElementById('demoBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    
+    // 昵称输入回车快速登录
+    nicknameInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const nickname = nicknameInput.value.trim();
+        if (nickname) {
+          this.login(nickname);
+        } else {
+          nicknameInput.focus();
+        }
+      }
+    });
+    
+    // 本地模式登录
+    localLoginBtn.addEventListener('click', () => {
+      const nickname = nicknameInput.value.trim();
+      if (!nickname) {
+        alert('请输入昵称');
+        nicknameInput.focus();
+        return;
+      }
+      this.login(nickname);
+    });
+    
+    // 演示数据登录
+    demoBtn.addEventListener('click', () => {
+      this.login('Demo User');
+    });
+    
+    // 登出
+    logoutBtn.addEventListener('click', () => {
+      if (confirm('确认要退出登录吗？')) {
+        this.logout();
+      }
+    });
+    
+    // 自动焦点到输入框
+    setTimeout(() => nicknameInput.focus(), 100);
+  }
+  
+  login(nickname) {
+    // 模拟认证延迟
+    const btn = document.getElementById('localLoginBtn');
+    const origText = btn.textContent;
+    const nicknameInput = document.getElementById('registerNickname');
+    
+    btn.disabled = true;
+    nicknameInput.disabled = true;
+    btn.textContent = '正在进入...';
+    
+    // 延迟以显示正在处理
+    setTimeout(() => {
+      this.user = {
+        id: 'local_' + Date.now(),
+        nickname: nickname,
+        email: nickname.toLowerCase().replace(/\s+/g, '_') + '@local',
+        loginTime: new Date().toISOString(),
+        mode: 'local'
+      };
+      
+      // 保存到本地存储
+      try {
+        localStorage.setItem(this.storageKey, JSON.stringify(this.user));
+      } catch(e) {
+        console.error('保存用户数据失败:', e);
+        alert('保存数据失败，请检查浏览器存储空间');
+        btn.disabled = false;
+        nicknameInput.disabled = false;
+        btn.textContent = origText;
+        return;
+      }
+      
+      // 显示应用
+      this.showApp();
+    }, 500);
+  }
+  
+  showApp() {
+    // 更新用户信息显示
+    const firstLetter = this.user.nickname.charAt(0).toUpperCase();
+    document.getElementById('userAvatar').textContent = firstLetter;
+    document.getElementById('userName').textContent = this.user.nickname;
+    
+    // 隐藏登录界面，显示应用
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.querySelector('.app-container').style.display = 'flex';
+    
+    console.log('✅ 用户已登录:', this.user);
+  }
+  
+  logout() {
+    localStorage.removeItem(this.storageKey);
+    this.user = null;
+    location.reload();
+  }
+}
+
+// 初始化
+window.authManager = new LocalAuthManager();
+
+// 导出登出函数
+window.logout = () => window.authManager.logout();
+</script>
+
+</body>
+</html>
