@@ -1569,6 +1569,61 @@ function undo() {
 /* ═══════════════════════════════════════════
    UTILS
 ═══════════════════════════════════════════ */
+// 所有插入 innerHTML 的使用者資料都必須經過 escHtml（任務/專案/版本名稱、email、暱稱…）
+function escHtml(v) {
+  return String(v ?? '').replace(/[&<>"'`]/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;', '`':'&#96;'
+  }[c]));
+}
+
+// 顏色只接受 #RGB / #RRGGBB / #RRGGBBAA，避免透過 style 注入 CSS
+function safeColor(c, fallback = '#5E6AD2') {
+  return (typeof c === 'string' && /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(c)) ? c : fallback;
+}
+
+// 外部來源（雲端、localStorage、分享連結）的專案資料一律先正規化，型別不對的欄位修正或移除
+function sanitizeProject(p) {
+  if (!p || typeof p !== 'object') return null;
+  const isDate = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const num = (v, d = 0) => (Number.isFinite(+v) ? +v : d);
+  const ids = a => Array.isArray(a) ? a.map(Number).filter(Number.isFinite) : [];
+  const TYPES = ['task', 'group', 'milestone'];
+  const tasksIn = Array.isArray(p.tasks) ? p.tasks : [];
+  const out = {
+    ...p,
+    id: Number.isFinite(+p.id) ? +p.id : 1,
+    name: String(p.name ?? '未命名專案'),
+    color: safeColor(p.color),
+    startDate: isDate(p.startDate) ? p.startDate : TODAY_STR,
+    endDate: isDate(p.endDate) ? p.endDate : TODAY_STR,
+    tasks: tasksIn.filter(t => t && typeof t === 'object' && Number.isFinite(+t.id)).map(t => {
+      const o = {
+        ...t,
+        id: +t.id,
+        name: String(t.name ?? ''),
+        type: TYPES.includes(t.type) ? t.type : 'task',
+        parent: (t.parent === null || t.parent === undefined || !Number.isFinite(+t.parent)) ? null : +t.parent,
+        color: safeColor(t.color),
+      };
+      ['start', 'end', 'date'].forEach(k => { if (k in o && !isDate(o[k])) o[k] = ''; });
+      ['deps', 'sdeps', 'ffdeps', 'sfdeps'].forEach(k => { if (k in o) o[k] = ids(o[k]); });
+      if ('wday' in o) o.wday = num(o.wday, 1);
+      if ('progress' in o) o.progress = Math.max(0, Math.min(100, num(o.progress)));
+      if ('assignee' in o) o.assignee = String(o.assignee ?? '');
+      if (o.lags && typeof o.lags === 'object') {
+        const l = {};
+        Object.entries(o.lags).forEach(([k, v]) => { if (/^(FS|SS|FF|SF)\d+$/.test(k)) l[k] = num(v); });
+        o.lags = l;
+      } else delete o.lags;
+      return o;
+    }),
+  };
+  const maxTaskId = out.tasks.reduce((m, t) => Math.max(m, t.id), 0);
+  out.nextId = Math.max(num(p.nextId, 1), maxTaskId + 1);
+  if (!Array.isArray(out.versions)) delete out.versions;
+  return out;
+}
+
 function dateToX(str) {
   const diff = (new Date(str) - CHART_START) / 86400000;
   return Math.round(diff * PPD);
@@ -1852,7 +1907,7 @@ function renderTaskPanel() {
     } else {
       const sv = task.start || task.date || '';
       if (task.pinStart && sv) {
-        sc.innerHTML = '<span class="pin-dot"></span>' + sv;
+        sc.innerHTML = '<span class="pin-dot"></span>' + escHtml(sv);
         sc.title = '固定日期，不隨排程自動移動';
       } else {
         sc.textContent = sv;
@@ -2835,22 +2890,22 @@ function highlightDeps(id, on) {
 ═══════════════════════════════════════════ */
 function showTT(e, task) {
   const tt = document.getElementById('tooltip');
-  let h = `<div class="tt-h">${task.name}</div>`;
+  let h = `<div class="tt-h">${escHtml(task.name)}</div>`;
   if (task.type === 'task') {
     const wdays = task.wday || countWorkingDays(task.start, task.end);
     const tprog = task.done ? 100 : (task.progress || 0);
-    h += `<div class="tt-r"><span>開始</span><span>${task.start}</span></div>`;
-    h += `<div class="tt-r"><span>結束</span><span>${task.end}</span></div>`;
+    h += `<div class="tt-r"><span>開始</span><span>${escHtml(task.start)}</span></div>`;
+    h += `<div class="tt-r"><span>結束</span><span>${escHtml(task.end)}</span></div>`;
     h += `<div class="tt-r"><span>工作天</span><span>${wdays} 天</span></div>`;
     h += `<div class="tt-r"><span>進度</span><span>${tprog}%</span></div>`;
-    if (task.assignee) h += `<div class="tt-r"><span>負責人</span><span>${task.assignee}</span></div>`;
+    if (task.assignee) h += `<div class="tt-r"><span>負責人</span><span>${escHtml(task.assignee)}</span></div>`;
     const _bl = (curProj()?.baseline?.dates || {})[task.id];
     if (_bl && _bl.e && task.end && _bl.e !== task.end) {
       const late = task.end > _bl.e;
       const dd = countWorkingDays(late ? _bl.e : task.end, late ? task.end : _bl.e) - 1;
       h += `<div class="tt-r"><span>基準偏差</span><span style="color:${late ? '#EF4444' : '#10B981'}">${late ? '+' : '−'}${dd} 工作日</span></div>`;
     }
-    h += `<div class="tt-pb"><div class="tt-pf" style="width:${tprog}%;background:${task.color}"></div></div>`;
+    h += `<div class="tt-pb"><div class="tt-pf" style="width:${+tprog || 0}%;background:${safeColor(task.color)}"></div></div>`;
     const _ovd = !task.done && task.end && task.end < TODAY_STR;
     h += `<div class="tt-r"><span>狀態</span><span style="color:${task.done?'#10B981':_ovd?'#EF4444':'#9CA3AF'}">${task.done ? '✓ 已完成' : _ovd ? '⚠ 已逾期' : '⏳ 待完成'}</span></div>`;
     if ((task.deps||[]).length)   h += `<div class="tt-r"><span>FS前置</span><span>${task.deps.length} 項</span></div>`;
@@ -2858,17 +2913,17 @@ function showTT(e, task) {
     if ((task.ffdeps||[]).length) h += `<div class="tt-r"><span>FF前置</span><span style="color:#10B981">${task.ffdeps.length} 項</span></div>`;
     if ((task.sfdeps||[]).length) h += `<div class="tt-r"><span>SF前置</span><span style="color:#8B5CF6">${task.sfdeps.length} 項</span></div>`;
   } else if (task.type === 'milestone') {
-    h += `<div class="tt-r"><span>日期</span><span>${task.date}</span></div>`;
-    h += `<div class="tt-r"><span>負責人</span><span>${task.assignee || '—'}</span></div>`;
+    h += `<div class="tt-r"><span>日期</span><span>${escHtml(task.date)}</span></div>`;
+    h += `<div class="tt-r"><span>負責人</span><span>${escHtml(task.assignee || '—')}</span></div>`;
     h += `<div class="tt-r"><span>FS前置</span><span>${(task.deps||[]).length} 項</span></div>`;
   } else if (task.type === 'group') {
     const b = groupBounds(task.id);
     const prog = groupProgress(task.id);
-    if (b.s) h += `<div class="tt-r"><span>開始</span><span>${b.s}</span></div>`;
-    if (b.e) h += `<div class="tt-r"><span>結束</span><span>${b.e}</span></div>`;
+    if (b.s) h += `<div class="tt-r"><span>開始</span><span>${escHtml(b.s)}</span></div>`;
+    if (b.e) h += `<div class="tt-r"><span>結束</span><span>${escHtml(b.e)}</span></div>`;
     h += `<div class="tt-r"><span>子任務</span><span>${tasks.filter(t=>t.parent===task.id&&t.type==='task').length} 項</span></div>`;
     h += `<div class="tt-r"><span>整體進度</span><span>${prog}%</span></div>`;
-    h += `<div class="tt-pb"><div class="tt-pf" style="width:${prog}%;background:${task.color}"></div></div>`;
+    h += `<div class="tt-pb"><div class="tt-pf" style="width:${+prog || 0}%;background:${safeColor(task.color)}"></div></div>`;
   }
   tt.innerHTML = h;
   tt.classList.add('show');
@@ -3413,7 +3468,12 @@ function exportCSV() {
     });
   };
   walk(null, 0);
-  const esc = v => { v = String(v ?? ''); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const esc = v => {
+    v = String(v ?? '');
+    // 防 CSV 公式注入：以 = + - @ 開頭的文字欄位加上 ' 前綴（數字不受影響）
+    if (/^[=+\-@\t\r]/.test(v) && !/^-?\d+(\.\d+)?$/.test(v)) v = "'" + v;
+    return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  };
   const csv = '\ufeff' + lines.map(r => r.map(esc).join(',')).join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -3617,9 +3677,9 @@ function setupDepsInputListener(excludeId) {
     if (!val.trim()) { tip.innerHTML = ''; return; }
     const parsed = parseDepInput(val, excludeId);
     tip.innerHTML = parsed.map(p => {
-      if (p.err) return `<span style="color:var(--red)">✕ ${p.raw}：${p.err}</span>`;
+      if (p.err) return `<span style="color:var(--red)">✕ ${escHtml(p.raw)}：${escHtml(p.err)}</span>`;
       const dt = taskById(p.taskId);
-      return `<span style="color:#10B981">✓ ${p.rowNum}${p.type}・${dt ? dt.name : ''}</span>`;
+      return `<span style="color:#10B981">✓ ${p.rowNum}${p.type}・${escHtml(dt ? dt.name : '')}</span>`;
     }).join('&nbsp;&nbsp;');
   }
 
@@ -3653,7 +3713,7 @@ function renderDepsDropdown(excludeId) {
     ).join('');
     return `<div class="dep-li${isSel?' dep-sel':''}">
       <span class="dep-li-num">#${rowNum}</span>
-      <span class="dep-li-name" title="${task.name}">${task.name}</span>
+      <span class="dep-li-name" title="${escHtml(task.name)}">${escHtml(task.name)}</span>
       <div class="dep-type-btns">${typeBtns}</div>
     </div>`;
   }).join('');
@@ -4214,8 +4274,8 @@ function renderDepsMenu() {
     opt.className = 'deps-opt' + (selectedDeps.has(t.id) ? ' sel' : '');
     opt.innerHTML = `
       <span class="deps-opt-num">#${t.id}</span>
-      <span class="cdot" style="background:${t.color}"></span>
-      <span>${t.name}</span>
+      <span class="cdot" style="background:${safeColor(t.color)}"></span>
+      <span>${escHtml(t.name)}</span>
       <span class="deps-opt-check">${selectedDeps.has(t.id) ? '✓' : ''}</span>
     `;
     opt.addEventListener('click', () => toggleDepOpt(t.id));
@@ -4311,9 +4371,9 @@ function openAllDepsEditor(task, cell) {
     const parsed = parseDepInput(v, task.id);
     if (!parsed.length) { tip.style.display = 'none'; return; }
     const rows = parsed.map(p => {
-      if (p.err) return `<div><span style="color:#A5B4FC;font-weight:600;display:inline-block;min-width:44px">${p.raw}</span> <span style="color:#FCA5A5">✕ ${p.err}</span></div>`;
+      if (p.err) return `<div><span style="color:#A5B4FC;font-weight:600;display:inline-block;min-width:44px">${escHtml(p.raw)}</span> <span style="color:#FCA5A5">✕ ${escHtml(p.err)}</span></div>`;
       const dt = taskById(p.taskId);
-      return `<div><span style="color:#A5B4FC;font-weight:600;display:inline-block;min-width:44px">${p.rowNum}${p.type}</span> <span style="color:#6EE7B7">✓ ${dt ? dt.name : ''} · ${p.type}</span></div>`;
+      return `<div><span style="color:#A5B4FC;font-weight:600;display:inline-block;min-width:44px">${p.rowNum}${p.type}</span> <span style="color:#6EE7B7">✓ ${escHtml(dt ? dt.name : '')} · ${p.type}</span></div>`;
     });
     rows.push('<div style="margin-top:4px;color:#9CA3AF;font-size:10px">Enter 確認 &nbsp; Esc 取消</div>');
     tip.innerHTML = rows.join('');
@@ -4691,6 +4751,7 @@ function updateProjUI() {
       document.getElementById('projSelectorName').textContent = '— 無專案 —';
       document.getElementById('projDot').style.background = '#999';
       renderProjMenu();
+      updateReadOnly();
       return;
     }
     p = fallback;
@@ -4731,8 +4792,8 @@ function renderProjMenu() {
     const item = document.createElement('div');
     item.className = 'proj-item' + (p.id === currentProjId ? ' active' : '');
     item.innerHTML = `
-      <div class="proj-item-dot" style="background:${p.color}"></div>
-      <span class="proj-item-name">${p.name}${p._isShared ? ' <span class="collab-shared-badge">共享</span>' : ''}</span>
+      <div class="proj-item-dot" style="background:${safeColor(p.color)}"></div>
+      <span class="proj-item-name">${escHtml(p.name)}${p._isShared ? ' <span class="collab-shared-badge">共享</span>' : ''}</span>
       ${!p._isShared ? `<span class="proj-item-edit" onclick="openEditProjModal(${p.id},event)" title="編輯此專案">✎</span>` : ''}
       ${!p._isShared ? `<span class="proj-item-del" onclick="deleteProject(${p.id},event)" title="刪除此專案">✕</span>` : ''}
     `;
@@ -4748,30 +4809,35 @@ function renderProjMenu() {
   menu.appendChild(add);
 }
 
-function deleteProject(id, e) {
+async function deleteProject(id, e) {
   e.stopPropagation();
   const p = projects.find(x => x.id === id);
-  if (!p || p._isShared) return;
+  if (!p || p._isShared || isReadOnly) return;
   if (!confirm(`確定要刪除「${p.name}」嗎？此操作無法復原。`)) return;
-  projects = projects.filter(x => x.id !== id);
+  if (currentUser) {
+    if (!_cloudReady) { alert('目前無法連線雲端，暫時不能刪除專案'); return; }
+    try { await deleteProjectFromCloud(p); }
+    catch(err) { alert('刪除失敗：' + err.message); return; }
+  }
+  projects = projects.filter(x => x !== p);
   closeProjMenuOnly();
-  const ownedLeft = projects.filter(x => !x._isShared);
-  if (ownedLeft.length === 0) {
-    // 全部刪完：重置狀態，更新 header
-    currentProjId = null;
-    tasks = [];
-    nextId = 1;
-    saveToCloud();
-    updateProjUI();
-    renderProjMenu();
-    render();
-  } else if (id === currentProjId) {
-    switchProject((ownedLeft[0] || projects[0]).id);
-    saveToCloud();
+  if (id === currentProjId) {
+    const next = projects.find(x => !x._isShared) || projects[0];
+    if (next) {
+      switchProject(next.id);
+    } else {
+      // 全部刪完：重置狀態，更新 header
+      activateProject(null);
+      _history = [];
+      updateProjUI();
+      renderProjMenu();
+      render();
+    }
   } else {
     renderProjMenu();
-    saveToCloud();
   }
+  saveToLS();
+  saveToCloud();
 }
 
 let _editingProjId = null;
@@ -4823,7 +4889,7 @@ function openProjModal() {
   // Fill template options
   const sel = document.getElementById('pTemplate');
   sel.innerHTML = '<option value="">— 空白專案 —</option>' +
-    TEMPLATES.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    TEMPLATES.map(t => `<option value="${escHtml(t.id)}">${escHtml(t.name)}</option>`).join('');
   sel.value = '';
   document.getElementById('templatePreview').style.display = 'none';
   // Preview the color that will be auto-assigned
@@ -4873,6 +4939,7 @@ function selectColor(el) {
 }
 
 function submitProject() {
+  if (isReadOnly) return;
   const name = document.getElementById('pName').value.trim();
   if (!name) { document.getElementById('pName').focus(); return; }
   const start = document.getElementById('pStart').value;
@@ -4925,12 +4992,11 @@ function submitProject() {
   const end = d.toISOString().slice(0, 10);
 
   const newProj = {
-    id: nextProjId++,
+    id: newProjId(),
     name, color,
     startDate: start,
     endDate: end,
     nextId: projNextId,
-    ownerId: getOwnerId(),
     tasks: projTasks
   };
   projects.push(newProj);
@@ -5051,6 +5117,8 @@ function setupResizer() {
 ═══════════════════════════════════════════ */
 let isReadOnly = false;
 let _isShareLinkMode = false;
+let _cloudReady = false;   // 已成功從雲端載入，可以寫回
+let _cloudBlocked = false; // 雲端載入失敗：只讀顯示快取，禁止寫回
 
 const ADMIN_EMAIL = 's19800430@gmail.com';
 function isAdmin() { return currentUser?.email === ADMIN_EMAIL; }
@@ -5058,7 +5126,7 @@ function isAdmin() { return currentUser?.email === ADMIN_EMAIL; }
 function updateReadOnly() {
   const cp = curProj();
   // Use !! to ensure boolean (avoid undefined causing toggle() to act as actual toggle)
-  isReadOnly = !!(_isShareLinkMode || (cp && cp._isShared && cp._permission === 'read'));
+  isReadOnly = !!(_isShareLinkMode || _cloudBlocked || (cp && cp._isShared && cp._permission === 'read'));
   document.body.classList.toggle('readonly', isReadOnly);
   const badge = document.querySelector('.readonly-badge');
   if (badge) badge.style.display = isReadOnly ? 'flex' : 'none';
@@ -5070,18 +5138,15 @@ function updateReadOnly() {
   });
 }
 
-function getOwnerId() {
-  let id = localStorage.getItem('ganttpro_owner_id');
-  if (!id) {
-    id = 'own_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-    localStorage.setItem('ganttpro_owner_id', id);
-  }
-  return id;
+function randomToken(prefix) {
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  return prefix + Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
 }
 
 function getOrCreateShareToken(proj) {
-  if (!proj.shareToken) {
-    proj.shareToken = 'shr_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  // 舊版 token 以 Math.random 產生（可預測），一律換成密碼學隨機的新 token
+  if (!proj.shareToken || !/^shr_[0-9a-f]{32}$/.test(proj.shareToken)) {
+    proj.shareToken = randomToken('shr_');
   }
   return proj.shareToken;
 }
@@ -5126,87 +5191,15 @@ function exportPDF() {
 }
 
 /* ═══════════════════════════════════════════
-   COLLABORATION — SHARED PROJECTS
-═══════════════════════════════════════════ */
-let _sharedChannels = [];
-
-async function loadSharedProjects() {
-  if (!currentUser) return;
-  try {
-    const snap = await db.collection('gantt_project_shares')
-      .where('shared_with_email', '==', currentUser.email).get();
-    if (snap.empty) return;
-
-    const byOwner = {};
-    snap.forEach(doc => {
-      const s = doc.data();
-      if (!byOwner[s.owner_id]) byOwner[s.owner_id] = [];
-      byOwner[s.owner_id].push(s);
-    });
-
-    for (const [ownerId, ownerShares] of Object.entries(byOwner)) {
-      const ownerSnap = await db.collection('gantt_user_data').doc(ownerId).get();
-      const ownerData = ownerSnap.data()?.data;
-      if (!ownerData?.projects) continue;
-
-      ownerShares.forEach(share => {
-        const proj = ownerData.projects.find(p => p.id == share.project_id);
-        if (!proj) return;
-        if (projects.find(p => p.id === proj.id && p._isShared)) return;
-        projects.push({
-          ...JSON.parse(JSON.stringify(proj)),
-          _isShared: true,
-          _ownerId: ownerId,
-          _permission: share.permission
-        });
-      });
-    }
-
-    setupSharedRealtime(Object.keys(byOwner));
-  } catch(e) { console.error('loadSharedProjects:', e); }
-}
-
-function setupSharedRealtime(ownerIds) {
-  _sharedChannels.forEach(unsub => unsub());
-  _sharedChannels = [];
-
-  ownerIds.forEach(ownerId => {
-    let skipFirst = true;
-    const unsub = db.collection('gantt_user_data').doc(ownerId)
-      .onSnapshot(async () => {
-        if (skipFirst) { skipFirst = false; return; }
-        const ownerSnap = await db.collection('gantt_user_data').doc(ownerId).get();
-        const ownerData = ownerSnap.data()?.data;
-        if (!ownerData?.projects) return;
-        projects = projects.map(p => {
-          if (p._isShared && p._ownerId === ownerId) {
-            const fresh = ownerData.projects.find(op => op.id === p.id);
-            if (fresh) return { ...fresh, _isShared: true, _ownerId: ownerId, _permission: p._permission };
-          }
-          return p;
-        });
-        if (curProj()?._ownerId === ownerId) {
-          tasks = curProj().tasks;
-          nextId = curProj().nextId;
-          scheduleTasks();
-          recalcProjEnd();
-        }
-        saveToLS();
-        updateProjUI();
-        render();
-        showSyncToast();
-      });
-    _sharedChannels.push(unsub);
-  });
-}
-
-/* ═══════════════════════════════════════════
-   COLLABORATION — COLLAB MODAL
+   COLLABORATION — 專案成員
+   成員名單存在 gantt_projects/{docId} 的 editor_emails / viewer_emails，
+   Firestore 規則依此判斷誰能讀寫哪個專案（不再開放讀寫整份使用者資料）。
 ═══════════════════════════════════════════ */
 let _collabShares = [];
 
 async function openCollabModal() {
   if (isReadOnly) return;
+  if (!currentUser || !_cloudReady) { showStatus('需登入且雲端連線正常才能管理共享'); return; }
   const overlay = document.getElementById('collabOverlay');
   overlay.classList.add('open');
   document.getElementById('collabMsg').style.display = 'none';
@@ -5216,11 +5209,11 @@ async function openCollabModal() {
   const sel = document.getElementById('collabProjSelect');
   const ownedProjects = projects.filter(p => !p._isShared);
   sel.innerHTML = ownedProjects.map(p =>
-    `<option value="${p.id}">${p.name}</option>`
+    `<option value="${escHtml(p.id)}">${escHtml(p.name)}</option>`
   ).join('');
   // 預設選目前專案
   const cur = curProj();
-  if (cur && !cur._isShared) sel.value = cur.id;
+  if (cur && !cur._isShared) sel.value = String(cur.id);
 
   await refreshCollabList();
 }
@@ -5234,14 +5227,23 @@ async function onCollabProjChange() {
   await refreshCollabList();
 }
 
-async function refreshCollabList() {
+function collabSelectedProj() {
   const sel = document.getElementById('collabProjSelect');
-  const projId = sel ? sel.value : (curProj()?.id);
-  if (!projId) return;
-  const snap = await db.collection('gantt_project_shares')
-    .where('project_id', '==', String(projId))
-    .where('owner_id', '==', currentUser.uid).get();
-  _collabShares = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const id = sel && sel.value !== '' ? Number(sel.value) : curProj()?.id;
+  return projects.find(p => p.id === id && !p._isShared);
+}
+
+async function refreshCollabList() {
+  const p = collabSelectedProj();
+  _collabShares = [];
+  if (p && _sync.has(docIdOf(p))) {
+    try {
+      const snap = await db.collection(PROJ_COL).doc(docIdOf(p)).get();
+      const d = snap.exists ? snap.data() : {};
+      (d.editor_emails || []).forEach(email => _collabShares.push({ email, permission: 'edit' }));
+      (d.viewer_emails || []).forEach(email => _collabShares.push({ email, permission: 'read' }));
+    } catch(e) { console.error('refreshCollabList:', e); }
+  }
   renderCollabModal();
 }
 
@@ -5251,19 +5253,22 @@ function renderCollabModal() {
     list.innerHTML = '<div style="font-size:12px;color:var(--t3);text-align:center;padding:12px 0">尚未分享給任何人</div>';
     return;
   }
-  list.innerHTML = _collabShares.map(s => `
+  list.innerHTML = _collabShares.map((s, i) => `
     <div class="collab-share-item">
-      <span class="ci-email" title="${s.shared_with_email}">${s.shared_with_email}</span>
-      <span class="ci-perm ${s.permission}">${s.permission === 'read' ? '唯讀' : '共同編輯'}</span>
-      <span class="ci-del" onclick="removeShare('${s.id}','${s.shared_with_email}')" title="移除">✕</span>
+      <span class="ci-email" title="${escHtml(s.email)}">${escHtml(s.email)}</span>
+      <span class="ci-perm ${s.permission === 'read' ? 'read' : 'edit'}">${s.permission === 'read' ? '唯讀' : '共同編輯'}</span>
+      <span class="ci-del" data-idx="${i}" title="移除">✕</span>
     </div>
   `).join('');
+  list.querySelectorAll('.ci-del').forEach(el => {
+    el.addEventListener('click', () => removeShare(_collabShares[+el.dataset.idx].email));
+  });
 }
 
 async function addShare() {
   const emailInput = document.getElementById('collabEmailInput');
   const email = (emailInput.value || '').trim().toLowerCase();
-  const perm  = document.getElementById('collabPermSelect').value;
+  const perm  = document.getElementById('collabPermSelect').value === 'read' ? 'read' : 'edit';
   const msgEl = document.getElementById('collabMsg');
 
   const showMsg = (txt, ok) => {
@@ -5274,21 +5279,19 @@ async function addShare() {
 
   msgEl.style.display = 'none';
 
-  if (!email || !email.includes('@')) { showMsg('請輸入有效的 Gmail 帳號'); return; }
-  if (currentUser && email === currentUser.email) { showMsg('不能分享給自己'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg('請輸入有效的 Gmail 帳號'); return; }
+  if (currentUser && email === (currentUser.email || '').toLowerCase()) { showMsg('不能分享給自己'); return; }
 
   try {
-    const sel = document.getElementById('collabProjSelect');
-    const projId = sel?.value;
-    if (!projId) { showMsg('請先選擇專案'); return; }
-
-    const docId = `${projId}_${email.replace(/[.@]/g,'_')}`;
-    await db.collection('gantt_project_shares').doc(docId).set({
-      project_id: String(projId),
-      owner_id: currentUser.uid,
-      shared_with_email: email,
-      permission: perm
-    });
+    const p = collabSelectedProj();
+    if (!p) { showMsg('請先選擇專案'); return; }
+    // 專案文件要先存在雲端才能加成員
+    await saveToCloud();
+    if (!_sync.has(docIdOf(p))) throw new Error('專案尚未同步到雲端，請稍後再試');
+    const FV = firebase.firestore.FieldValue;
+    await db.collection(PROJ_COL).doc(docIdOf(p)).update(perm === 'read'
+      ? { viewer_emails: FV.arrayUnion(email), editor_emails: FV.arrayRemove(email) }
+      : { editor_emails: FV.arrayUnion(email), viewer_emails: FV.arrayRemove(email) });
     showMsg('✓ 已成功加入', true);
     emailInput.value = '';
     await refreshCollabList();
@@ -5297,9 +5300,16 @@ async function addShare() {
   }
 }
 
-async function removeShare(shareId, email) {
+async function removeShare(email) {
   if (!confirm(`確定要移除 ${email} 的存取權限嗎？`)) return;
-  await db.collection('gantt_project_shares').doc(shareId).delete();
+  const p = collabSelectedProj();
+  if (!p) return;
+  try {
+    const FV = firebase.firestore.FieldValue;
+    await db.collection(PROJ_COL).doc(docIdOf(p)).update({
+      editor_emails: FV.arrayRemove(email), viewer_emails: FV.arrayRemove(email)
+    });
+  } catch(e) { alert('移除失敗：' + e.message); }
   await refreshCollabList();
 }
 
@@ -5323,19 +5333,23 @@ async function loadAdminUsers() {
     const snap = await db.collection('gantt_allowed_users').orderBy('added_at', 'asc').get();
     const data = snap.docs.map(d => d.data());
     document.getElementById('adminUserCount').textContent = `（${data.length} 人）`;
-    tbody.innerHTML = data.map(u => {
-      const delBtn = u.is_admin ? '' : `<button class="btn" style="font-size:11px;padding:3px 8px;color:#E53;border-color:#E53" onclick="deleteUser('${u.email}')">刪除</button>`;
+    tbody.innerHTML = data.map((u, i) => {
+      const delBtn = u.is_admin ? '' : `<button class="btn" style="font-size:11px;padding:3px 8px;color:#E53;border-color:#E53" data-del-idx="${i}">刪除</button>`;
       const dateStr = u.added_at ? new Date(u.added_at).toLocaleDateString('zh-TW') : '—';
       return `<tr>
-        <td>${u.name || '—'}</td>
-        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${u.email}">${u.email}</td>
+        <td>${escHtml(u.name || '—')}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(u.email)}">${escHtml(u.email)}</td>
         <td>${u.is_admin ? '管理員' : '用戶'}</td>
-        <td style="color:var(--t3)">${dateStr}</td>
+        <td style="color:var(--t3)">${escHtml(dateStr)}</td>
         <td>${delBtn}</td>
       </tr>`;
     }).join('');
+    // email 不放進 onclick 字串，改用事件綁定
+    tbody.querySelectorAll('[data-del-idx]').forEach(btn => {
+      btn.addEventListener('click', () => deleteUser(data[+btn.dataset.delIdx].email));
+    });
   } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="5" style="color:#E53;text-align:center">載入失敗：${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="color:#E53;text-align:center">載入失敗：${escHtml(e.message)}</td></tr>`;
   }
 }
 
@@ -5362,15 +5376,36 @@ function copyShareLink() {
 /* ═══════════════════════════════════════════
    VERSION MANAGEMENT
 ═══════════════════════════════════════════ */
+// 登入模式下版本快照存在 gantt_projects/{docId}/versions 子集合（每版一份文件），
+// 不再塞進專案文件，避免單一文件超過 Firestore 1 MiB 上限。訪客模式仍存在 localStorage。
 function curVersions() {
   const p = curProj();
+  if (!p) return [];
   if (!p.versions) p.versions = [];
   return p.versions;
 }
 
-function openVersionPanel() {
+function cloudVersionsEnabled() { return !!(currentUser && _cloudReady); }
+function versionsRef(p) { return db.collection(PROJ_COL).doc(docIdOf(p)).collection('versions'); }
+
+async function openVersionPanel() {
   document.getElementById('verPanel').classList.add('open');
   document.getElementById('verBackdrop').classList.add('open');
+  const p = curProj();
+  if (p && cloudVersionsEnabled() && !p._versionsLoaded) {
+    const el = document.getElementById('verList');
+    el.innerHTML = '<div class="ver-empty">載入中…</div>';
+    try {
+      if (!_sync.has(docIdOf(p))) await saveToCloud();
+      const snap = await versionsRef(p).get();
+      p.versions = snap.docs.map(d => d.data())
+        .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+      p._versionsLoaded = true;
+    } catch(e) {
+      el.innerHTML = `<div class="ver-empty">版本載入失敗：${escHtml(e.message)}</div>`;
+      return;
+    }
+  }
   renderVersionList();
   setTimeout(() => document.getElementById('verNameInput').focus(), 200);
 }
@@ -5380,10 +5415,12 @@ function closeVersionPanel() {
   document.getElementById('verBackdrop').classList.remove('open');
 }
 
-function createVersion() {
+async function createVersion() {
   const inp = document.getElementById('verNameInput');
   const name = inp.value.trim();
   if (!name) { inp.focus(); return; }
+  const p = curProj();
+  if (!p) return;
   const v = {
     id: Date.now(),
     name,
@@ -5391,6 +5428,12 @@ function createVersion() {
     taskCount: tasks.filter(t => t.type === 'task').length,
     snapshot: JSON.parse(JSON.stringify(tasks))
   };
+  if (cloudVersionsEnabled()) {
+    try {
+      if (!_sync.has(docIdOf(p))) await saveToCloud();
+      await versionsRef(p).doc(String(v.id)).set(v);
+    } catch(e) { alert('版本建立失敗：' + e.message); return; }
+  }
   curVersions().unshift(v);
   inp.value = '';
   renderVersionList();
@@ -5402,19 +5445,26 @@ function restoreVersion(vId) {
   const v = curVersions().find(v => v.id === vId);
   if (!v) return;
   if (!confirm(`還原至版本「${v.name}」？\n目前變更將被覆蓋，此操作無法復原。`)) return;
-  curProj().tasks = JSON.parse(JSON.stringify(v.snapshot));
+  curProj().tasks = sanitizeProject({ tasks: v.snapshot }).tasks;
   tasks = curProj().tasks;
+  nextId = Math.max(nextId, ...tasks.map(t => t.id + 1));
   collapsed.clear();
+  scheduleTasks();
+  recalcProjEnd();
   render();
   closeVersionPanel();
   showStatus('✓ 已還原至「' + v.name + '」');
 }
 
-function deleteVersion(vId) {
+async function deleteVersion(vId) {
   const vs = curVersions();
   const v = vs.find(v => v.id === vId);
   if (!v) return;
   if (!confirm(`刪除版本「${v.name}」？`)) return;
+  if (cloudVersionsEnabled()) {
+    try { await versionsRef(curProj()).doc(String(vId)).delete(); }
+    catch(e) { alert('刪除失敗：' + e.message); return; }
+  }
   curProj().versions = vs.filter(v => v.id !== vId);
   renderVersionList();
   render();
@@ -5434,8 +5484,8 @@ function renderVersionList() {
     const item = document.createElement('div');
     item.className = 'ver-item';
     item.innerHTML = `
-      <div class="ver-item-name">${v.name}</div>
-      <div class="ver-item-meta">${dateStr} · ${v.taskCount} 個任務</div>
+      <div class="ver-item-name">${escHtml(v.name)}</div>
+      <div class="ver-item-meta">${escHtml(dateStr)} · ${+v.taskCount || 0} 個任務</div>
       <div class="ver-item-actions">
         <button class="ver-btn ver-btn-restore" onclick="restoreVersion(${v.id})">還原此版本</button>
         <button class="ver-btn ver-btn-del" onclick="deleteVersion(${v.id})">刪除</button>
@@ -5449,8 +5499,11 @@ function renderVersionList() {
    KEYBOARD SHORTCUTS
 ═══════════════════════════════════════════ */
 document.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); return; }
-  if (e.key !== 'Escape' && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
+  const inField = ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName) || e.target.isContentEditable;
+  // 輸入框內保留瀏覽器原生的文字復原
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { if (inField) return; e.preventDefault(); if (!isReadOnly) undo(); return; }
+  if (e.key !== 'Escape' && inField) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === 't' || e.key === 'T') scrollToToday();
   if (e.key === 'd') setView('day');
   if (e.key === 'w') setView('week');
@@ -5476,6 +5529,12 @@ function render() {
 
 /* ═══════════════════════════════════════════
    FIREBASE
+   資料模型（schema 2）：
+   - gantt_projects/{uid}_{projId}   一個專案一份文件：
+       owner_id, owner_email, proj_id, editor_emails[], viewer_emails[],
+       project{...專案內容，不含版本}, rev（每次寫入 +1，用來偵測衝突）, updated_at, updated_by
+   - gantt_projects/{docId}/versions/{versionId}   版本快照
+   - gantt_user_data/{uid}   只放個人偏好 prefs 與 schema；舊版 data 欄位保留作備份，不再讀寫
 ═══════════════════════════════════════════ */
 const FB_CONFIG = {
   apiKey: "AIzaSyA3PDiLdRhHKlGGmkT-iY7L5bTZrsSCyhY",
@@ -5488,10 +5547,22 @@ const FB_CONFIG = {
 firebase.initializeApp(FB_CONFIG);
 const auth = firebase.auth();
 const db = firebase.firestore();
-let _myUpdate = false;
+const PROJ_COL = 'gantt_projects';
+const SCHEMA_V = 2;
 let currentUser = null;
 let _guestMode = false;
 let _appInitialized = false;
+
+// 雲端同步狀態
+const _sync = new Map();          // docId → { json: 上次與雲端一致的內容, rev }
+let _listeners = [];
+const _liveSets = {};             // 每個即時查詢目前包含的 docId
+const _sharedLocalIds = new Map(); // 共享專案 docId → 本機專用的負數 id（避免與自己的專案 id 撞號）
+let _savePromise = null;
+let _saveAgain = false;
+let _retryTimer = null;
+let _prefsJson = null;
+let _cloudPrefs = {};
 
 function setSyncDot(state) {
   const dot = document.getElementById('syncDot');
@@ -5500,66 +5571,497 @@ function setSyncDot(state) {
   dot.title = { saving:'儲存中...', ok:'已同步', err:'同步失敗', off:'唯讀模式', local:'本地模式（不同步雲端）' }[state] || '雲端同步';
 }
 
-async function saveToCloud() {
-  if (!currentUser) return;
-  setSyncDot('saving');
-  try {
-    if (curProj()) curProj().nextId = nextId;
-    const cp = curProj();
+/* ─── 專案內容序列化 ─── */
+function stableJson(v) {
+  if (Array.isArray(v)) return '[' + v.map(stableJson).join(',') + ']';
+  if (v && typeof v === 'object') {
+    return '{' + Object.keys(v).filter(k => v[k] !== undefined).sort()
+      .map(k => JSON.stringify(k) + ':' + stableJson(v[k])).join(',') + '}';
+  }
+  return v === undefined ? 'null' : JSON.stringify(v);
+}
 
-    if (!cp) {
-      const state = { projects: [], currentProjId: null, nextProjId };
-      await db.collection('gantt_user_data').doc(currentUser.uid)
-        .set({ data: state, updated_at: new Date().toISOString() }, { merge: true });
-      setSyncDot('ok');
-    } else if (cp._isShared && cp._permission === 'edit') {
-      const ownerSnap = await db.collection('gantt_user_data').doc(cp._ownerId).get();
-      const ownerData = ownerSnap.data()?.data;
-      if (!ownerData?.projects) { setSyncDot('err'); return; }
-      const ownerProjects = ownerData.projects.map(p =>
-        p.id === cp.id ? { ...cp, _isShared: undefined, _ownerId: undefined, _permission: undefined } : p
-      );
-      await db.collection('gantt_user_data').doc(cp._ownerId)
-        .update({ data: { ...ownerData, projects: ownerProjects }, updated_at: new Date().toISOString() });
-      setSyncDot('ok');
-    } else if (!cp._isShared) {
-      const ownProjects = projects.filter(p => !p._isShared);
-      const state = { projects: ownProjects, currentProjId, nextProjId };
-      _myUpdate = true;
-      await db.collection('gantt_user_data').doc(currentUser.uid)
-        .set({ data: state, updated_at: new Date().toISOString() }, { merge: true });
-      setTimeout(() => _myUpdate = false, 1000);
-      setSyncDot('ok');
-    }
-  } catch(e) {
+// 存到雲端的專案內容：去掉本機 id、版本、底線開頭的執行期欄位與 undefined（Firestore 不接受 undefined）
+function projectContent(p) {
+  const o = {};
+  for (const [k, v] of Object.entries(p)) {
+    if (k === 'id' || k === 'versions' || k.startsWith('_') || v === undefined) continue;
+    o[k] = v;
+  }
+  return JSON.parse(JSON.stringify(o));
+}
+
+function docIdOf(p) {
+  if (!p._docId) p._docId = `${currentUser.uid}_${p.id}`;
+  return p._docId;
+}
+
+function newProjId() {
+  // 跨裝置也不會撞號（舊版用遞增 nextProjId，兩台裝置可能各自建立同 id 的專案）
+  const id = Date.now() * 1000 + Math.floor(Math.random() * 1000);
+  return Math.max(id, ...projects.map(p => (p.id > 0 ? p.id + 1 : 0)));
+}
+
+function localIdForShared(docId) {
+  if (!_sharedLocalIds.has(docId)) _sharedLocalIds.set(docId, -(_sharedLocalIds.size + 1));
+  return _sharedLocalIds.get(docId);
+}
+
+function activateProject(id) {
+  currentProjId = id;
+  const p = curProj();
+  if (!p) { currentProjId = null; tasks = []; nextId = 1; return; }
+  tasks  = p.tasks;
+  nextId = p.nextId || 1;
+  CHART_START = new Date(p.startDate);
+  CHART_END   = new Date(p.endDate);
+}
+
+/* ─── 三方合併：base = 上次同步的版本，local = 本機，remote = 雲端最新 ───
+   欄位層級：哪一邊相對 base 有改就取哪一邊；兩邊都改時以本機為準。
+   任務以 id 對應；兩邊各自新增而撞號的本機任務會重新編號。 */
+function mergeProject(base, local, remote) {
+  base = base || {};
+  const sj = stableJson;
+  const out = {};
+  const keys = new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)]);
+  keys.delete('tasks');
+  keys.forEach(k => {
+    const v = sj(local[k]) !== sj(base[k]) ? local[k] : remote[k];
+    if (v !== undefined) out[k] = v;
+  });
+  out.tasks = mergeTasks(base.tasks || [], local.tasks || [], remote.tasks || []);
+  const maxId = out.tasks.reduce((m, t) => Math.max(m, t.id), 0);
+  out.nextId = Math.max(+local.nextId || 1, +remote.nextId || 1, maxId + 1);
+  return JSON.parse(JSON.stringify(out));
+}
+
+function mergeTasks(b, l, r) {
+  const sj = stableJson;
+  const byId = a => new Map(a.map(t => [t.id, t]));
+  const bm = byId(b), rm = byId(r);
+  let maxId = Math.max(0, ...b.map(t => t.id), ...l.map(t => t.id), ...r.map(t => t.id));
+
+  // 雙方各自新增了同一個 id → 本機那筆換新 id，並更新本機任務中的參照
+  const remap = new Map();
+  l.forEach(t => {
+    if (!bm.has(t.id) && rm.has(t.id) && sj(rm.get(t.id)) !== sj(t)) remap.set(t.id, ++maxId);
+  });
+  if (remap.size) {
+    const m = id => (remap.has(id) ? remap.get(id) : id);
+    l = l.map(t => {
+      const o = { ...t, id: m(t.id) };
+      if (o.parent !== null && o.parent !== undefined) o.parent = m(o.parent);
+      ['deps', 'sdeps', 'ffdeps', 'sfdeps'].forEach(k => { if (Array.isArray(o[k])) o[k] = o[k].map(m); });
+      if (o.lags) {
+        const lags = {};
+        Object.entries(o.lags).forEach(([k, v]) => {
+          const mt = /^(FS|SS|FF|SF)(\d+)$/.exec(k);
+          lags[mt ? mt[1] + m(+mt[2]) : k] = v;
+        });
+        o.lags = lags;
+      }
+      return o;
+    });
+  }
+  const lm = byId(l);
+
+  const decide = id => {
+    const bt = bm.get(id), lt = lm.get(id), rt = rm.get(id);
+    if (!bt) return lt || rt;                                   // 一方新增
+    if (!lt) return null;                                       // 本機刪除
+    if (!rt) return sj(lt) !== sj(bt) ? lt : null;              // 遠端刪除（本機有改則保留）
+    const o = {};
+    new Set([...Object.keys(bt), ...Object.keys(lt), ...Object.keys(rt)]).forEach(k => {
+      const v = sj(lt[k]) !== sj(bt[k]) ? lt[k] : rt[k];
+      if (v !== undefined) o[k] = v;
+    });
+    return o;
+  };
+
+  // 排序：本機有調整順序就用本機順序，否則用遠端順序；另一邊獨有的任務插在它原本的前一筆之後
+  const orderOf = a => a.map(t => t.id).filter(id => bm.has(id)).join(',');
+  const baseOrder = b.map(t => t.id).filter(id => lm.has(id) && rm.has(id)).join(',');
+  const localMoved = orderOf(l.filter(t => rm.has(t.id))) !== baseOrder;
+  const primary = (localMoved ? l : r).map(t => t.id);
+  const secondary = (localMoved ? r : l).map(t => t.id);
+  const order = [...primary];
+  const seen = new Set(order);
+  secondary.forEach((id, i) => {
+    if (seen.has(id)) return;
+    const prev = i > 0 ? secondary[i - 1] : null;
+    const at = prev === null ? -1 : order.indexOf(prev);
+    order.splice(at + 1, 0, id);
+    seen.add(id);
+  });
+
+  const merged = order.map(decide).filter(Boolean);
+  const alive = new Set(merged.map(t => t.id));
+  return merged.map(t => {
+    const o = { ...t };
+    if (o.parent !== null && o.parent !== undefined && !alive.has(o.parent)) o.parent = null;
+    ['deps', 'sdeps', 'ffdeps', 'sfdeps'].forEach(k => { if (Array.isArray(o[k])) o[k] = o[k].filter(id => alive.has(id)); });
+    return o;
+  });
+}
+
+// 把雲端內容套到本機專案物件（本機有未同步的修改時先合併）
+function applyRemoteContent(p, base, incoming) {
+  const local = projectContent(p);
+  const localJson = stableJson(local);
+  const next = localJson === stableJson(base) ? incoming : mergeProject(base, local, incoming);
+  if (stableJson(next) === localJson) return false;
+  Object.keys(p).forEach(k => { if (k !== 'id' && k !== 'versions' && !k.startsWith('_')) delete p[k]; });
+  Object.assign(p, sanitizeProject({ ...JSON.parse(JSON.stringify(next)) }));
+  if (p.id === currentProjId) {
+    tasks  = p.tasks;
+    nextId = p.nextId;
+    _history = [];
+    scheduleTasks();
+    recalcProjEnd();
+  }
+  return true;
+}
+
+function ingestDoc(doc) {
+  const d = doc.data();
+  const p = sanitizeProject({ ...(d.project || {}) });
+  delete p.versions;
+  delete p.id;
+  if (d.owner_id === currentUser.uid) {
+    p.id = Number(d.proj_id);
+  } else {
+    const email = (currentUser.email || '').toLowerCase();
+    p.id = localIdForShared(doc.id);
+    p._isShared = true;
+    p._ownerId = d.owner_id;
+    p._permission = (d.editor_emails || []).includes(email) ? 'edit' : 'read';
+  }
+  p._docId = doc.id;
+  return p;
+}
+
+/* ─── 儲存 ─── */
+function saveToCloud() {
+  if (!currentUser || !_cloudReady || _cloudBlocked) return Promise.resolve();
+  if (_savePromise) { _saveAgain = true; return _savePromise; }
+  _savePromise = (async () => {
+    try {
+      do { _saveAgain = false; await _syncAll(); } while (_saveAgain);
+    } finally { _savePromise = null; }
+  })();
+  return _savePromise;
+}
+
+async function _syncAll() {
+  if (!currentUser || !_cloudReady) return;
+  if (curProj()) curProj().nextId = nextId;
+  const dirty = projects.filter(p => {
+    if (p._isShared && p._permission !== 'edit') return false;
+    const st = _sync.get(docIdOf(p));
+    return !st || st.json !== stableJson(projectContent(p));
+  });
+  if (dirty.length) setSyncDot('saving');
+  let failed = null;
+  let changedLocal = false;
+  for (const p of dirty) {
+    try { if (await pushProject(p)) changedLocal = true; }
+    catch(e) { failed = e; console.error('saveToCloud:', p.name, e); }
+  }
+  try { await savePrefs(); } catch(e) { failed = failed || e; console.error('savePrefs:', e); }
+  if (changedLocal) { updateProjUI(); render(); showSyncToast('📡 已合併其他人的變更'); }
+  clearTimeout(_retryTimer);
+  if (failed) {
     setSyncDot('err');
+    showStatus('⚠️ 雲端儲存失敗：' + (failed.code || failed.message) + '，15 秒後自動重試');
+    _retryTimer = setTimeout(saveToCloud, 15000);
+  } else {
+    setSyncDot('ok');
   }
 }
 
-async function loadFromCloud() {
-  if (!currentUser) return false;
-  try {
-    const snap = await db.collection('gantt_user_data').doc(currentUser.uid).get();
-    if (!snap.exists || !snap.data()?.data) return false;
-    const s = snap.data().data;
-    projects   = s.projects || [];
-    nextProjId = s.nextProjId ?? 1;
-    if (!projects.length) {
-      // User intentionally cleared all projects
-      currentProjId = null;
-      tasks = [];
-      nextId = 1;
-      return true;
+// 用 transaction 寫入：雲端 rev 與上次同步相同才直接覆蓋，否則先三方合併再寫
+async function pushProject(p) {
+  if (!projects.includes(p)) return false;
+  const docId = docIdOf(p);
+  const content = projectContent(p);
+  const st = _sync.get(docId);
+  const ref = db.collection(PROJ_COL).doc(docId);
+  let written, newRev, merged, gone;
+  await db.runTransaction(async tx => {
+    const snap = await tx.get(ref);
+    const meta = { updated_at: new Date().toISOString(), updated_by: currentUser.email || '' };
+    merged = false; gone = false;
+    if (!snap.exists) {
+      // 已同步過卻不見了 = 被刪除或權限被移除，不重建
+      if (p._isShared || st) { gone = true; return; }
+      written = content; newRev = 1;
+      tx.set(ref, {
+        owner_id: currentUser.uid, owner_email: (currentUser.email || '').toLowerCase(),
+        proj_id: p.id, editor_emails: [], viewer_emails: [],
+        project: content, rev: 1, ...meta
+      });
+      return;
     }
-    currentProjId = (s.currentProjId && projects.find(p => p.id === s.currentProjId))
-      ? s.currentProjId : projects[0].id;
-    tasks  = curProj().tasks;
-    nextId = curProj().nextId;
-    CHART_START = new Date(curProj().startDate);
-    CHART_END   = new Date(curProj().endDate);
-    return true;
-  } catch(e) { return false; }
+    const d = snap.data();
+    if (st && d.rev === st.rev) {
+      written = content;
+    } else {
+      const remote = projectContent(sanitizeProject({ ...(d.project || {}) }));
+      written = mergeProject(st ? JSON.parse(st.json) : {}, content, remote);
+      merged = true;
+    }
+    newRev = (d.rev || 0) + 1;
+    tx.update(ref, { project: written, rev: newRev, ...meta });
+  });
+  if (gone) { removeProjectLocally(docId, '專案已被刪除或你的存取權已被移除'); return false; }
+  _sync.set(docId, { json: stableJson(written), rev: newRev });
+  return merged ? applyRemoteContent(p, content, written) : false;
 }
+
+async function savePrefs() {
+  const cp = curProj();
+  const prefs = { currentProjDocId: cp ? docIdOf(cp) : null };
+  const j = JSON.stringify(prefs);
+  if (j === _prefsJson) return;
+  await db.collection('gantt_user_data').doc(currentUser.uid).set({ schema: SCHEMA_V, prefs }, { merge: true });
+  _prefsJson = j;
+}
+
+async function deleteProjectFromCloud(p) {
+  const docId = docIdOf(p);
+  if (!_sync.has(docId)) return; // 從未存到雲端
+  const ref = db.collection(PROJ_COL).doc(docId);
+  const vs = await ref.collection('versions').get();
+  await Promise.all(vs.docs.map(d => d.ref.delete()));
+  await ref.delete();
+  _sync.delete(docId);
+}
+
+/* ─── 載入 ─── */
+// 失敗時一定丟出例外（不再默默回傳 false），讓呼叫端知道雲端狀態未知、不可寫回
+async function loadFromCloud() {
+  const uid = currentUser.uid;
+  const email = (currentUser.email || '').toLowerCase();
+  const userRef = db.collection('gantt_user_data').doc(uid);
+  const userSnap = await userRef.get();
+  const ud = userSnap.exists ? userSnap.data() : {};
+  let prefs = ud.prefs || {};
+  if (ud.schema !== SCHEMA_V) {
+    const legacy = ud.data || {};
+    await migrateLegacy(legacy);
+    prefs = { currentProjDocId: legacy.currentProjId != null ? `${uid}_${legacy.currentProjId}` : null };
+    await userRef.set({ schema: SCHEMA_V, prefs }, { merge: true });
+  }
+
+  const col = db.collection(PROJ_COL);
+  const [own, edit, view] = await Promise.all([
+    col.where('owner_id', '==', uid).get(),
+    email ? col.where('editor_emails', 'array-contains', email).get() : null,
+    email ? col.where('viewer_emails', 'array-contains', email).get() : null,
+  ]);
+
+  _sync.clear();
+  const ownList = [], sharedList = [], seen = new Set();
+  const add = (doc, list) => {
+    if (seen.has(doc.id)) return;
+    seen.add(doc.id);
+    const p = ingestDoc(doc);
+    _sync.set(doc.id, { json: stableJson(projectContent(p)), rev: doc.data().rev || 0 });
+    list.push(p);
+  };
+  own.docs.forEach(d => add(d, ownList));
+  if (edit) edit.docs.forEach(d => add(d, sharedList));
+  if (view) view.docs.forEach(d => add(d, sharedList));
+  ownList.sort((a, b) => a.id - b.id);
+
+  projects = [...ownList, ...sharedList];
+  _cloudPrefs = prefs;
+  _prefsJson = JSON.stringify({ currentProjDocId: prefs.currentProjDocId ?? null });
+  const want = projects.find(p => p._docId === prefs.currentProjDocId) || ownList[0] || projects[0];
+  activateProject(want ? want.id : null);
+}
+
+// 舊版（schema 1）：所有專案塞在 gantt_user_data/{uid}.data 一份文件裡。搬到每專案一份文件。
+async function migrateLegacy(data) {
+  const legacy = (data.projects || []).map(sanitizeProject).filter(p => p && Number.isFinite(+p.id));
+  if (!legacy.length) return;
+  const uid = currentUser.uid;
+  const email = (currentUser.email || '').toLowerCase();
+
+  // 舊版共享設定（gantt_project_shares）→ 專案文件上的成員名單
+  const members = {};
+  try {
+    const snap = await db.collection('gantt_project_shares').where('owner_id', '==', uid).get();
+    snap.forEach(doc => {
+      const s = doc.data();
+      const m = (members[String(s.project_id)] ||= { edit: [], read: [] });
+      const e = String(s.shared_with_email || '').toLowerCase();
+      if (e) (s.permission === 'edit' ? m.edit : m.read).push(e);
+    });
+  } catch(e) { console.warn('舊版共享設定讀取失敗，略過：', e); }
+
+  for (const lp of legacy) {
+    const projId = Number(lp.id);
+    const ref = db.collection(PROJ_COL).doc(`${uid}_${projId}`);
+    const exists = (await ref.get()).exists;
+    if (!exists) {
+      const m = members[String(projId)] || { edit: [], read: [] };
+      await ref.set({
+        owner_id: uid, owner_email: email, proj_id: projId,
+        editor_emails: [...new Set(m.edit)],
+        viewer_emails: [...new Set(m.read.filter(e => !m.edit.includes(e)))],
+        project: projectContent(lp), rev: 1,
+        updated_at: new Date().toISOString(), updated_by: email, migrated_from: 'v1'
+      });
+    }
+    for (const v of (lp.versions || [])) {
+      if (!v || v.id == null) continue;
+      await ref.collection('versions').doc(String(v.id)).set(JSON.parse(JSON.stringify(v)));
+    }
+  }
+}
+
+/* ─── 即時同步 ─── */
+function stopRealtime() {
+  _listeners.forEach(unsub => { try { unsub(); } catch(e) {} });
+  _listeners = [];
+  Object.keys(_liveSets).forEach(k => delete _liveSets[k]);
+}
+
+function setupRealtime() {
+  if (!currentUser) return;
+  stopRealtime();
+  const uid = currentUser.uid;
+  const email = (currentUser.email || '').toLowerCase();
+  const col = db.collection(PROJ_COL);
+  const qs = [['own', col.where('owner_id', '==', uid)]];
+  if (email) {
+    qs.push(['edit', col.where('editor_emails', 'array-contains', email)]);
+    qs.push(['view', col.where('viewer_emails', 'array-contains', email)]);
+  }
+  qs.forEach(([key, q]) => {
+    _liveSets[key] = new Set();
+    const unsub = q.onSnapshot(snap => {
+      snap.docChanges().forEach(ch => {
+        if (ch.type === 'removed') {
+          _liveSets[key]?.delete(ch.doc.id);
+          // 權限從唯讀改為可編輯時，會先從一個查詢移除再出現在另一個；稍等再確認
+          const id = ch.doc.id;
+          setTimeout(() => {
+            if (!Object.values(_liveSets).some(s => s.has(id))) removeProjectLocally(id, '專案已被刪除或你的存取權已被移除');
+          }, 1500);
+        } else {
+          _liveSets[key]?.add(ch.doc.id);
+          onRemoteDoc(ch.doc);
+        }
+      });
+    }, err => { console.error('realtime ' + key + ':', err); setSyncDot('err'); });
+    _listeners.push(unsub);
+  });
+}
+
+function onRemoteDoc(doc) {
+  const d = doc.data();
+  const docId = doc.id;
+  const st = _sync.get(docId);
+  const p = projects.find(x => x._docId === docId);
+  if (p && p._isShared) {
+    const email = (currentUser.email || '').toLowerCase();
+    const perm = (d.editor_emails || []).includes(email) ? 'edit' : 'read';
+    if (perm !== p._permission) { p._permission = perm; updateReadOnly(); }
+  }
+  if (st && st.rev >= (d.rev || 0)) return; // 已是最新（含自己剛寫入的）
+
+  const incoming = ingestDoc(doc);
+  const incomingContent = projectContent(incoming);
+  let changed;
+  if (!p) {
+    projects.push(incoming);
+    if (!curProj()) activateProject(incoming.id);
+    changed = true;
+  } else {
+    const base = st ? JSON.parse(st.json) : projectContent(p);
+    changed = applyRemoteContent(p, base, incomingContent);
+  }
+  _sync.set(docId, { json: stableJson(incomingContent), rev: d.rev || 0 });
+  if (changed) {
+    saveToLS(); updateProjUI(); render(); showSyncToast();
+  }
+}
+
+function removeProjectLocally(docId, msg) {
+  const p = projects.find(x => x._docId === docId);
+  _sync.delete(docId);
+  if (!p) return;
+  projects = projects.filter(x => x !== p);
+  if (p.id === currentProjId) {
+    const next = projects.find(x => !x._isShared) || projects[0];
+    activateProject(next ? next.id : null);
+    _history = [];
+    collapsed.clear();
+    if (projects.length) { scheduleTasks(); recalcProjEnd(); }
+  }
+  saveToLS(); updateProjUI(); render();
+  if (msg) showStatus(msg);
+}
+
+/* ─── 雲端無法連線：唯讀顯示本機快取，絕不把快取寫回雲端 ─── */
+function showCloudBanner(text) {
+  let b = document.getElementById('cloudBanner');
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'cloudBanner';
+    b.style.cssText = 'position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:10000;background:#FEF3C7;color:#92400E;border:1px solid #F59E0B;border-radius:0 0 8px 8px;padding:6px 14px;font-size:12px;display:flex;gap:10px;align-items:center;max-width:90vw';
+    b.innerHTML = '<span class="cb-text"></span><button class="btn" style="font-size:11px;padding:2px 10px">重試</button>';
+    b.querySelector('button').addEventListener('click', retryCloudLoad);
+    document.body.appendChild(b);
+  }
+  b.querySelector('.cb-text').textContent = text;
+  b.style.display = 'flex';
+}
+
+function hideCloudBanner() {
+  const b = document.getElementById('cloudBanner');
+  if (b) b.style.display = 'none';
+}
+
+function enterCloudBlocked(err) {
+  _cloudReady = false;
+  _cloudBlocked = true;
+  if (!loadFromLS()) { projects = []; activateProject(null); }
+  showCloudBanner(`⚠️ 無法連線雲端（${err?.code || err?.message || '未知錯誤'}）。目前顯示本機快取且為唯讀，以免覆蓋雲端資料。`);
+  clearTimeout(_retryTimer);
+  _retryTimer = setTimeout(retryCloudLoad, 15000);
+}
+
+async function retryCloudLoad() {
+  if (!currentUser || _cloudReady) return;
+  clearTimeout(_retryTimer);
+  showCloudBanner('重新連線雲端中…');
+  try {
+    await loadFromCloud();
+  } catch(e) {
+    console.error('retryCloudLoad:', e);
+    showCloudBanner(`⚠️ 無法連線雲端（${e?.code || e?.message || '未知錯誤'}）。目前顯示本機快取且為唯讀，以免覆蓋雲端資料。`);
+    _retryTimer = setTimeout(retryCloudLoad, 30000);
+    return;
+  }
+  _cloudReady = true;
+  _cloudBlocked = false;
+  hideCloudBanner();
+  _history = [];
+  collapsed.clear();
+  saveToLS();
+  setupRealtime();
+  updateProjUI();
+  if (projects.length) { scheduleTasks(); recalcProjEnd(); }
+  render();
+  setSyncDot('ok');
+  showStatus('✓ 已重新連線雲端');
+}
+
+window.addEventListener('online', () => { if (_cloudBlocked) retryCloudLoad(); });
 
 function _encodeData(obj) {
   try {
@@ -5581,53 +6083,41 @@ function _decodeData(b64) {
   } catch(e) { console.error('[decode]', e); return null; }
 }
 
+// 分享連結的資料來自網址，任何人都能偽造 → 只留專案內容欄位並經 sanitizeProject，畫面輸出也都經 escHtml
+function cleanSharedProject(obj) {
+  const s = sanitizeProject(obj);
+  if (!s) return null;
+  return sanitizeProject({ ...projectContent(s), id: s.id });
+}
+
 async function loadShareFromCloud(token) {
-  // 優先從 URL hash 讀取（不受 Supabase RLS 限制）
   const hashMatch = location.hash.match(/[#&]d=([^&]*)/);
   const hashData = hashMatch ? hashMatch[1] : null;
   if (hashData) {
     const obj = _decodeData(hashData);
-    if (obj) return obj;
+    if (obj) return cleanSharedProject(obj);
   }
   try {
     const snap = await db.collection('gantt_shares').doc(token).get();
-    return (snap.exists && snap.data()?.project_data) ? snap.data().project_data : null;
+    return (snap.exists && snap.data()?.project_data) ? cleanSharedProject(snap.data().project_data) : null;
   } catch(e) { return null; }
 }
 
 function saveShareToCloud(token, project) {
-  // 編碼專案資料供 URL hash 傳遞
-  const encoded = _encodeData(project);
-  if (currentUser) {
-    try {
-      db.collection('gantt_shares').doc(token).set({
-        token, owner_id: currentUser.uid,
-        project_data: JSON.parse(JSON.stringify(project))
-      });
-    } catch(e) {}
+  const data = { ...projectContent(project), id: project.id };
+  const encoded = _encodeData(data);
+  if (currentUser && _cloudReady) {
+    db.collection('gantt_shares').doc(token).set({
+      token, owner_id: currentUser.uid, project_data: data, updated_at: new Date().toISOString()
+    }).catch(e => {
+      console.error('saveShareToCloud:', e);
+      showStatus('⚠️ 分享快照未能存到雲端，連結仍可透過網址內的資料開啟');
+    });
   }
   return encoded;
 }
 
-let _realtimeUnsub = null;
-
-function setupRealtime() {
-  if (!currentUser) return;
-  if (_realtimeUnsub) _realtimeUnsub();
-  let skipFirst = true;
-  _realtimeUnsub = db.collection('gantt_user_data').doc(currentUser.uid)
-    .onSnapshot(async () => {
-      if (skipFirst) { skipFirst = false; return; }
-      if (_myUpdate) return;
-      const ok = await loadFromCloud();
-      if (ok) {
-        if (projects.length) { scheduleTasks(); recalcProjEnd(); }
-        saveToLS(); updateProjUI(); render(); showSyncToast();
-      }
-    });
-}
-
-function showSyncToast() {
+function showSyncToast(msg) {
   let t = document.getElementById('syncToast');
   if (!t) {
     t = document.createElement('div');
@@ -5635,101 +6125,84 @@ function showSyncToast() {
     t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:var(--t1);color:var(--surface);padding:8px 14px;border-radius:8px;font-size:12px;z-index:9999;opacity:0;transition:opacity .3s';
     document.body.appendChild(t);
   }
-  t.textContent = '📡 其他用戶已更新資料';
+  t.textContent = msg || '📡 其他用戶已更新資料';
   t.style.opacity = '1';
   setTimeout(() => t.style.opacity = '0', 2500);
 }
 
 /* ═══════════════════════════════════════════
    LOCALSTORAGE
+   每個身分各自一個 key：訪客 → ganttpro_v2_guest，登入者 → ganttpro_v2_u_{uid}（只當離線唯讀快取）。
+   舊版共用的 ganttpro_v1 一律轉給訪客模式，絕不再上傳到任何人的雲端帳號。
 ═══════════════════════════════════════════ */
-const LS_KEY = 'ganttpro_v1';
+const LS_KEY_LEGACY = 'ganttpro_v1';
+const LS_KEY_GUEST  = 'ganttpro_v2_guest';
+
+function lsKey() {
+  if (currentUser) return 'ganttpro_v2_u_' + currentUser.uid;
+  if (_guestMode) return LS_KEY_GUEST;
+  return null;
+}
+
+function migrateLegacyLS() {
+  try {
+    const raw = localStorage.getItem(LS_KEY_LEGACY);
+    if (raw === null) return;
+    if (!localStorage.getItem(LS_KEY_GUEST)) localStorage.setItem(LS_KEY_GUEST, raw);
+    localStorage.removeItem(LS_KEY_LEGACY);
+  } catch(e) {}
+}
 
 function saveToLS() {
+  const key = lsKey();
+  if (!key || _cloudBlocked) return;
   try {
-    curProj().nextId = nextId;
-    // Only persist own projects; shared projects are re-loaded from cloud each session
-    const ownProjects = projects.filter(p => !p._isShared);
-    localStorage.setItem(LS_KEY, JSON.stringify({ projects: ownProjects, currentProjId, nextProjId }));
+    if (curProj()) curProj().nextId = nextId;
+    const list = currentUser
+      ? projects.map(p => ({ ...projectContent(p), id: p.id, _docId: p._docId,
+          _isShared: p._isShared, _ownerId: p._ownerId, _permission: p._permission }))
+      : projects.filter(p => !p._isShared);
+    localStorage.setItem(key, JSON.stringify({ projects: list, currentProjId, nextProjId }));
   } catch(e) {}
 }
 
 function loadFromLS() {
+  const key = lsKey();
+  if (!key) return false;
   try {
-    const raw = localStorage.getItem(LS_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return false;
     const d = JSON.parse(raw);
     if (!d.projects?.length) return false;
-    projects   = d.projects;
+    projects   = d.projects.map(sanitizeProject).filter(Boolean);
+    if (!projects.length) return false;
     nextProjId = d.nextProjId ?? projects.length + 1;
-    currentProjId = (d.currentProjId && projects.find(p => p.id === d.currentProjId))
-      ? d.currentProjId : projects[0].id;
-    tasks  = curProj().tasks;
-    nextId = curProj().nextId;
-    CHART_START = new Date(curProj().startDate);
-    CHART_END   = new Date(curProj().endDate);
+    projects.forEach(p => { if (p._isShared && p._docId) _sharedLocalIds.set(p._docId, p.id); });
+    const want = projects.find(p => p.id === d.currentProjId) || projects[0];
+    activateProject(want.id);
     return true;
   } catch(e) { return false; }
 }
 
-function mergeDefaultProjects() {
-  // Add any built-in projects not yet in the loaded state (identified by name)
-  const DEFAULTS = [
-    { name: '硬體產品開發計畫', startDate: '2026-05-04' }
-  ];
-  DEFAULTS.forEach(def => {
-    if (!projects.find(p => p.name === def.name)) {
-      const maxId = Math.max(...projects.map(p => p.id), 0);
-      const template = [
-        { id:2, name:'硬體產品開發計畫', color:'#0EA5E9', startDate:'2026-05-04', endDate:'2027-03-31', nextId:38,
-          tasks: [
-            { id:1,  name:'硬體產品開發',      type:'group',     parent:null, color:'#0EA5E9' },
-            { id:2,  name:'需求定義',           type:'group',     parent:1,  color:'#818CF8' },
-            { id:3,  name:'市場需求調研',       type:'task',      parent:2,  color:'#818CF8', wday:10, deps:[],    done:false, start:'', end:'' },
-            { id:4,  name:'產品規格制定',       type:'task',      parent:2,  color:'#818CF8', wday:8,  deps:[3],   done:false, start:'', end:'' },
-            { id:5,  name:'競品分析',           type:'task',      parent:2,  color:'#818CF8', wday:5,  deps:[],    done:false, start:'', end:'' },
-            { id:6,  name:'規格凍結',           type:'milestone', parent:2,  color:'#5E6AD2',          deps:[4],   date:'' },
-            { id:7,  name:'概念設計',           type:'group',     parent:1,  color:'#60A5FA' },
-            { id:8,  name:'系統架構設計',       type:'task',      parent:7,  color:'#60A5FA', wday:10, deps:[6],   done:false, start:'', end:'' },
-            { id:9,  name:'硬體概念設計',       type:'task',      parent:7,  color:'#60A5FA', wday:8,  deps:[8],   done:false, start:'', end:'' },
-            { id:10, name:'外觀設計',           type:'task',      parent:7,  color:'#60A5FA', wday:8,  deps:[8],   done:false, start:'', end:'' },
-            { id:11, name:'CDR 概念設計審查',   type:'milestone', parent:7,  color:'#3B82F6',          deps:[9,10],date:'' },
-            { id:12, name:'詳細設計',           type:'group',     parent:1,  color:'#34D399' },
-            { id:13, name:'電路圖設計',         type:'task',      parent:12, color:'#34D399', wday:15, deps:[11],  done:false, start:'', end:'' },
-            { id:14, name:'PCB Layout',         type:'task',      parent:12, color:'#34D399', wday:12, deps:[13],  done:false, start:'', end:'' },
-            { id:15, name:'結構件設計',         type:'task',      parent:12, color:'#34D399', wday:12, deps:[11],  done:false, start:'', end:'' },
-            { id:16, name:'韌體開發',           type:'task',      parent:12, color:'#34D399', wday:20, deps:[13],  done:false, start:'', end:'' },
-            { id:17, name:'PDR 詳細設計審查',   type:'milestone', parent:12, color:'#10B981',          deps:[14,15],date:'' },
-            { id:18, name:'EVT 原型製作',       type:'group',     parent:1,  color:'#FBBF24' },
-            { id:19, name:'PCB 打樣',           type:'task',      parent:18, color:'#FBBF24', wday:10, deps:[17],  done:false, start:'', end:'' },
-            { id:20, name:'結構件打樣',         type:'task',      parent:18, color:'#FBBF24', wday:10, deps:[17],  done:false, start:'', end:'' },
-            { id:21, name:'原型組裝與調試',     type:'task',      parent:18, color:'#FBBF24', wday:5,  deps:[19,20],done:false,start:'', end:'' },
-            { id:22, name:'EVT 原型完成',       type:'milestone', parent:18, color:'#F59E0B',          deps:[21],  date:'' },
-            { id:23, name:'DVT 驗證測試',       type:'group',     parent:1,  color:'#F87171' },
-            { id:24, name:'功能測試',           type:'task',      parent:23, color:'#F87171', wday:10, deps:[22],  done:false, start:'', end:'' },
-            { id:25, name:'環境壓力測試',       type:'task',      parent:23, color:'#F87171', wday:10, deps:[22],  done:false, start:'', end:'' },
-            { id:26, name:'安規認證',           type:'task',      parent:23, color:'#F87171', wday:15, deps:[24],  done:false, start:'', end:'' },
-            { id:27, name:'問題修改改版',       type:'task',      parent:23, color:'#F87171', wday:10, deps:[24,25],done:false,start:'', end:'' },
-            { id:28, name:'DVT 驗證完成',       type:'milestone', parent:23, color:'#EF4444',          deps:[26,27],date:'' },
-            { id:29, name:'PVT 量產準備',       type:'group',     parent:1,  color:'#A78BFA' },
-            { id:30, name:'供應商確認',         type:'task',      parent:29, color:'#A78BFA', wday:10, deps:[28],  done:false, start:'', end:'' },
-            { id:31, name:'生產工程設計',       type:'task',      parent:29, color:'#A78BFA', wday:10, deps:[28],  done:false, start:'', end:'' },
-            { id:32, name:'試量產',             type:'task',      parent:29, color:'#A78BFA', wday:15, deps:[30,31],done:false,start:'', end:'' },
-            { id:33, name:'PVT 量產準備完成',   type:'milestone', parent:29, color:'#8B5CF6',          deps:[32],  date:'' },
-            { id:34, name:'MP 量產導入',        type:'group',     parent:1,  color:'#10B981' },
-            { id:35, name:'正式量產',           type:'task',      parent:34, color:'#10B981', wday:20, deps:[33],  done:false, start:'', end:'' },
-            { id:36, name:'品質監控',           type:'task',      parent:34, color:'#10B981', wday:15, deps:[35],  done:false, start:'', end:'' },
-            { id:37, name:'MP 正式出貨',        type:'milestone', parent:34, color:'#059669',          deps:[35],  date:'' },
-          ]
-        }
-      ].find(t => t.name === def.name);
-      if (template) {
-        template.id = maxId + 1;
-        nextProjId = Math.max(nextProjId, template.id + 1);
-        projects.push(template);
-      }
-    }
-  });
+function resetAppState() {
+  clearTimeout(_saveTimer);
+  clearTimeout(_retryTimer);
+  stopRealtime();
+  projects = [];
+  currentProjId = null;
+  tasks = [];
+  nextId = 1;
+  _history = [];
+  collapsed.clear();
+  _sync.clear();
+  _sharedLocalIds.clear();
+  _prefsJson = null;
+  _cloudPrefs = {};
+  _cloudReady = false;
+  _cloudBlocked = false;
+  isReadOnly = false;
+  document.body.classList.remove('readonly');
+  hideCloudBanner();
 }
 
 /* ═══════════════════════════════════════════
@@ -5788,6 +6261,13 @@ async function submitRegister() {
 }
 
 async function signOut() {
+  clearTimeout(_saveTimer);
+  // 登出前把尚未送出的變更送出／存好
+  if (currentUser && _cloudReady) { try { await saveToCloud(); } catch(e) {} }
+  else if (_guestMode) saveToLS();
+  // 登入者的本機快取在登出時清除，避免共用電腦上留下他人資料
+  if (currentUser) { try { localStorage.removeItem(lsKey()); } catch(e) {} }
+  resetAppState();
   if (!_guestMode) await auth.signOut();
   currentUser = null;
   _guestMode = false;
@@ -5816,11 +6296,14 @@ function updateUserDisplay() {
   const avatar = currentUser.photoURL;
   const el = document.getElementById('userDisplay');
   if (!el) return;
-  el.innerHTML = avatar
-    ? `<img src="${avatar}" title="${name}" style="width:26px;height:26px;border-radius:50%;object-fit:cover">`
-    : `<div title="${name}" style="width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700">${(name[0]||'U').toUpperCase()}</div>`;
+  const safeAvatar = /^https:\/\//.test(avatar || '') ? avatar : '';
+  el.innerHTML = safeAvatar
+    ? `<img src="${escHtml(safeAvatar)}" title="${escHtml(name)}" style="width:26px;height:26px;border-radius:50%;object-fit:cover">`
+    : `<div title="${escHtml(name)}" style="width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700">${escHtml((name[0]||'U').toUpperCase())}</div>`;
   document.getElementById('signOutBtn').style.display = '';
 }
+
+let _uiSetupDone = false;
 
 async function initApp() {
   if (_appInitialized) return;
@@ -5830,24 +6313,35 @@ async function initApp() {
   if (_nameEl) _nameEl.textContent = '';
   showApp();
   updateUserDisplay();
-  // Clear hardcoded demo data before cloud load to prevent flash
-  projects = [];
-  currentProjId = null;
-  tasks = [];
-  const cloudOk = await loadFromCloud();
-  if (!cloudOk) loadFromLS();
-  await loadSharedProjects();
-  setupSync();
-  setupColResizers();
-  setupResizer();
-  setupRealtime();
+  // 清掉內建示範資料與上一個身分的狀態
+  resetAppState();
+  if (_guestMode) {
+    loadFromLS();
+  } else {
+    try {
+      await loadFromCloud();
+      _cloudReady = true;
+      saveToLS();
+    } catch(e) {
+      console.error('loadFromCloud:', e);
+      enterCloudBlocked(e);
+    }
+  }
+  if (!_uiSetupDone) {
+    // 這些會綁定事件，重新登入時不可重複綁定
+    setupSync();
+    setupColResizers();
+    setupResizer();
+    _uiSetupDone = true;
+  }
+  if (_cloudReady) setupRealtime();
   updateProjUI();
   if (projects.length) {
     scheduleTasks();
     recalcProjEnd();
   }
   render();
-  setSyncDot(cloudOk ? 'ok' : (_guestMode ? 'off' : 'err'));
+  setSyncDot(_guestMode ? 'local' : (_cloudReady ? 'ok' : 'err'));
   setTimeout(scrollToToday, 120);
   const adminBtn = document.getElementById('adminBtn');
   if (adminBtn) adminBtn.style.display = isAdmin() ? '' : 'none';
@@ -5862,6 +6356,7 @@ async function initApp() {
    INIT
 ═══════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async () => {
+  migrateLegacyLS();
   const urlParams = new URLSearchParams(location.search);
   const shareToken = urlParams.get('share');
 
@@ -5913,7 +6408,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (user) {
       // 既有 session：直接進入 app，不顯示登入按鈕
       currentUser = user;
-      const authorized = await checkAuthorized();
+      let authorized;
+      try {
+        authorized = await checkAuthorized();
+      } catch(e) {
+        // 連不上雲端：仍進入 app，由 initApp 切到「唯讀顯示本機快取」並自動重試
+        console.error('checkAuthorized:', e);
+        authorized = true;
+      }
       if (authorized) await initApp();
       // 未授權時 checkAuthorized 已切換到註冊面板，這裡只需把檢查中提示收掉
       if (!_appInitialized) {

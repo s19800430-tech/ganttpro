@@ -1,0 +1,109 @@
+rules_version = '2';
+
+// GanttPro Firestore 安全規則（對應 gantt.html 的 schema 2）
+// 部署：firebase deploy --only firestore:rules --project ganttpro-819d1
+//      或到 Firebase Console → Firestore → 規則，貼上本檔內容後發布
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    // 只信任已驗證的 email（Google 登入一定是 verified）
+    function myEmail() {
+      return request.auth.token.email_verified == true ? request.auth.token.email.lower() : '';
+    }
+    function isAdmin() {
+      return signedIn() && myEmail() == 's19800430@gmail.com';
+    }
+    function isRegistered() {
+      return signedIn() && myEmail() != ''
+        && exists(/databases/$(database)/documents/gantt_allowed_users/$(request.auth.token.email));
+    }
+
+    // ── 個人偏好：只有本人可讀寫 ──
+    match /gantt_user_data/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // ── 專案：一個專案一份文件，依成員名單控管 ──
+    match /gantt_projects/{docId} {
+      function isOwner(d)  { return signedIn() && d.owner_id == request.auth.uid; }
+      function isEditor(d) { return isRegistered() && myEmail() in d.editor_emails; }
+      function isViewer(d) { return isRegistered() && myEmail() in d.viewer_emails; }
+      function validShape(d) {
+        return d.owner_id is string && d.proj_id is int
+          && d.editor_emails is list && d.viewer_emails is list
+          && d.editor_emails.size() <= 50 && d.viewer_emails.size() <= 50
+          && d.project is map && d.rev is int;
+      }
+
+      // 讀取自己尚未建立的專案（transaction 會先 get）
+      allow get: if resource == null && signedIn() && docId.matches(request.auth.uid + '_[0-9]+');
+      allow read: if resource != null
+        && (isOwner(resource.data) || isEditor(resource.data) || isViewer(resource.data));
+
+      allow create: if isRegistered()
+        && validShape(request.resource.data)
+        && request.resource.data.owner_id == request.auth.uid
+        && docId == request.auth.uid + '_' + string(request.resource.data.proj_id)
+        && request.resource.data.rev == 1;
+
+      // 擁有者：可改內容與成員名單，但不能轉移擁有權
+      // 共同編輯者：只能改專案內容，且 rev 必須 +1（防止盲目覆蓋）
+      allow update: if validShape(request.resource.data) && (
+          (isOwner(resource.data)
+            && request.resource.data.owner_id == resource.data.owner_id
+            && request.resource.data.proj_id == resource.data.proj_id
+            && (request.resource.data.rev == resource.data.rev
+                || request.resource.data.rev == resource.data.rev + 1))
+          || (isEditor(resource.data)
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['project', 'rev', 'updated_at', 'updated_by'])
+            && request.resource.data.rev == resource.data.rev + 1)
+        );
+
+      allow delete: if isOwner(resource.data);
+
+      // 版本快照
+      match /versions/{vid} {
+        function parentDoc() {
+          return get(/databases/$(database)/documents/gantt_projects/$(docId)).data;
+        }
+        allow read: if isOwner(parentDoc()) || isEditor(parentDoc()) || isViewer(parentDoc());
+        allow write: if isOwner(parentDoc()) || isEditor(parentDoc());
+      }
+    }
+
+    // ── 舊版共享設定（只供擁有者搬遷時讀取，之後可刪除）──
+    match /gantt_project_shares/{docId} {
+      allow read, delete: if signedIn() && resource.data.owner_id == request.auth.uid;
+      allow create, update: if false;
+    }
+
+    // ── 使用者名單 ──
+    match /gantt_allowed_users/{email} {
+      allow get: if (signedIn() && request.auth.token.email == email) || isAdmin();
+      allow list: if isAdmin();
+      // 自行註冊：只能建立自己的、不能是管理員、欄位固定
+      allow create: if signedIn() && request.auth.token.email_verified == true
+        && request.auth.token.email == email
+        && request.resource.data.keys().hasOnly(['email', 'name', 'is_admin', 'added_at'])
+        && request.resource.data.email == email
+        && request.resource.data.is_admin == false
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 60;
+      allow update, delete: if isAdmin();
+    }
+
+    // ── 唯讀分享連結：只能用 token 直接讀取，不能列出全部 ──
+    match /gantt_shares/{token} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if signedIn() && request.resource.data.owner_id == request.auth.uid;
+      allow update: if signedIn() && resource.data.owner_id == request.auth.uid
+        && request.resource.data.owner_id == request.auth.uid;
+      allow delete: if signedIn() && (resource.data.owner_id == request.auth.uid || isAdmin());
+    }
+  }
+}
