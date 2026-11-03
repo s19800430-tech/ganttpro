@@ -37,6 +37,11 @@ service cloud.firestore {
           && d.editor_emails.size() <= 50 && d.viewer_emails.size() <= 50
           && d.project is map && d.rev is int;
       }
+      // 改到專案內容時，updated_by 必須是本人（避免偽造修改紀錄）
+      function honestAuthor() {
+        return !request.resource.data.diff(resource == null ? {} : resource.data).affectedKeys().hasAny(['project'])
+          || request.resource.data.updated_by == myEmail();
+      }
 
       // 讀取自己尚未建立的專案（transaction 會先 get）
       allow get: if resource == null && signedIn() && docId.matches(request.auth.uid + '_[0-9]+');
@@ -47,11 +52,12 @@ service cloud.firestore {
         && validShape(request.resource.data)
         && request.resource.data.owner_id == request.auth.uid
         && docId == request.auth.uid + '_' + string(request.resource.data.proj_id)
-        && request.resource.data.rev == 1;
+        && request.resource.data.rev == 1
+        && request.resource.data.updated_by == myEmail();
 
       // 擁有者：可改內容與成員名單，但不能轉移擁有權
       // 共同編輯者：只能改專案內容，且 rev 必須 +1（防止盲目覆蓋）
-      allow update: if validShape(request.resource.data) && (
+      allow update: if validShape(request.resource.data) && honestAuthor() && (
           (isOwner(resource.data)
             && request.resource.data.owner_id == resource.data.owner_id
             && request.resource.data.proj_id == resource.data.proj_id
@@ -65,13 +71,22 @@ service cloud.firestore {
 
       allow delete: if isOwner(resource.data);
 
-      // 版本快照
+      // 版本快照：成員可讀；擁有者與共同編輯者可新增；只有擁有者可修改或刪除（避免歷史被清空）
       match /versions/{vid} {
         function parentDoc() {
           return get(/databases/$(database)/documents/gantt_projects/$(docId)).data;
         }
+        function validVersion(v) {
+          return v.keys().hasOnly(['id', 'name', 'createdAt', 'taskCount', 'snapshot', 'created_by'])
+            && v.id is int && vid == string(v.id)
+            && v.name is string && v.name.size() <= 200
+            && v.snapshot is list && v.snapshot.size() <= 2000
+            && v.created_by == myEmail();
+        }
         allow read: if isOwner(parentDoc()) || isEditor(parentDoc()) || isViewer(parentDoc());
-        allow write: if isOwner(parentDoc()) || isEditor(parentDoc());
+        allow create: if (isOwner(parentDoc()) || isEditor(parentDoc())) && validVersion(request.resource.data);
+        allow update: if isOwner(parentDoc()) && validVersion(request.resource.data);
+        allow delete: if isOwner(parentDoc());
       }
     }
 
@@ -100,9 +115,13 @@ service cloud.firestore {
     match /gantt_shares/{token} {
       allow get: if true;
       allow list: if false;
-      allow create: if signedIn() && request.resource.data.owner_id == request.auth.uid;
-      allow update: if signedIn() && resource.data.owner_id == request.auth.uid
-        && request.resource.data.owner_id == request.auth.uid;
+      function validShare(d) {
+        return d.keys().hasOnly(['token', 'owner_id', 'project_data', 'updated_at'])
+          && d.token == token && d.owner_id == request.auth.uid && d.project_data is map;
+      }
+      allow create: if isRegistered() && validShare(request.resource.data);
+      allow update: if isRegistered() && resource.data.owner_id == request.auth.uid
+        && validShare(request.resource.data);
       allow delete: if signedIn() && (resource.data.owner_id == request.auth.uid || isAdmin());
     }
   }

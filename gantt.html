@@ -1623,10 +1623,47 @@ function sanitizeProject(p) {
       return o;
     }),
   };
+  out.tasks = breakParentCycles(out.tasks);
   const maxTaskId = out.tasks.reduce((m, t) => Math.max(m, t.id), 0);
   out.nextId = Math.max(num(p.nextId, 1), maxTaskId + 1);
-  if (!Array.isArray(out.versions)) delete out.versions;
+  if (Array.isArray(out.versions)) out.versions = out.versions.map(sanitizeVersion).filter(Boolean);
+  else delete out.versions;
   return out;
+}
+
+// 父子關係不可形成環（多人同時縮排可能合併出 A→B→A），遇到就把形成環的那一筆移到最上層；也清掉指向不存在任務的 parent
+function breakParentCycles(list) {
+  const byId = new Map(list.map(t => [t.id, t]));
+  const fixed = new Map();
+  list.forEach(t => {
+    const seen = new Set([t.id]);
+    let cur = t;
+    while (cur.parent !== null && cur.parent !== undefined) {
+      const parentId = fixed.has(cur.id) ? fixed.get(cur.id) : cur.parent;
+      if (parentId === null) break;
+      if (seen.has(parentId) || !byId.has(parentId)) { fixed.set(cur.id, null); break; }
+      seen.add(parentId);
+      cur = byId.get(parentId);
+    }
+  });
+  return fixed.size ? list.map(t => (fixed.has(t.id) ? { ...t, parent: fixed.get(t.id) } : t)) : list;
+}
+
+// 版本快照也是外部資料（雲端子集合、localStorage）：id 必須是數字，其餘欄位轉成正確型別
+function sanitizeVersion(v) {
+  if (!v || typeof v !== 'object' || !Number.isFinite(+v.id)) return null;
+  return {
+    id: +v.id,
+    name: String(v.name ?? ''),
+    createdAt: String(v.createdAt ?? ''),
+    taskCount: Number.isFinite(+v.taskCount) ? +v.taskCount : 0,
+    snapshot: Array.isArray(v.snapshot) ? v.snapshot : [],
+  };
+}
+
+// 雲端專案內容不得帶入底線開頭的執行期欄位（_isShared、_permission…），否則共同編輯者可竄改擁有者端的狀態
+function stripRuntimeKeys(obj) {
+  return Object.fromEntries(Object.entries(obj || {}).filter(([k]) => !k.startsWith('_')));
 }
 
 function dateToX(str) {
@@ -2125,7 +2162,7 @@ function renderChartHeader() {
     while (d <= CHART_END) {
       const ds = toStr(d);
       const x = dateToX(ds);
-      const dow = d.getDay();
+      const dow = d.getUTCDay();
       const hol = getHoliday(ds);
       const off = isNonWorkday(ds);
       const isTdy = ds === TODAY_STR;
@@ -2134,17 +2171,17 @@ function renderChartHeader() {
       el.className = 'week-cell day-cell' + dayColor + (isTdy ? ' today-wk' : '') + (off ? ' wknd-cell' : '');
       el.style.cssText = `left:${x}px;width:${PPD}px`;
       if (hol) el.title = hol;
-      el.innerHTML = `<span>${d.getDate()}</span><span class="day-dow">${dayNames[d.getDay()]}</span>`;
+      el.innerHTML = `<span>${d.getUTCDate()}</span><span class="day-dow">${dayNames[d.getUTCDay()]}</span>`;
       wRow.appendChild(el);
-      d.setDate(d.getDate() + 1);
+      d.setUTCDate(d.getUTCDate() + 1);
     }
   } else if (gran === 'week') {
     // Align to Monday
     let d = new Date(CHART_START);
-    const dow = d.getDay();
-    d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+    const dow = d.getUTCDay();
+    d.setUTCDate(d.getUTCDate() - (dow === 0 ? 6 : dow - 1));
     while (d <= CHART_END) {
-      const we = new Date(d); we.setDate(we.getDate() + 6);
+      const we = new Date(d); we.setUTCDate(we.getUTCDate() + 6);
       const x1 = Math.max(0, dateToX(toStr(d)));
       const x2 = Math.min(tw, dateToX(toStr(we)) + PPD);
       if (x1 < tw && x2 > 0) {
@@ -2152,10 +2189,10 @@ function renderChartHeader() {
         const el = document.createElement('div');
         el.className = 'week-cell' + (isTdy ? ' today-wk' : '');
         el.style.cssText = `left:${x1}px;width:${x2 - x1}px`;
-        el.textContent = `${d.getMonth()+1}/${d.getDate()}`;
+        el.textContent = `${d.getUTCMonth()+1}/${d.getUTCDate()}`;
         wRow.appendChild(el);
       }
-      d.setDate(d.getDate() + 7);
+      d.setUTCDate(d.getUTCDate() + 7);
     }
   } else {
     // Month granularity: show each month label
@@ -2257,8 +2294,8 @@ function renderChartBody() {
       const clickX = e.clientX - canvasRect.left + scrollX;
       const daysOffset = Math.floor(clickX / PPD);
       const d = new Date(CHART_START);
-      d.setDate(d.getDate() + daysOffset);
-      while (isNonWorkday(d)) d.setDate(d.getDate() + 1);
+      d.setUTCDate(d.getUTCDate() + daysOffset);
+      while (isNonWorkday(d)) d.setUTCDate(d.getUTCDate() + 1);
       const dateStr = d.toISOString().slice(0, 10);
       openModal(null, dateStr);
     });
@@ -2300,12 +2337,12 @@ function renderGrid(canvas, tw, th) {
         bg.style.cssText = `left:${x}px;width:${PPD}px`;
         canvas.appendChild(bg);
       }
-      d.setDate(d.getDate() + 1);
+      d.setUTCDate(d.getUTCDate() + 1);
     }
   } else if (gridGran === 'week') {
     let d = new Date(CHART_START);
-    const dow = d.getDay();
-    d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+    const dow = d.getUTCDay();
+    d.setUTCDate(d.getUTCDate() - (dow === 0 ? 6 : dow - 1));
     while (d <= CHART_END) {
       const x = dateToX(toStr(d));
       if (x >= 0) {
@@ -2314,7 +2351,7 @@ function renderGrid(canvas, tw, th) {
         l.style.cssText = `left:${x}px;height:${th}px`;
         canvas.appendChild(l);
       }
-      d.setDate(d.getDate() + 7);
+      d.setUTCDate(d.getUTCDate() + 7);
     }
   }
 }
@@ -2327,7 +2364,7 @@ function getWorkingSegs(startStr, endStr) {
     const isOff = isNonWorkday(d);
     if (!isOff && !segS) segS = d.toISOString().slice(0, 10);
     else if (isOff && segS) { segs.push({s: segS, e: d.toISOString().slice(0, 10)}); segS = null; }
-    d.setDate(d.getDate() + 1);
+    d.setUTCDate(d.getUTCDate() + 1);
   }
   if (segS) segs.push({s: segS, e: endStr});
   return segs;
@@ -2336,15 +2373,15 @@ function getWorkingSegs(startStr, endStr) {
 // Returns the last working day before exclusive endStr
 function prevWorkingDay(endStr) {
   const d = new Date(endStr);
-  d.setDate(d.getDate() - 1);
-  while (isNonWorkday(d)) d.setDate(d.getDate() - 1);
+  d.setUTCDate(d.getUTCDate() - 1);
+  while (isNonWorkday(d)) d.setUTCDate(d.getUTCDate() - 1);
   return d.toISOString().slice(0, 10);
 }
 
 function renderBar(row, task) {
   if (!task.start || !task.end) return;
   const x1 = dateToX(task.start);
-  const visualEnd = (() => { const d = new Date(task.end); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); })();
+  const visualEnd = (() => { const d = new Date(task.end); d.setUTCDate(d.getUTCDate()+1); return d.toISOString().slice(0,10); })();
   const x2 = dateToX(visualEnd);
   const w = x2 - x1;
   if (!isFinite(w) || w <= 0) return;
@@ -2413,7 +2450,7 @@ function renderBar(row, task) {
   const bl = showBaseline && (curProj()?.baseline?.dates || {})[task.id];
   if (bl && bl.s && bl.e && (bl.s !== task.start || bl.e !== task.end)) {
     const bx1 = dateToX(bl.s);
-    const bx2 = dateToX((() => { const d = new Date(bl.e); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); })());
+    const bx2 = dateToX((() => { const d = new Date(bl.e); d.setUTCDate(d.getUTCDate()+1); return d.toISOString().slice(0,10); })());
     const blb = document.createElement('div');
     blb.className = 'baseline-bar';
     blb.style.cssText = `left:${bx1}px;width:${Math.max(bx2 - bx1, 3)}px;top:30px`;
@@ -2448,6 +2485,7 @@ function attachBarDrag(bar, task) {
     const origW = parseFloat(bar.style.width);
     let moved = false, delta = 0;
     document.body.style.userSelect = 'none';
+    _dragActive = true;
 
     const onMove = ev => {
       const dx = ev.clientX - startX;
@@ -2470,11 +2508,14 @@ function attachBarDrag(bar, task) {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
       document.body.style.userSelect = '';
-      if (!moved || !delta) { render(); return; }
+      _dragActive = false;
+      // 拖曳期間可能已套用過雲端更新，改用目前的任務物件
+      task = taskById(task.id);
+      if (!task || !moved || !delta) { render(); return; }
       pushHistory();
-      const shiftCal = (str, days) => { const d = new Date(str); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10); };
-      const snapFwd = str => { const d = new Date(str); while (isNonWorkday(d)) d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); };
-      const snapBack = str => { const d = new Date(str); while (isNonWorkday(d)) d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); };
+      const shiftCal = (str, days) => { const d = new Date(str); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10); };
+      const snapFwd = str => { const d = new Date(str); while (isNonWorkday(d)) d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); };
+      const snapBack = str => { const d = new Date(str); while (isNonWorkday(d)) d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); };
       const wd = task.wday || countWorkingDays(task.start, task.end);
       // 依拖動方向吸附到工作日（往右跳到下個工作日、往左跳回上個工作日）
       const snapDir = str => delta > 0 ? snapFwd(str) : snapBack(str);
@@ -2509,7 +2550,7 @@ function attachBarDrag(bar, task) {
 
 function renderGroupBar(row, task, bounds) {
   const x1 = dateToX(bounds.s);
-  const x2 = dateToX((() => { const d = new Date(bounds.e); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); })());
+  const x2 = dateToX((() => { const d = new Date(bounds.e); d.setUTCDate(d.getUTCDate()+1); return d.toISOString().slice(0,10); })());
   const w = Math.max(x2 - x1, 8);
 
   const bar = document.createElement('div');
@@ -2631,6 +2672,7 @@ function renderMilestone(row, task) {
       const origLeft = parseFloat(d.style.left);
       let moved = false, delta = 0;
       document.body.style.userSelect = 'none';
+      _dragActive = true;
       const onMove = ev => {
         const dx = ev.clientX - startX;
         if (!moved && Math.abs(dx) < 4) return;
@@ -2643,11 +2685,13 @@ function renderMilestone(row, task) {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
         document.body.style.userSelect = '';
-        if (!moved || !delta) { render(); return; }
+        _dragActive = false;
+        task = taskById(task.id);
+        if (!task || !moved || !delta) { render(); return; }
         pushHistory();
         const nd = new Date(task.date);
-        nd.setDate(nd.getDate() + delta);
-        while (isNonWorkday(nd)) nd.setDate(nd.getDate() + (delta > 0 ? 1 : -1));
+        nd.setUTCDate(nd.getUTCDate() + delta);
+        while (isNonWorkday(nd)) nd.setUTCDate(nd.getUTCDate() + (delta > 0 ? 1 : -1));
         task.date = nd.toISOString().slice(0, 10);
         task.pinStart = true;
         scheduleTasks();
@@ -2976,7 +3020,7 @@ function computeWorkload() {
         const k = d.toISOString().slice(0, 10);
         rec.days.set(k, (rec.days.get(k) || 0) + 1);
       }
-      d.setDate(d.getDate() + 1);
+      d.setUTCDate(d.getUTCDate() + 1);
     }
   });
   const names = [...byName.keys()].sort((a, b) =>
@@ -3133,11 +3177,14 @@ function computeCriticalPath() {
           let c; // constraint on t.LF
 
           switch (type) {
-            case 'FS':
-              // t 必須在 succ 開始前完成 → t.LF = prevWorkingDay(succ.LS)
-              // succ.LS = succ.LF - succ_duration + 1；簡化：用 prevWorkingDay(succ.start)
-              c = prevWorkingDay(getS(succ));
+            case 'FS': {
+              // t 必須在 succ 最晚開始前完成 → t.LF = prevWorkingDay(succ.LS)，succ.LS = succ.LF - 工期 + 1
+              // 里程碑後繼與前置同一天（排程時里程碑日期＝前置結束日），所以不往前推一天
+              const succLS = !succLF ? getS(succ)
+                : succ.type === 'task' ? subtractWorkingDays(succLF, wdur(succ) - 1) : succLF;
+              c = succ.type === 'milestone' ? succLS : prevWorkingDay(succLS);
               break;
+            }
 
             case 'SS':
               // t 必須在 succ 開始前開始 → t.LS = succ.LS
@@ -3216,7 +3263,7 @@ function toggleCriticalPath() {
 
 function exportPNG() {
   const rows = getVisibleRows();
-  if (!rows.length) return;
+  if (!rows.length) { showStatus('沒有可匯出的任務'); return; }
   const proj = curProj() || {};
   const tw = totalW();
   const PANEL = 420;
@@ -3341,7 +3388,7 @@ function exportPNG() {
     // ─── 甘特 Bar ───
     if (task.type === 'task' && task.start && task.end) {
       const bx = PANEL + dateToX(task.start);
-      const bw = Math.max(PANEL + dateToX((() => { const d = new Date(task.end); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); })()) - bx, 3);
+      const bw = Math.max(PANEL + dateToX((() => { const d = new Date(task.end); d.setUTCDate(d.getUTCDate()+1); return d.toISOString().slice(0,10); })()) - bx, 3);
       const by = y + (ROW_H - 20) / 2;
       ctx.globalAlpha = task.done ? 0.32 : 1;
       ctx.fillStyle = task.color || '#5E6AD2';
@@ -3354,7 +3401,7 @@ function exportPNG() {
       const _bl = showBaseline && (proj.baseline?.dates || {})[task.id];
       if (_bl && _bl.s && _bl.e && (_bl.s !== task.start || _bl.e !== task.end)) {
         const blx = PANEL + dateToX(_bl.s);
-        const blw = Math.max(PANEL + dateToX((() => { const d = new Date(_bl.e); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); })()) - blx, 3);
+        const blw = Math.max(PANEL + dateToX((() => { const d = new Date(_bl.e); d.setUTCDate(d.getUTCDate()+1); return d.toISOString().slice(0,10); })()) - blx, 3);
         ctx.fillStyle = '#9CA3AF'; ctx.globalAlpha = 0.55;
         ctx.beginPath(); ctx.roundRect(blx, y + 30, blw, 4, 2); ctx.fill();
         ctx.globalAlpha = 1;
@@ -3439,6 +3486,7 @@ function exportPNG() {
   // ─── 下載 ───
   const filename = `gantt-${(proj.name||'export').replace(/\s+/g,'-')}-${TODAY_STR}.png`;
   c.toBlob(blob => {
+    if (!blob) { alert('匯出失敗：圖檔太大，請先縮小時間軸（−）或收合群組後再試'); return; }
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.download = filename; a.href = url; a.click();
@@ -3977,6 +4025,8 @@ function executeDeleteTask(id) {
   });
   tasks = tasks.filter(t => !toDelete.has(t.id));
   curProj().tasks = tasks;
+  scheduleTasks();
+  recalcProjEnd();
   render();
   saveToLS();
   if (currentUser) saveToCloud();
@@ -4057,7 +4107,7 @@ function submitTask() {
   render();
 }
 
-function isWeekend(d) { const w = new Date(d).getDay(); return w === 0 || w === 6; }
+function isWeekend(d) { const w = new Date(d).getUTCDay(); return w === 0 || w === 6; }
 
 /* ─── 台灣國定假日（政府行政機關辦公日曆表，民國114–116年）─── */
 const TW_HOLIDAYS = {
@@ -4101,6 +4151,8 @@ const TW_HOLIDAYS = {
 };
 // 補行上班的週六（2025 下半年起補班制度已廢除）
 const TW_MAKEUP_WORKDAYS = new Set(['2025-02-08']);
+const HOLIDAY_TABLE_END = '2027-12-31';
+const _holidayWarned = new Set();
 
 function dateKey(d) { return d instanceof Date ? d.toISOString().slice(0, 10) : String(d); }
 function getHoliday(d) { return TW_HOLIDAYS[dateKey(d)] || null; }
@@ -4113,10 +4165,10 @@ function isNonWorkday(d) {
 
 function subtractWorkingDays(endStr, days) {
   let d = new Date(endStr);
-  while (isNonWorkday(d)) d.setDate(d.getDate() - 1);
+  while (isNonWorkday(d)) d.setUTCDate(d.getUTCDate() - 1);
   let count = 0;
   while (count < days) {
-    d.setDate(d.getDate() - 1);
+    d.setUTCDate(d.getUTCDate() - 1);
     if (!isNonWorkday(d)) count++;
   }
   return d.toISOString().slice(0, 10);
@@ -4124,10 +4176,10 @@ function subtractWorkingDays(endStr, days) {
 
 function addWorkingDays(startStr, days) {
   let d = new Date(startStr);
-  while (isNonWorkday(d)) d.setDate(d.getDate() + 1);
+  while (isNonWorkday(d)) d.setUTCDate(d.getUTCDate() + 1);
   let count = 1; // inclusive: start is day 1
   while (count < days) {
-    d.setDate(d.getDate() + 1);
+    d.setUTCDate(d.getUTCDate() + 1);
     if (!isNonWorkday(d)) count++;
   }
   return d.toISOString().slice(0, 10);
@@ -4135,15 +4187,17 @@ function addWorkingDays(startStr, days) {
 
 function nextWorkingDay(dateStr) {
   const d = new Date(dateStr);
-  d.setDate(d.getDate() + 1);
-  while (isNonWorkday(d)) d.setDate(d.getDate() + 1);
+  d.setUTCDate(d.getUTCDate() + 1);
+  while (isNonWorkday(d)) d.setUTCDate(d.getUTCDate() + 1);
   return d.toISOString().slice(0, 10);
 }
 
 // 將日期前後平移 N 個工作日（正數向後、負數向前；0 不變）
 function shiftWorkingDays(dateStr, days) {
   if (!days) return dateStr;
-  return days > 0 ? addWorkingDays(dateStr, days + 1) : subtractWorkingDays(dateStr, -days);
+  // 起點落在假日時：往後平移從前一個工作日算、往前平移從下一個工作日算，避免多算一天
+  return days > 0 ? addWorkingDays(snapToWorkday(dateStr, -1), days + 1)
+                  : subtractWorkingDays(snapToWorkday(dateStr, 1), -days);
 }
 
 function countWorkingDays(startStr, endStr) {
@@ -4152,7 +4206,7 @@ function countWorkingDays(startStr, endStr) {
   let count = 0;
   while (d <= end) { // inclusive: both start and end counted
     if (!isNonWorkday(d)) count++;
-    d.setDate(d.getDate() + 1);
+    d.setUTCDate(d.getUTCDate() + 1);
   }
   return Math.max(count, 1);
 }
@@ -4349,6 +4403,8 @@ function wouldCreateCycle(taskId, newDepId) {
     const t = taskById(id);
     if (!t) return false;
     const all = [...(t.deps||[]), ...(t.sdeps||[]), ...(t.ffdeps||[]), ...(t.sfdeps||[])];
+    // 群組要等底下所有成員排好，所以依賴群組＝依賴它的每個成員（含任務自己所在的群組）
+    if (t.type === 'group') tasks.forEach(c => { if (c.parent === id) all.push(c.id); });
     return all.some(dfs);
   }
   return dfs(newDepId);
@@ -4463,6 +4519,22 @@ function allGroupMembersScheduled(groupId, scheduled) {
   });
 }
 
+// 前置項目的開始或結束日；群組取底下任務的範圍
+function depDate(dep, edge) {
+  if (dep.type === 'milestone') return dep.date || null;
+  if (dep.type === 'group') { const b = groupBounds(dep.id); return edge === 'start' ? b.s : b.e; }
+  return (edge === 'start' ? dep.start : dep.end) || null;
+}
+
+// 遇到假日往後（dir=1）或往前（dir=-1）找到最近的工作日
+function snapToWorkday(dateStr, dir) {
+  const d = new Date(dateStr);
+  while (isNonWorkday(d)) d.setUTCDate(d.getUTCDate() + dir);
+  return d.toISOString().slice(0, 10);
+}
+
+let _unscheduledWarnKey = '';
+
 function scheduleTasks() {
   const projStart = curProj().startDate;
   if (!projStart) return;
@@ -4479,96 +4551,57 @@ function scheduleTasks() {
     progress = false;
     candidates.forEach(task => {
       if (scheduled.has(task.id)) return;
-      // FS deps: must be scheduled first
-      const deps = (task.deps || []).map(id => taskById(id)).filter(Boolean);
-      const unresolvedFs = deps.filter(d => {
-        if (d.type === 'group') return !allGroupMembersScheduled(d.id, scheduled);
-        return !scheduled.has(d.id);
-      });
-      if (unresolvedFs.length) return;
-      // SS deps: must be scheduled first too
-      const sdeps = (task.sdeps || []).map(id => taskById(id)).filter(Boolean);
-      const unresolvedSs = sdeps.filter(d => !scheduled.has(d.id));
-      if (unresolvedSs.length) return;
-      // FF deps: must be scheduled first
-      const ffdeps = (task.ffdeps || []).map(id => taskById(id)).filter(Boolean);
-      const unresolvedFf = ffdeps.filter(d => !scheduled.has(d.id));
-      if (unresolvedFf.length) return;
-      // SF deps: must be scheduled first
-      const sfdeps = (task.sfdeps || []).map(id => taskById(id)).filter(Boolean);
-      const unresolvedSf = sfdeps.filter(d => !scheduled.has(d.id));
-      if (unresolvedSf.length) return;
+      // 前置任務都排好了才能排本任務（群組要等它底下所有成員排好）
+      const byIds = ids => (ids || []).map(id => taskById(id)).filter(Boolean);
+      const deps = byIds(task.deps), sdeps = byIds(task.sdeps);
+      const ffdeps = byIds(task.ffdeps), sfdeps = byIds(task.sfdeps);
+      const isResolved = d => d.type === 'group' ? allGroupMembersScheduled(d.id, scheduled) : scheduled.has(d.id);
+      if (![...deps, ...sdeps, ...ffdeps, ...sfdeps].every(isResolved)) return;
 
       const depLag = (type, id) => (task.lags || {})[type + id] || 0;
-      // Latest end among FS deps → task must start after this（含 lag 偏移）
-      let latestFsEnd = null;
-      deps.forEach(dep => {
-        let e = dep.type === 'task' ? dep.end
-              : dep.type === 'milestone' ? dep.date
-              : dep.type === 'group' ? groupBounds(dep.id).e : null;
-        if (!e) return;
-        e = shiftWorkingDays(e, depLag('FS', dep.id));
-        if (!latestFsEnd || e > latestFsEnd) latestFsEnd = e;
-      });
-      // Latest start among SS deps → task must start no earlier than this
-      let latestSsStart = null;
-      sdeps.forEach(dep => {
-        let s = dep.type === 'task' ? dep.start : dep.type === 'milestone' ? dep.date : null;
-        if (!s) return;
-        s = shiftWorkingDays(s, depLag('SS', dep.id));
-        if (!latestSsStart || s > latestSsStart) latestSsStart = s;
-      });
-      // Latest end among FF deps → backward-schedule task start so end >= dep end
-      let latestFfEnd = null;
-      ffdeps.forEach(dep => {
-        let e = dep.type === 'task' ? dep.end : dep.type === 'milestone' ? dep.date : null;
-        if (!e) return;
-        e = shiftWorkingDays(e, depLag('FF', dep.id));
-        if (!latestFfEnd || e > latestFfEnd) latestFfEnd = e;
-      });
-      // Latest start among SF deps → backward-schedule task start so end >= dep start
-      let latestSfStart = null;
-      sfdeps.forEach(dep => {
-        let s = dep.type === 'task' ? dep.start : dep.type === 'milestone' ? dep.date : null;
-        if (!s) return;
-        s = shiftWorkingDays(s, depLag('SF', dep.id));
-        if (!latestSfStart || s > latestSfStart) latestSfStart = s;
-      });
+      // 取最晚的那個（含 lag 偏移）；群組用它底下任務的起訖
+      const latest = (list, type, edge) => list.reduce((best, dep) => {
+        let v = depDate(dep, edge);
+        if (!v) return best;
+        v = shiftWorkingDays(v, depLag(type, dep.id));
+        return !best || v > best ? v : best;
+      }, null);
+      const latestFsEnd   = latest(deps,   'FS', 'end');
+      const latestSsStart = latest(sdeps,  'SS', 'start');
+      const latestFfEnd   = latest(ffdeps, 'FF', 'end');
+      const latestSfStart = latest(sfdeps, 'SF', 'start');
+      const pinned = task.pinStart ? (task.type === 'milestone' ? task.date : task.start) : null;
 
       if (task.type === 'task') {
-        let rawStart = latestFsEnd ? nextWorkingDay(latestFsEnd)
-                     : (task.pinStart && task.start ? task.start : projStart);
+        let rawStart = latestFsEnd ? nextWorkingDay(latestFsEnd) : projStart;
         if (latestSsStart && latestSsStart > rawStart) rawStart = latestSsStart;
-        // FF: task.end must >= latestFfEnd → push start so end lands on latestFfEnd
-        if (latestFfEnd) {
-          const ffStart = subtractWorkingDays(latestFfEnd, (task.wday || 1) - 1);
-          if (ffStart > rawStart) rawStart = ffStart;
-        }
-        // SF: task.end must >= latestSfStart → same logic
-        if (latestSfStart) {
-          const sfStart = subtractWorkingDays(latestSfStart, (task.wday || 1) - 1);
-          if (sfStart > rawStart) rawStart = sfStart;
-        }
-        let s = new Date(rawStart);
-        while (isNonWorkday(s)) s.setDate(s.getDate() + 1);
-        task.start = s.toISOString().slice(0, 10);
+        // FF / SF：結束日要不早於前置的結束／開始日 → 往後推開始日
+        [latestFfEnd, latestSfStart].forEach(endBound => {
+          if (!endBound) return;
+          const st = subtractWorkingDays(endBound, (task.wday || 1) - 1);
+          if (st > rawStart) rawStart = st;
+        });
+        // 固定日期視為「不早於這天開始」：前置任務決定最早日期，固定日期可以再往後
+        const hasDeps = latestFsEnd || latestSsStart || latestFfEnd || latestSfStart;
+        if (pinned && (pinned > rawStart || !hasDeps)) rawStart = pinned;
+        task.start = snapToWorkday(rawStart, 1);
         task.end   = addWorkingDays(task.start, task.wday || 1);
-      } else { // milestone
-        let best = latestFsEnd || latestSsStart || null;
-        if (best) {
-          let d = new Date(best);
-          while (isNonWorkday(d)) d.setDate(d.getDate() + 1);
-          task.date = d.toISOString().slice(0, 10);
-        } else if (!(task.pinStart && task.date)) {
-          let d = new Date(projStart);
-          while (isNonWorkday(d)) d.setDate(d.getDate() + 1);
-          task.date = d.toISOString().slice(0, 10);
-        }
+      } else { // milestone：取所有前置限制中最晚的一個
+        const bounds = [latestFsEnd, latestSsStart, latestFfEnd, latestSfStart, pinned].filter(Boolean);
+        const best = bounds.length ? bounds.reduce((a, b) => (b > a ? b : a)) : projStart;
+        task.date = snapToWorkday(best, 1);
       }
       scheduled.add(task.id);
       progress = true;
     });
   }
+  // 互相依賴（循環）的任務排不出日期：提示使用者，不要默默維持舊日期
+  const stuck = candidates.filter(t => !scheduled.has(t.id));
+  const key = stuck.map(t => t.id).join(',');
+  if (stuck.length && key !== _unscheduledWarnKey) {
+    showStatus('⚠️ 前置任務形成循環，無法排程：' + stuck.slice(0, 3).map(t => t.name).join('、') + (stuck.length > 3 ? '…' : ''));
+  }
+  _unscheduledWarnKey = key;
 }
 
 function autoScheduleFromDeps(task) {
@@ -4632,6 +4665,7 @@ function reorderTask(srcId, targetId, insertBefore) {
   const targetIdx = tasks.indexOf(target);
   tasks.splice(insertBefore ? targetIdx : targetIdx + 1, 0, src);
 
+  scheduleTasks();
   recalcProjEnd();
   render();
 }
@@ -4738,7 +4772,7 @@ function updateChartStart() {
   if (!baseStart) return;
   const d = new Date(baseStart);
   const dayPad = Math.max(1, Math.ceil(30 / PPD));
-  d.setDate(d.getDate() - dayPad);
+  d.setUTCDate(d.getUTCDate() - dayPad);
   CHART_START = d;
 }
 
@@ -4752,7 +4786,7 @@ function recalcProjEnd() {
   if (!maxDate) return;
   // Pad at least 3 months beyond last task
   const padded = new Date(maxDate);
-  padded.setMonth(padded.getMonth() + 3);
+  padded.setUTCMonth(padded.getUTCMonth() + 3);
   const endStr = padded.toISOString().slice(0, 10);
   curProj().endDate = endStr;
   CHART_END = padded;
@@ -4801,6 +4835,10 @@ function updateProjUI() {
   document.getElementById('projSelectorName').textContent = p.name;
   document.getElementById('projDot').style.background = p.color;
   document.getElementById('sPeriod').textContent = `${p.startDate} — ${p.endDate}`;
+  if (p.endDate > HOLIDAY_TABLE_END && !_holidayWarned.has(p.id)) {
+    _holidayWarned.add(p.id);
+    showStatus(`ℹ️ 國定假日資料只到 ${HOLIDAY_TABLE_END}，之後的日期只排除週末`);
+  }
   updateReadOnly();
 }
 
@@ -5029,7 +5067,7 @@ function submitProject() {
 
   // Default end = start + 12 months for template, 3 months for blank
   const d = new Date(start);
-  d.setMonth(d.getMonth() + (tpl ? 12 : 3));
+  d.setUTCMonth(d.getUTCMonth() + (tpl ? 12 : 3));
   const end = d.toISOString().slice(0, 10);
 
   const newProj = {
@@ -5160,6 +5198,7 @@ let isReadOnly = false;
 let _isShareLinkMode = false;
 let _cloudReady = false;   // 已成功從雲端載入，可以寫回
 let _cloudBlocked = false; // 雲端載入失敗：只讀顯示快取，禁止寫回
+let _authUnverified = null; // 登入時無法確認是否已註冊（例如離線）：只能唯讀，等確認後才連雲端
 
 const ADMIN_EMAIL = 's19800430@gmail.com';
 function isAdmin() { return currentUser?.email === ADMIN_EMAIL; }
@@ -5217,6 +5256,7 @@ function closeShareModal() {
 ═══════════════════════════════════════════ */
 function exportPDF() {
   const proj = curProj();
+  if (!proj) { showStatus('請先建立或選擇專案'); return; }
   const now = new Date().toLocaleDateString('zh-TW');
   document.getElementById('printProjName').textContent = proj.name;
   document.getElementById('printMeta').textContent =
@@ -5226,9 +5266,8 @@ function exportPDF() {
   const wasDark = document.body.classList.contains('dark');
   if (wasDark) document.body.classList.remove('dark');
 
-  window.print();
-
-  if (wasDark) document.body.classList.add('dark');
+  try { window.print(); }
+  finally { if (wasDark) document.body.classList.add('dark'); }
 }
 
 /* ═══════════════════════════════════════════
@@ -5274,22 +5313,32 @@ function collabSelectedProj() {
   return projects.find(p => p.id === id && !p._isShared);
 }
 
+let _collabLoadError = null;
+
 async function refreshCollabList() {
   const p = collabSelectedProj();
   _collabShares = [];
+  _collabLoadError = null;
   if (p && _sync.has(docIdOf(p))) {
     try {
       const snap = await db.collection(PROJ_COL).doc(docIdOf(p)).get();
       const d = snap.exists ? snap.data() : {};
       (d.editor_emails || []).forEach(email => _collabShares.push({ email, permission: 'edit' }));
       (d.viewer_emails || []).forEach(email => _collabShares.push({ email, permission: 'read' }));
-    } catch(e) { console.error('refreshCollabList:', e); }
+    } catch(e) {
+      console.error('refreshCollabList:', e);
+      _collabLoadError = e.code || e.message || '未知錯誤';
+    }
   }
   renderCollabModal();
 }
 
 function renderCollabModal() {
   const list = document.getElementById('collabShareList');
+  if (_collabLoadError) {
+    list.innerHTML = `<div style="font-size:12px;color:var(--red);text-align:center;padding:12px 0">成員清單載入失敗（${escHtml(_collabLoadError)}），請關閉後再開一次</div>`;
+    return;
+  }
   if (!_collabShares.length) {
     list.innerHTML = '<div style="font-size:12px;color:var(--t3);text-align:center;padding:12px 0">尚未分享給任何人</div>';
     return;
@@ -5320,7 +5369,7 @@ async function addShare() {
 
   msgEl.style.display = 'none';
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg('請輸入有效的 Gmail 帳號'); return; }
+  if (!EMAIL_RE.test(email)) { showMsg('請輸入有效的 Gmail 帳號'); return; }
   if (currentUser && email === (currentUser.email || '').toLowerCase()) { showMsg('不能分享給自己'); return; }
 
   try {
@@ -5350,8 +5399,19 @@ async function removeShare(email) {
     await db.collection(PROJ_COL).doc(docIdOf(p)).update({
       editor_emails: FV.arrayRemove(email), viewer_emails: FV.arrayRemove(email)
     });
+    await rotateShareToken(p);
   } catch(e) { alert('移除失敗：' + e.message); }
   await refreshCollabList();
+}
+
+// 被移除的成員可能記得專案裡的分享 token：刪掉舊的分享快照並換一組新 token
+async function rotateShareToken(p) {
+  if (!p.shareToken) return;
+  const old = p.shareToken;
+  p.shareToken = randomToken('shr_');
+  render();
+  try { await db.collection('gantt_shares').doc(old).delete(); }
+  catch(e) { console.error('rotateShareToken:', e); showStatus('⚠️ 舊的分享連結未能停用：' + (e.code || e.message)); }
 }
 
 /* ═══════════════════════════════════════════
@@ -5409,8 +5469,11 @@ function copyShareLink() {
     .then(() => { showStatus('✓ 分享連結已複製到剪貼簿'); closeShareModal(); })
     .catch(() => {
       const inp = document.getElementById('shareLinkInput');
-      inp.select(); document.execCommand('copy');
-      showStatus('✓ 分享連結已複製'); closeShareModal();
+      inp.select();
+      let copied = false;
+      try { copied = document.execCommand('copy'); } catch(e) {}
+      if (copied) { showStatus('✓ 分享連結已複製'); closeShareModal(); }
+      else showStatus('無法自動複製，連結已選取，請按 ⌘C／Ctrl+C');
     });
 }
 
@@ -5439,7 +5502,7 @@ async function openVersionPanel() {
     try {
       if (!_sync.has(docIdOf(p))) await saveToCloud();
       const snap = await versionsRef(p).get();
-      p.versions = snap.docs.map(d => d.data())
+      p.versions = snap.docs.map(d => sanitizeVersion(d.data())).filter(Boolean)
         .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
       p._versionsLoaded = true;
     } catch(e) {
@@ -5472,7 +5535,8 @@ async function createVersion() {
   if (cloudVersionsEnabled()) {
     try {
       if (!_sync.has(docIdOf(p))) await saveToCloud();
-      await versionsRef(p).doc(String(v.id)).set(v);
+      if (!_sync.has(docIdOf(p))) throw new Error('專案尚未同步到雲端，請稍後再試');
+      await versionsRef(p).doc(String(v.id)).set({ ...v, created_by: (currentUser.email || '').toLowerCase() });
     } catch(e) { alert('版本建立失敗：' + e.message); return; }
   }
   curVersions().unshift(v);
@@ -5501,6 +5565,7 @@ async function deleteVersion(vId) {
   const vs = curVersions();
   const v = vs.find(v => v.id === vId);
   if (!v) return;
+  if (cloudVersionsEnabled() && curProj()._isShared) { alert('只有專案擁有者可以刪除版本'); return; }
   if (!confirm(`刪除版本「${v.name}」？`)) return;
   if (cloudVersionsEnabled()) {
     try { await versionsRef(curProj()).doc(String(vId)).delete(); }
@@ -5528,10 +5593,12 @@ function renderVersionList() {
       <div class="ver-item-name">${escHtml(v.name)}</div>
       <div class="ver-item-meta">${escHtml(dateStr)} · ${+v.taskCount || 0} 個任務</div>
       <div class="ver-item-actions">
-        <button class="ver-btn ver-btn-restore" onclick="restoreVersion(${v.id})">還原此版本</button>
-        <button class="ver-btn ver-btn-del" onclick="deleteVersion(${v.id})">刪除</button>
+        <button class="ver-btn ver-btn-restore">還原此版本</button>
+        <button class="ver-btn ver-btn-del">刪除</button>
       </div>
     `;
+    item.querySelector('.ver-btn-restore').addEventListener('click', () => restoreVersion(v.id));
+    item.querySelector('.ver-btn-del').addEventListener('click', () => deleteVersion(v.id));
     el.appendChild(item);
   });
 }
@@ -5558,6 +5625,8 @@ document.addEventListener('keydown', e => {
 ═══════════════════════════════════════════ */
 let _saveTimer = null;
 function render() {
+  // 關鍵路徑隨每次編輯重算，避免顯示過期結果
+  if (showCriticalPath) criticalTaskIds = computeCriticalPath();
   renderTaskPanel();
   renderChartHeader();
   renderChartBody();
@@ -5565,7 +5634,7 @@ function render() {
   if (undoBtn) undoBtn.disabled = _history.length === 0;
   if (isReadOnly) return;
   clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(() => { saveToLS(); saveToCloud(); }, 600);
+  _saveTimer = setTimeout(() => { _saveTimer = null; saveToLS(); saveToCloud(); }, 600);
 }
 
 /* ═══════════════════════════════════════════
@@ -5602,8 +5671,11 @@ const _sharedLocalIds = new Map(); // 共享專案 docId → 本機專用的負�
 let _savePromise = null;
 let _saveAgain = false;
 let _retryTimer = null;
+let _realtimeRetryTimer = null;
 let _prefsJson = null;
 let _cloudPrefs = {};
+let _migrationNotice = null;   // 搬遷時從舊版匯入的共享成員，進入 app 後提示擁有者確認
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function setSyncDot(state) {
   const dot = document.getElementById('syncDot');
@@ -5766,7 +5838,7 @@ function applyRemoteContent(p, base, incoming) {
 
 function ingestDoc(doc) {
   const d = doc.data();
-  const p = sanitizeProject({ ...(d.project || {}) });
+  const p = sanitizeProject(stripRuntimeKeys(d.project));
   delete p.versions;
   delete p.id;
   if (d.owner_id === currentUser.uid) {
@@ -5780,6 +5852,28 @@ function ingestDoc(doc) {
   }
   p._docId = doc.id;
   return p;
+}
+
+/* ─── 使用者操作中不套用雲端變更（避免拖曳或輸入到一半被重繪蓋掉） ─── */
+let _dragActive = false;
+const _pendingRemote = new Map();   // docId → 尚未套用的雲端文件
+const INTERACTION_RETRY_MS = 800;
+const MAX_PROJECT_BYTES = 900 * 1024;
+
+function isUserInteracting() {
+  if (_dragActive) return true;
+  if (document.querySelector('.inline-input')) return true;
+  if (document.getElementById('overlay')?.classList.contains('open')) return true;
+  const a = document.activeElement;
+  return !!(a && a.closest && a.closest('#taskPanel, #chartBody') && ['INPUT', 'SELECT', 'TEXTAREA'].includes(a.tagName));
+}
+
+function flushPendingRemote() {
+  if (!_pendingRemote.size) return;
+  if (isUserInteracting()) { setTimeout(flushPendingRemote, INTERACTION_RETRY_MS); return; }
+  const docs = [..._pendingRemote.values()];
+  _pendingRemote.clear();
+  docs.forEach(onRemoteDoc);
 }
 
 /* ─── 儲存 ─── */
@@ -5796,6 +5890,8 @@ function saveToCloud() {
 
 async function _syncAll() {
   if (!currentUser || !_cloudReady) return;
+  // 合併結果需要重繪，操作中先不送，稍後再試
+  if (isUserInteracting()) { setTimeout(saveToCloud, INTERACTION_RETRY_MS); return; }
   if (curProj()) curProj().nextId = nextId;
   const dirty = projects.filter(p => {
     if (p._isShared && p._permission !== 'edit') return false;
@@ -5814,8 +5910,12 @@ async function _syncAll() {
   clearTimeout(_retryTimer);
   if (failed) {
     setSyncDot('err');
-    showStatus('⚠️ 雲端儲存失敗：' + (failed.code || failed.message) + '，15 秒後自動重試');
-    _retryTimer = setTimeout(saveToCloud, 15000);
+    if (failed.code === 'too-large') {
+      showStatus('⚠️ ' + failed.message);
+    } else {
+      showStatus('⚠️ 雲端儲存失敗：' + (failed.code || failed.message) + '，15 秒後自動重試');
+      _retryTimer = setTimeout(saveToCloud, 15000);
+    }
   } else {
     setSyncDot('ok');
   }
@@ -5828,10 +5928,14 @@ async function pushProject(p) {
   const content = projectContent(p);
   const st = _sync.get(docId);
   const ref = db.collection(PROJ_COL).doc(docId);
+  // Firestore 單一文件上限 1 MiB；超過就別一直重試，請使用者拆分專案
+  if (new Blob([JSON.stringify(content)]).size > MAX_PROJECT_BYTES) {
+    throw Object.assign(new Error(`「${p.name}」資料太大，無法存到雲端，請把部分階段拆成另一個專案`), { code: 'too-large' });
+  }
   let written, newRev, merged, gone;
   await db.runTransaction(async tx => {
     const snap = await tx.get(ref);
-    const meta = { updated_at: new Date().toISOString(), updated_by: currentUser.email || '' };
+    const meta = { updated_at: new Date().toISOString(), updated_by: (currentUser.email || '').toLowerCase() };
     merged = false; gone = false;
     if (!snap.exists) {
       // 已同步過卻不見了 = 被刪除或權限被移除，不重建
@@ -5848,8 +5952,8 @@ async function pushProject(p) {
     if (st && d.rev === st.rev) {
       written = content;
     } else {
-      const remote = projectContent(sanitizeProject({ ...(d.project || {}) }));
-      written = mergeProject(st ? JSON.parse(st.json) : {}, content, remote);
+      const remote = projectContent(sanitizeProject(stripRuntimeKeys(d.project)));
+      written = projectContent(sanitizeProject(mergeProject(st ? JSON.parse(st.json) : {}, content, remote)));
       merged = true;
     }
     newRev = (d.rev || 0) + 1;
@@ -5858,6 +5962,16 @@ async function pushProject(p) {
   if (gone) { removeProjectLocally(docId, '專案已被刪除或你的存取權已被移除'); return false; }
   _sync.set(docId, { json: stableJson(written), rev: newRev });
   return merged ? applyRemoteContent(p, content, written) : false;
+}
+
+function hasUnsyncedChanges() {
+  if (!currentUser || !_cloudReady) return false;
+  if (curProj()) curProj().nextId = nextId;
+  return projects.some(p => {
+    if (p._isShared && p._permission !== 'edit') return false;
+    const st = _sync.get(docIdOf(p));
+    return !st || st.json !== stableJson(projectContent(p));
+  });
 }
 
 async function savePrefs() {
@@ -5890,7 +6004,8 @@ async function loadFromCloud() {
   let prefs = ud.prefs || {};
   if (ud.schema !== SCHEMA_V) {
     const legacy = ud.data || {};
-    await migrateLegacy(legacy);
+    const imported = await migrateLegacy(legacy);
+    if (imported && imported.length) _migrationNotice = imported;
     prefs = { currentProjDocId: legacy.currentProjId != null ? `${uid}_${legacy.currentProjId}` : null };
     await userRef.set({ schema: SCHEMA_V, prefs }, { merge: true });
   }
@@ -5930,17 +6045,24 @@ async function migrateLegacy(data) {
   const uid = currentUser.uid;
   const email = (currentUser.email || '').toLowerCase();
 
-  // 舊版共享設定（gantt_project_shares）→ 專案文件上的成員名單
+  // 舊版共享設定（gantt_project_shares）→ 專案文件上的成員名單。
+  // 舊規則允許任何登入者寫入這個集合，所以只接受指向本人舊專案、email 格式正確的紀錄，
+  // 並在搬遷後把匯入的成員列給擁有者確認。讀取失敗就整個搬遷失敗（不標記完成），稍後重試。
+  const legacyIds = new Set(legacy.map(lp => String(Number(lp.id))));
   const members = {};
-  try {
-    const snap = await db.collection('gantt_project_shares').where('owner_id', '==', uid).get();
-    snap.forEach(doc => {
-      const s = doc.data();
-      const m = (members[String(s.project_id)] ||= { edit: [], read: [] });
-      const e = String(s.shared_with_email || '').toLowerCase();
-      if (e) (s.permission === 'edit' ? m.edit : m.read).push(e);
-    });
-  } catch(e) { console.warn('舊版共享設定讀取失敗，略過：', e); }
+  const imported = [];
+  const snap = await db.collection('gantt_project_shares').where('owner_id', '==', uid).get();
+  snap.forEach(doc => {
+    const s = doc.data();
+    const pid = String(s.project_id);
+    const e = String(s.shared_with_email || '').toLowerCase();
+    if (!legacyIds.has(pid) || !EMAIL_RE.test(e) || e === email) return;
+    const m = (members[pid] ||= { edit: [], read: [] });
+    const perm = s.permission === 'edit' ? 'edit' : 'read';
+    m[perm].push(e);
+    const proj = legacy.find(lp => String(Number(lp.id)) === pid);
+    imported.push(`${proj ? proj.name : pid}：${e}（${perm === 'edit' ? '共同編輯' : '唯讀'}）`);
+  });
 
   for (const lp of legacy) {
     const projId = Number(lp.id);
@@ -5957,14 +6079,15 @@ async function migrateLegacy(data) {
       });
     }
     for (const v of (lp.versions || [])) {
-      if (!v || v.id == null) continue;
-      await ref.collection('versions').doc(String(v.id)).set(JSON.parse(JSON.stringify(v)));
+      await ref.collection('versions').doc(String(v.id)).set({ ...v, created_by: email });
     }
   }
+  return imported;
 }
 
 /* ─── 即時同步 ─── */
 function stopRealtime() {
+  clearTimeout(_realtimeRetryTimer);
   _listeners.forEach(unsub => { try { unsub(); } catch(e) {} });
   _listeners = [];
   Object.keys(_liveSets).forEach(k => delete _liveSets[k]);
@@ -5997,12 +6120,23 @@ function setupRealtime() {
           onRemoteDoc(ch.doc);
         }
       });
-    }, err => { console.error('realtime ' + key + ':', err); setSyncDot('err'); });
+    }, err => {
+      console.error('realtime ' + key + ':', err);
+      setSyncDot('err');
+      showStatus('⚠️ 即時同步中斷，30 秒後自動重新連線');
+      clearTimeout(_realtimeRetryTimer);
+      _realtimeRetryTimer = setTimeout(() => { if (currentUser && _cloudReady) setupRealtime(); }, 30000);
+    });
     _listeners.push(unsub);
   });
 }
 
 function onRemoteDoc(doc) {
+  if (isUserInteracting()) {
+    _pendingRemote.set(doc.id, doc);
+    setTimeout(flushPendingRemote, INTERACTION_RETRY_MS);
+    return;
+  }
   const d = doc.data();
   const docId = doc.id;
   const st = _sync.get(docId);
@@ -6062,6 +6196,22 @@ function showCloudBanner(text) {
   b.style.display = 'flex';
 }
 
+// 恢復連線後才發現帳號尚未註冊：離開 app 畫面，留在 checkAuthorized 打開的註冊面板
+function leaveAppForRegistration() {
+  resetAppState();
+  _appInitialized = false;
+  document.getElementById('appToolbar').style.display = 'none';
+  document.getElementById('main').style.display = 'none';
+}
+
+function showMigrationNotice() {
+  if (!_migrationNotice) return;
+  const list = _migrationNotice;
+  _migrationNotice = null;
+  setTimeout(() => alert('已從舊版匯入以下共享成員：\n\n' + list.join('\n') +
+    '\n\n如有不認識的人，請到「👥 協作」移除。'), 300);
+}
+
 function hideCloudBanner() {
   const b = document.getElementById('cloudBanner');
   if (b) b.style.display = 'none';
@@ -6081,6 +6231,11 @@ async function retryCloudLoad() {
   clearTimeout(_retryTimer);
   showCloudBanner('重新連線雲端中…');
   try {
+    if (_authUnverified) {
+      const registered = await checkAuthorized();
+      _authUnverified = null;
+      if (!registered) { leaveAppForRegistration(); return; }
+    }
     await loadFromCloud();
   } catch(e) {
     console.error('retryCloudLoad:', e);
@@ -6100,9 +6255,19 @@ async function retryCloudLoad() {
   render();
   setSyncDot('ok');
   showStatus('✓ 已重新連線雲端');
+  showMigrationNotice();
 }
 
 window.addEventListener('online', () => { if (_cloudBlocked) retryCloudLoad(); });
+
+// 關閉或切走分頁時，把還在 600 ms 防抖中的變更立刻存下；雲端還沒存好就提醒
+window.addEventListener('pagehide', () => {
+  if (_saveTimer) { clearTimeout(_saveTimer); _saveTimer = null; saveToLS(); saveToCloud(); }
+});
+window.addEventListener('beforeunload', e => {
+  if (_saveTimer) { clearTimeout(_saveTimer); _saveTimer = null; saveToLS(); saveToCloud(); }
+  if (_savePromise || hasUnsyncedChanges()) { e.preventDefault(); e.returnValue = ''; }
+});
 
 function _encodeData(obj) {
   try {
@@ -6141,7 +6306,11 @@ async function loadShareFromCloud(token) {
   try {
     const snap = await db.collection('gantt_shares').doc(token).get();
     return (snap.exists && snap.data()?.project_data) ? cleanSharedProject(snap.data().project_data) : null;
-  } catch(e) { return null; }
+  } catch(e) {
+    // 網路問題不是「連結無效」：往上丟，讓頁面顯示可重試的訊息
+    console.error('loadShareFromCloud:', e);
+    throw e;
+  }
 }
 
 function saveShareToCloud(token, project) {
@@ -6178,6 +6347,7 @@ function showSyncToast(msg) {
 ═══════════════════════════════════════════ */
 const LS_KEY_LEGACY = 'ganttpro_v1';
 const LS_KEY_GUEST  = 'ganttpro_v2_guest';
+let _lsWarned = false;
 
 function lsKey() {
   if (currentUser) return 'ganttpro_v2_u_' + currentUser.uid;
@@ -6204,16 +6374,33 @@ function saveToLS() {
           _isShared: p._isShared, _ownerId: p._ownerId, _permission: p._permission }))
       : projects.filter(p => !p._isShared);
     localStorage.setItem(key, JSON.stringify({ projects: list, currentProjId, nextProjId }));
-  } catch(e) {}
+    _lsWarned = false;
+  } catch(e) {
+    console.error('saveToLS:', e);
+    // 訪客模式只存在本機，存不進去一定要讓使用者知道；同一段時間只提示一次
+    if (!_lsWarned) {
+      _lsWarned = true;
+      showStatus(_guestMode ? '⚠️ 本機儲存失敗（空間不足或瀏覽器封鎖），變更可能遺失' : '⚠️ 本機快取寫入失敗');
+    }
+  }
 }
 
 function loadFromLS() {
   const key = lsKey();
   if (!key) return false;
+  let raw = null;
+  try { raw = localStorage.getItem(key); } catch(e) { console.error('loadFromLS:', e); return false; }
+  if (!raw) return false;
+  let d;
+  try { d = JSON.parse(raw); }
+  catch(e) {
+    // 資料損毀：先備份原始內容，避免下一次存檔把可能救得回來的資料蓋掉
+    console.error('loadFromLS: corrupt data', e);
+    try { localStorage.setItem(key + '.corrupt', raw); } catch(_) {}
+    showStatus('⚠️ 本機資料損毀，已備份原始內容，目前從空白開始');
+    return false;
+  }
   try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return false;
-    const d = JSON.parse(raw);
     if (!d.projects?.length) return false;
     projects   = d.projects.map(sanitizeProject).filter(Boolean);
     if (!projects.length) return false;
@@ -6226,6 +6413,8 @@ function loadFromLS() {
 }
 
 function resetAppState() {
+  _pendingRemote.clear();
+  _dragActive = false;
   clearTimeout(_saveTimer);
   clearTimeout(_retryTimer);
   stopRealtime();
@@ -6303,12 +6492,16 @@ async function submitRegister() {
 
 async function signOut() {
   clearTimeout(_saveTimer);
-  // 登出前把尚未送出的變更送出／存好
-  if (currentUser && _cloudReady) { try { await saveToCloud(); } catch(e) {} }
-  else if (_guestMode) saveToLS();
+  // 登出前把尚未送出的變更送出／存好；送不出去就先問使用者
+  if (currentUser && _cloudReady) {
+    await saveToCloud();
+    if (hasUnsyncedChanges() &&
+        !confirm('有變更還沒存到雲端（可能是網路中斷）。現在登出，這些變更會遺失。\n\n仍要登出嗎？')) return;
+  } else if (_guestMode) saveToLS();
   // 登入者的本機快取在登出時清除，避免共用電腦上留下他人資料
   if (currentUser) { try { localStorage.removeItem(lsKey()); } catch(e) {} }
   resetAppState();
+  _authUnverified = null;
   if (!_guestMode) await auth.signOut();
   currentUser = null;
   _guestMode = false;
@@ -6358,6 +6551,8 @@ async function initApp() {
   resetAppState();
   if (_guestMode) {
     loadFromLS();
+  } else if (_authUnverified) {
+    enterCloudBlocked(_authUnverified);
   } else {
     try {
       await loadFromCloud();
@@ -6383,6 +6578,7 @@ async function initApp() {
   }
   render();
   setSyncDot(_guestMode ? 'local' : (_cloudReady ? 'ok' : 'err'));
+  showMigrationNotice();
   setTimeout(scrollToToday, 120);
   const adminBtn = document.getElementById('adminBtn');
   if (adminBtn) adminBtn.style.display = isAdmin() ? '' : 'none';
@@ -6405,7 +6601,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Read-only share mode: load from gantt_shares table (no auth needed)
     _isShareLinkMode = true;
     showApp();
-    const projData = await loadShareFromCloud(shareToken);
+    let projData;
+    try { projData = await loadShareFromCloud(shareToken); }
+    catch(e) {
+      document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;flex-direction:column;gap:12px;color:#555">
+        <div style="font-size:48px">📡</div>
+        <div style="font-size:18px;font-weight:600">暫時無法載入分享內容</div>
+        <div style="font-size:14px;color:#888">請檢查網路連線後重新整理頁面（${escHtml(e.code || e.message || '')}）</div>
+      </div>`;
+      return;
+    }
     if (!projData) {
       document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;flex-direction:column;gap:12px;color:#555">
         <div style="font-size:48px">🔗</div>
@@ -6453,8 +6658,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         authorized = await checkAuthorized();
       } catch(e) {
-        // 連不上雲端：仍進入 app，由 initApp 切到「唯讀顯示本機快取」並自動重試
+        // 連不上雲端、無法確認身分：只以唯讀顯示本機快取，恢復連線後先重新確認身分
         console.error('checkAuthorized:', e);
+        _authUnverified = e;
         authorized = true;
       }
       if (authorized) await initApp();
