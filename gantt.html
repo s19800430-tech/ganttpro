@@ -323,6 +323,11 @@ body.dark .ms-badge{background:#3d2c00;color:#fbbf24;border-color:#593f00}
 }
 .deps-opt:hover{background:var(--s-hover)}
 .deps-opt.sel{background:var(--accent-bg)}
+.add-type-menu{
+  position:fixed;z-index:500;min-width:128px;padding:4px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.13);
+}
 .deps-opt-num{
   font-size:11px;color:var(--t4);font-variant-numeric:tabular-nums;
   min-width:22px;text-align:right;flex-shrink:0;
@@ -2037,7 +2042,7 @@ function renderTaskPanel() {
     addBtn.className = 'row-action-btn add';
     addBtn.textContent = '+';
     addBtn.title = '在此節點下新增任務';
-    addBtn.onclick = e => { e.stopPropagation(); addTaskInline(task.id); };
+    addBtn.onclick = e => { e.stopPropagation(); openAddTypeMenu(task.id, addBtn); };
     ac.appendChild(addBtn);
 
     const delBtn = document.createElement('div');
@@ -3795,25 +3800,61 @@ function openNameEditor(task, cell, isNew = false) {
   });
 }
 
-function addTaskInline(refTaskId) {
+// 列上「+」先選類型，再在該節點新增
+const INLINE_ADD_TYPES = [
+  { type: 'task',      label: '▬ 一般任務' },
+  { type: 'milestone', label: '◆ 里程碑' },
+  { type: 'group',     label: '▤ 群組' },
+];
+const ADD_MENU_GAP = 4;
+
+function openAddTypeMenu(refTaskId, anchor) {
+  if (isReadOnly) return;
+  closeAddTypeMenu();
+  const menu = document.createElement('div');
+  menu.className = 'add-type-menu';
+  menu.id = 'addTypeMenu';
+  INLINE_ADD_TYPES.forEach(({ type, label }) => {
+    const opt = document.createElement('div');
+    opt.className = 'deps-opt';
+    opt.textContent = label;
+    opt.addEventListener('click', e => {
+      e.stopPropagation();
+      closeAddTypeMenu();
+      addTaskInline(refTaskId, type);
+    });
+    menu.appendChild(opt);
+  });
+  document.body.appendChild(menu);
+  const r = anchor.getBoundingClientRect();
+  const left = Math.max(ADD_MENU_GAP, Math.min(r.left, window.innerWidth - menu.offsetWidth - ADD_MENU_GAP));
+  const below = r.bottom + ADD_MENU_GAP;
+  const top = below + menu.offsetHeight > window.innerHeight ? r.top - menu.offsetHeight - ADD_MENU_GAP : below;
+  menu.style.left = left + 'px';
+  menu.style.top = top + 'px';
+  setTimeout(() => document.addEventListener('click', closeAddTypeMenu, { once: true }), 0);
+}
+
+function closeAddTypeMenu() {
+  const menu = document.getElementById('addTypeMenu');
+  if (menu) menu.remove();
+}
+
+function buildInlineTask(type, parentId, color) {
+  const base = { id: nextId++, type, parent: parentId, color };
+  if (type === 'milestone') return { ...base, name: '新里程碑', date: TODAY_STR, deps: [] };
+  if (type === 'group') return { ...base, name: '新群組' };
+  return { ...base, name: '新任務', wday: 1, start: TODAY_STR, end: TODAY_STR, done: false, deps: [] };
+}
+
+function addTaskInline(refTaskId, type = 'task') {
   if (isReadOnly) return;
   const ref = taskById(refTaskId);
   if (!ref) return;
   // Group: new task goes inside (as child); leaf task: new task goes after (as sibling)
   const parentId = ref.type === 'group' ? ref.id : ref.parent;
   const parent = taskById(parentId);
-  const newTask = {
-    id: nextId++,
-    name: '新任務',
-    type: 'task',
-    parent: parentId,
-    color: parent ? parent.color : ref.color || '#5E6AD2',
-    wday: 1,
-    start: TODAY_STR,
-    end: TODAY_STR,
-    done: false,
-    deps: []
-  };
+  const newTask = buildInlineTask(type, parentId, parent ? parent.color : ref.color || '#5E6AD2');
   // Insert: after last child of group, or after ref for leaf
   let insertIdx = tasks.indexOf(ref);
   if (ref.type === 'group') {
@@ -5509,7 +5550,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'w') setView('week');
   if (e.key === 'm') setView('month');
   if (e.key === 'n') openModal();
-  if (e.key === 'Escape') { closeModal(); closeProjModal(); closeProjMenuOnly(); closeDeleteModal(); }
+  if (e.key === 'Escape') { closeAddTypeMenu(); closeModal(); closeProjModal(); closeProjMenuOnly(); closeDeleteModal(); }
 });
 
 /* ═══════════════════════════════════════════

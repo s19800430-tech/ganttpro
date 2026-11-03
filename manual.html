@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GanttPro 產品說明書</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: 左側固定目錄＋右側說明內文；頁首用甘特時間尺作為主視覺，手機改為單欄、目錄收在頂部 */
+:root {
+  --bg: #F6F7FB;
+  --surface: #FFFFFF;
+  --ink: #1B1F33;
+  --ink-2: #4A5070;
+  --ink-3: #7B819E;
+  --line: #E1E4EF;
+  --accent: #5E6AD2;
+  --accent-soft: #ECEEFC;
+  --bar-a: #5E6AD2;
+  --bar-b: #10B981;
+  --bar-c: #F59E0B;
+  --bar-d: #EC4899;
+  --ok: #10B981;
+  --warn: #F59E0B;
+  --err: #EF4444;
+  --code-bg: #EEF0F8;
+  --f-display: "Noto Sans TC", "IBM Plex Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --f-body: "IBM Plex Sans", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12141F; --surface: #1A1D2C; --ink: #E7E9F5; --ink-2: #B4B8D0; --ink-3: #868BA8;
+    --line: #2C3048; --accent: #8E98F0; --accent-soft: #262A47; --code-bg: #22263A;
+    --bar-a: #8E98F0; --bar-b: #34D399; --bar-c: #FBBF24; --bar-d: #F472B6;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12141F; --surface: #1A1D2C; --ink: #E7E9F5; --ink-2: #B4B8D0; --ink-3: #868BA8;
+  --line: #2C3048; --accent: #8E98F0; --accent-soft: #262A47; --code-bg: #22263A;
+  --bar-a: #8E98F0; --bar-b: #34D399; --bar-c: #FBBF24; --bar-d: #F472B6;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--f-body); font-size: 15.5px; line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 0 64px; }
+
+/* ── Header ── */
+.masthead { padding-block: 40px 28px; display: grid; gap: 18px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.masthead h1 { font-family: var(--f-display); font-weight: 900; font-size: clamp(30px, 5vw, 46px); line-height: 1.15; margin: 0; text-wrap: balance; letter-spacing: .01em; }
+.masthead h1 span { color: var(--accent); }
+.lede { margin: 0; max-width: 62ch; color: var(--ink-2); font-size: 16.5px; }
+.launch { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; font: 500 14px var(--f-body);
+  padding: 9px 16px; border-radius: 8px; text-decoration: none; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+:root[data-theme="dark"] .btn.primary { color: #12141F; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #12141F; } }
+.url { font-family: var(--f-mono); font-size: 13px; color: var(--ink-3); word-break: break-all; }
+
+/* 時間尺主視覺 */
+.ruler { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 16px; overflow-x: auto; }
+.ruler svg { display: block; min-width: 640px; width: 100%; height: auto; }
+
+/* ── Body layout ── */
+.layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 20px); font-size: 14px; }
+.toc-title { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 8px; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: toc; }
+.toc li { counter-increment: toc; }
+.toc a { display: flex; gap: 10px; padding: 5px 10px; border-radius: 6px; color: var(--ink-2); text-decoration: none; }
+.toc a::before { content: counter(toc, decimal-leading-zero); font-family: var(--f-mono); font-size: 12px; color: var(--ink-3); padding-top: 2px; }
+.toc a:hover { background: var(--accent-soft); color: var(--ink); }
+
+main { min-width: 0; display: grid; gap: 22px; }
+section { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 26px 28px; scroll-margin-top: 20px; min-width: 0; }
+section > h2 { font-family: var(--f-display); font-weight: 700; font-size: 22px; margin: 0 0 4px; display: flex; gap: 12px; align-items: baseline; text-wrap: balance; }
+section > h2 .no { font-family: var(--f-mono); font-size: 13px; font-weight: 500; color: var(--accent); }
+section > .sub { margin: 0 0 16px; color: var(--ink-3); font-size: 14px; }
+h3 { font-family: var(--f-display); font-weight: 700; font-size: 16.5px; margin: 22px 0 6px; }
+p { margin: 0 0 12px; max-width: 70ch; }
+ul, ol.steps { margin: 0 0 12px; padding-left: 1.3em; max-width: 70ch; }
+li { margin-bottom: 4px; }
+ol.steps li::marker { font-family: var(--f-mono); color: var(--accent); }
+
+code, kbd { font-family: var(--f-mono); font-size: .88em; }
+code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; }
+kbd { display: inline-block; min-width: 1.8em; text-align: center; padding: 1px 7px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; background: var(--surface); }
+
+.tbl { overflow-x: auto; margin: 6px 0 14px; border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 520px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; color: var(--ink-2); background: var(--bg); font-size: 13px; }
+tr:last-child td { border-bottom: 0; }
+td:first-child { white-space: nowrap; }
+
+.note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 10px 0 14px; font-size: 14.5px; max-width: 72ch; }
+.note.warn { border-left-color: var(--warn); }
+.note b { font-weight: 600; }
+
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 8px 0 12px; }
+.tile { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.tile h4 { margin: 0 0 4px; font-size: 15px; font-family: var(--f-display); }
+.tile p { margin: 0; font-size: 14px; color: var(--ink-2); }
+
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: middle; margin-right: 6px; }
+
+.diagram { overflow-x: auto; margin: 6px 0 14px; border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: var(--bg); }
+.diagram svg { display: block; min-width: 560px; width: 100%; height: auto; }
+.diagram text { font-family: var(--f-mono); font-size: 12px; fill: var(--ink-2); }
+
+footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  nav.toc { position: static; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .toc ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  section { padding: 20px 18px; }
+  .grid2 { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 440px) {
+  .wrap { padding-inline: 16px; }
+  .toc ol { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div class="eyebrow">產品說明書 · 版本 1.3 · 2026 年 10 月</div>
+    <h1>GanttPro <span>專案甘特圖</span></h1>
+    <p class="lede">在瀏覽器裡排專案時程：用工作日估算任務、拉出前後相依，系統自動排出日期並避開週末與台灣國定假日。資料存在雲端，可以分享唯讀連結，也能邀請同事一起編輯。</p>
+    <div class="launch">
+      <a class="btn primary" href="https://s19800430-tech.github.io/ganttpro/gantt.html" target="_blank" rel="noopener">開啟 GanttPro ↗</a>
+      <button class="btn" id="copyUrl" type="button">複製網址</button>
+      <span class="url" id="appUrl">https://s19800430-tech.github.io/ganttpro/gantt.html</span>
+    </div>
+    <div class="ruler" aria-hidden="true">
+      <svg viewBox="0 0 760 132" role="img">
+        <g font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-3)">
+          <text x="10" y="14">5/4</text><text x="130" y="14">5/11</text><text x="250" y="14">5/18</text><text x="370" y="14">5/25</text><text x="490" y="14">6/1</text><text x="610" y="14">6/8</text>
+        </g>
+        <g stroke="var(--line)" stroke-width="1">
+          <line x1="10" y1="22" x2="10" y2="128"/><line x1="130" y1="22" x2="130" y2="128"/><line x1="250" y1="22" x2="250" y2="128"/><line x1="370" y1="22" x2="370" y2="128"/><line x1="490" y1="22" x2="490" y2="128"/><line x1="610" y1="22" x2="610" y2="128"/><line x1="730" y1="22" x2="730" y2="128"/>
+        </g>
+        <rect x="490" y="22" width="34" height="106" fill="var(--accent-soft)"/>
+        <rect x="10" y="32" width="170" height="16" rx="4" fill="var(--bar-a)"/>
+        <rect x="180" y="56" width="140" height="16" rx="4" fill="var(--bar-b)"/>
+        <rect x="180" y="80" width="200" height="16" rx="4" fill="var(--bar-c)"/>
+        <path d="M180 40 h-0 M180 40 C190 40, 172 64, 180 64" stroke="var(--ink-3)" fill="none" stroke-width="1.2"/>
+        <polygon points="430,104 440,114 430,124 420,114" fill="var(--bar-d)"/>
+        <path d="M380 88 C405 88, 400 114, 418 114" stroke="var(--ink-3)" fill="none" stroke-width="1.2"/>
+        <g font-family="Noto Sans TC, sans-serif" font-size="11.5" fill="var(--ink)">
+          <text x="186" y="44">需求定義 · 10 工作日</text>
+          <text x="326" y="68">系統設計</text>
+          <text x="386" y="92">韌體開發</text>
+          <text x="448" y="118">規格凍結 ◆</text>
+        </g>
+        <text x="493" y="128" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--accent)">今日</text>
+      </svg>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="toc" aria-label="目錄">
+      <div class="toc-title">目錄</div>
+      <ol>
+        <li><a href="#start">開始使用</a></li>
+        <li><a href="#ui">畫面總覽</a></li>
+        <li><a href="#projects">專案</a></li>
+        <li><a href="#tasks">任務</a></li>
+        <li><a href="#deps">相依關係</a></li>
+        <li><a href="#schedule">排程規則</a></li>
+        <li><a href="#views">檢視方式</a></li>
+        <li><a href="#baseline">基準線與版本</a></li>
+        <li><a href="#share">分享與協作</a></li>
+        <li><a href="#export">匯出</a></li>
+        <li><a href="#sync">儲存與同步</a></li>
+        <li><a href="#keys">快捷鍵</a></li>
+        <li><a href="#faq">常見問題</a></li>
+      </ol>
+    </nav>
+
+    <main>
+      <section id="start">
+        <h2><span class="no">01</span>開始使用</h2>
+        <p class="sub">支援 Chrome、Edge、Safari 最新版；手機可瀏覽，編輯建議用電腦。</p>
+        <ol class="steps">
+          <li>開啟 <a href="https://s19800430-tech.github.io/ganttpro/gantt.html" target="_blank" rel="noopener">GanttPro</a>，點「使用 Google 帳號登入」。</li>
+          <li>第一次登入會請你填寫<b>暱稱</b>（最多 20 字），按「完成註冊」後進入主畫面。</li>
+          <li>從左上角的專案選單選「＋ 建立新專案」，或直接使用既有專案。</li>
+        </ol>
+        <div class="grid2">
+          <div class="tile"><h4>Google 帳號登入</h4><p>資料存在雲端，換電腦、換瀏覽器都看得到；可以分享與協作。</p></div>
+          <div class="tile"><h4>訪客模式</h4><p>不需登入，資料只存在這台電腦的這個瀏覽器，不會上傳，也無法分享或協作。適合先試用。</p></div>
+        </div>
+        <div class="note warn"><b>共用電腦請記得登出。</b>按右上角「登出」後，這台電腦上屬於你的暫存資料會一併清除。</div>
+      </section>
+
+      <section id="ui">
+        <h2><span class="no">02</span>畫面總覽</h2>
+        <p class="sub">上方是工具列，左側是任務表格，右側是甘特圖，兩邊上下捲動會同步。</p>
+        <div class="tbl"><table>
+          <thead><tr><th>工具列按鈕</th><th>用途</th></tr></thead>
+          <tbody>
+            <tr><td>專案選單</td><td>切換、建立、編輯（✎）、刪除（✕）專案。別人分享給你的專案會標示「共享」。</td></tr>
+            <tr><td>🔗</td><td>產生唯讀分享連結。</td></tr>
+            <tr><td>＋ 新增任務</td><td>開啟任務視窗新增任務、里程碑或群組。</td></tr>
+            <tr><td>↩ 復原</td><td>復原上一步（最多 50 步，切換專案後重算）。</td></tr>
+            <tr><td>📍 今日</td><td>捲動到今天。</td></tr>
+            <tr><td>⊞ 全展開 / ⊟ 全收合</td><td>展開或收合所有群組。</td></tr>
+            <tr><td>甘特圖 / ◆ 里程碑 / 工作量</td><td>切換三種檢視，見〈檢視方式〉。</td></tr>
+            <tr><td>− ＋ ⛶</td><td>縮小、放大時間軸；⛶ 縮放到整個專案剛好放進視窗。</td></tr>
+            <tr><td>◆ 關鍵路徑</td><td>標示出決定專案完工日的那串任務。</td></tr>
+            <tr><td>⬇ 匯出</td><td>PNG、PDF、CSV。</td></tr>
+            <tr><td>👥 協作</td><td>管理誰能看、誰能編輯你的專案。</td></tr>
+            <tr><td>🌙</td><td>深色模式。</td></tr>
+            <tr><td>⚙ 設定</td><td>顯示 Bar 日期、顯示基準線、設定基準線、版本紀錄。</td></tr>
+            <tr><td>同步燈號</td><td>雲端儲存狀態，見〈儲存與同步〉。</td></tr>
+          </tbody>
+        </table></div>
+        <p>畫面最下方的狀態列會顯示已完成、待完成、里程碑數量，以及今天日期與專案期間。</p>
+      </section>
+
+      <section id="projects">
+        <h2><span class="no">03</span>專案</h2>
+        <h3>建立專案</h3>
+        <ol class="steps">
+          <li>專案選單 →「＋ 建立新專案」。</li>
+          <li>輸入專案名稱與開始日期。</li>
+          <li>「套用範本」可選<b>硬體產品開發與量產標準流程</b>，會自動帶入需求定義 → 概念設計 → 詳細設計 → EVT → DVT → PVT → MP 共 7 個階段、22 個任務、7 個里程碑；選「空白專案」則從零開始。</li>
+          <li>按「建立專案」。專案顏色會依色盤自動分配。</li>
+        </ol>
+        <p>名稱和既有專案重複時會提醒你，避免在選單裡搞混。</p>
+        <h3>編輯與刪除</h3>
+        <p>在專案選單點專案旁的 ✎ 可以改名稱與開始日期；點 ✕ 刪除。<b>刪除後無法復原</b>，雲端上的版本紀錄也會一起刪除。</p>
+      </section>
+
+      <section id="tasks">
+        <h2><span class="no">04</span>任務</h2>
+        <p class="sub">任務有三種類型：一般任務、里程碑、群組。群組最多 5 層。</p>
+        <div class="tbl"><table>
+          <thead><tr><th>類型</th><th>說明</th><th>甘特圖上的樣子</th></tr></thead>
+          <tbody>
+            <tr><td>一般任務</td><td>有工作日數，日期由排程自動算出</td><td>橫條</td></tr>
+            <tr><td>里程碑</td><td>沒有工期的檢查點，例如「規格凍結」</td><td>菱形 ◆</td></tr>
+            <tr><td>群組</td><td>把任務分階段，期間與進度由底下任務自動彙總</td><td>彙總條</td></tr>
+          </tbody>
+        </table></div>
+        <h3>新增任務</h3>
+        <ul>
+          <li>按工具列「＋ 新增任務」，或按快捷鍵 <kbd>N</kbd>。</li>
+          <li>在甘特圖空白處<b>雙擊</b>：會以點擊的那一天（遇假日順延到下個工作日）當作開始日。</li>
+          <li>滑鼠移到群組列，點「在此節點下新增任務」直接加在該群組底下。</li>
+        </ul>
+        <p>任務視窗的欄位：名稱、類型、父群組、工作日數、前置任務、負責人、進度 %、已完成。</p>
+        <h3>直接在表格裡編輯</h3>
+        <ul>
+          <li>點名稱、日期、工作日、前置任務儲存格即可修改，<kbd>Enter</kbd> 確認、<kbd>Esc</kbd> 取消。</li>
+          <li>點日期儲存格會直接跳出日曆。</li>
+          <li>勾選「完成」欄，任務會加上刪除線，進度視為 100%。</li>
+          <li>列上的「降階」把任務縮進前一個同層任務底下；「升階」移回上一層。</li>
+          <li>按住列拖曳可以調整順序。</li>
+        </ul>
+        <h3>在甘特圖上拖拉</h3>
+        <ul>
+          <li>拖曳橫條中段：整條移動，工作日數不變。</li>
+          <li>拖曳橫條右端：調整結束日，工作日數跟著改。</li>
+          <li>拖曳里程碑：移動日期。</li>
+        </ul>
+        <div class="note">拖拉過、或在任務視窗指定過日期的任務會<b>固定開始日</b>（日期旁出現小圓點）。固定只對<b>沒有前置任務</b>的任務有效；有前置任務時，開始日仍依前置任務推算，要提前或延後請改前置任務或延遲天數。</div>
+      </section>
+
+      <section id="deps">
+        <h2><span class="no">05</span>相依關係</h2>
+        <p class="sub">在「前置任務」欄輸入<b>列號</b>（表格最左邊的數字），多個用逗號分隔。</p>
+        <div class="tbl"><table>
+          <thead><tr><th>寫法</th><th>意思</th></tr></thead>
+          <tbody>
+            <tr><td><code>2</code> 或 <code>2FS</code></td><td>第 2 列<b>完成</b>後，本任務才<b>開始</b>（最常用）</td></tr>
+            <tr><td><code>2SS</code></td><td>第 2 列<b>開始</b>時，本任務一起<b>開始</b></td></tr>
+            <tr><td><code>2FF</code></td><td>第 2 列<b>完成</b>時，本任務一起<b>完成</b></td></tr>
+            <tr><td><code>2SF</code></td><td>第 2 列<b>開始</b>後，本任務才<b>完成</b></td></tr>
+            <tr><td><code>2FS+3</code></td><td>第 2 列完成後再等 3 個工作日才開始（延遲）</td></tr>
+            <tr><td><code>2SS-1</code></td><td>比第 2 列早 1 個工作日開始（提前）</td></tr>
+            <tr><td><code>3, 5SS, 7FS+2</code></td><td>同時設定多個前置任務</td></tr>
+          </tbody>
+        </table></div>
+        <div class="diagram" aria-label="四種相依關係示意">
+          <svg viewBox="0 0 640 196">
+            <g>
+              <text x="0" y="22">FS</text>
+              <rect x="40" y="10" width="160" height="16" rx="4" fill="var(--bar-a)"/>
+              <rect x="200" y="34" width="140" height="16" rx="4" fill="var(--bar-b)"/>
+              <path d="M200 18 C214 18, 190 42, 200 42" stroke="var(--ink-3)" fill="none"/>
+              <text x="350" y="46">前一個完成 → 本任務開始</text>
+            </g>
+            <g transform="translate(0,52)">
+              <text x="0" y="22">SS</text>
+              <rect x="40" y="10" width="160" height="16" rx="4" fill="var(--bar-a)"/>
+              <rect x="40" y="34" width="120" height="16" rx="4" fill="var(--bar-c)"/>
+              <path d="M40 18 C26 18, 26 42, 40 42" stroke="var(--ink-3)" fill="none"/>
+              <text x="350" y="46">一起開始</text>
+            </g>
+            <g transform="translate(0,104)">
+              <text x="0" y="22">FF</text>
+              <rect x="40" y="10" width="160" height="16" rx="4" fill="var(--bar-a)"/>
+              <rect x="110" y="34" width="90" height="16" rx="4" fill="var(--bar-d)"/>
+              <path d="M200 18 C214 18, 214 42, 200 42" stroke="var(--ink-3)" fill="none"/>
+              <text x="350" y="46">一起完成</text>
+            </g>
+            <g transform="translate(0,156)">
+              <text x="0" y="22">+3</text>
+              <rect x="40" y="10" width="160" height="16" rx="4" fill="var(--bar-a)"/>
+              <rect x="200" y="22" width="60" height="4" rx="2" fill="var(--line)"/>
+              <rect x="260" y="20" width="80" height="16" rx="4" fill="var(--bar-b)"/>
+              <text x="350" y="32">完成後延遲 3 個工作日才開始</text>
+            </g>
+          </svg>
+        </div>
+        <p>輸入時下方會即時提示每一筆是否正確，例如「✓ 3FS・產品規格制定」或「✕ 格式錯誤」。也可以從清單直接點選任務與關係類型。滑鼠移到任務上，相關的箭頭會一起亮起。</p>
+      </section>
+
+      <section id="schedule">
+        <h2><span class="no">06</span>排程規則</h2>
+        <ul>
+          <li>工期一律用<b>工作日</b>計算，自動跳過週六、週日。</li>
+          <li>內建<b>台灣國定假日</b>（依行政院人事行政總處辦公日曆表，2025–2027 年），含補假與補班調整。</li>
+          <li>有前置任務的任務，開始日依相依關係推算。</li>
+          <li>沒有前置任務的任務：有固定日期就用固定日期，否則從專案開始日起算。</li>
+          <li>改了工作日數或前置任務，後面所有相關任務會自動重排。</li>
+                    <li>超過今天仍未完成的任務會以逾期樣式標示，滑鼠提示也會顯示「⚠ 已逾期」。</li>
+        </ul>
+      </section>
+
+      <section id="views">
+        <h2><span class="no">07</span>檢視方式</h2>
+        <div class="grid2">
+          <div class="tile"><h4>甘特圖</h4><p>預設檢視。可切換日、週、月刻度（快捷鍵 <kbd>D</kbd> <kbd>W</kbd> <kbd>M</kbd>）。</p></div>
+          <div class="tile"><h4>◆ 里程碑</h4><p>只看里程碑，排在同一條時間軸上，適合向主管報告。</p></div>
+          <div class="tile"><h4>工作量</h4><p>依負責人列出每天手上有幾項任務：1 項淺色、2 項較深、3 項以上標紅，用來找出誰被排太滿。</p></div>
+          <div class="tile"><h4>◆ 關鍵路徑</h4><p>標示出任何一項延誤就會讓整個專案延後的任務。</p></div>
+        </div>
+        <p>⚙ 設定裡的「顯示 Bar 日期」可以在橫條旁顯示起訖日期。</p>
+      </section>
+
+      <section id="baseline">
+        <h2><span class="no">08</span>基準線與版本紀錄</h2>
+        <h3>基準線</h3>
+        <p>計畫核定時，到 ⚙ 設定按「📐 設定基準線」，系統會記下當下每個任務的日期。之後勾選「顯示基準線」，每條橫條下方會多一條灰線代表原計畫；滑鼠提示會顯示「基準偏差 +3 工作日」這類資訊，一眼看出哪些任務延誤。重新設定基準線會覆蓋舊的。</p>
+        <h3>版本紀錄</h3>
+        <ol class="steps">
+          <li>⚙ 設定 →「🕐 版本紀錄」。</li>
+          <li>輸入版本名稱，例如 <code>v1.0 需求確認</code>，按「建立版本」。</li>
+          <li>需要時點「還原此版本」回到當時的任務內容。</li>
+        </ol>
+        <div class="note warn"><b>還原會覆蓋目前的任務內容。</b>還原前建議先建立一個目前狀態的版本。</div>
+      </section>
+
+      <section id="share">
+        <h2><span class="no">09</span>分享與協作</h2>
+        <p class="sub">兩種方式：給外部看的唯讀連結，以及給同事的帳號權限。</p>
+        <h3>唯讀分享連結</h3>
+        <ol class="steps">
+          <li>按工具列 🔗，按「複製連結」。</li>
+          <li>把連結傳給對方。對方<b>不需要登入</b>就能瀏覽，但無法編輯。</li>
+        </ol>
+        <p>連結內容是按下 🔗 當下的快照。專案更新後要讓對方看到最新內容，請重新按 🔗 再傳一次。</p>
+        <h3>邀請同事協作</h3>
+        <ol class="steps">
+          <li>按工具列「👥 協作」，選要分享的專案。</li>
+          <li>輸入對方的 Gmail，選「唯讀」或「共同編輯」，按「加入」。</li>
+          <li>對方用該 Gmail 登入並完成註冊後，專案選單會出現這個專案，並標示「共享」。</li>
+        </ol>
+        <div class="tbl"><table>
+          <thead><tr><th>角色</th><th>看得到</th><th>可以做</th></tr></thead>
+          <tbody>
+            <tr><td>擁有者</td><td>自己的專案</td><td>全部，包含邀請、移除成員與刪除專案</td></tr>
+            <tr><td>共同編輯</td><td>被分享的那個專案</td><td>編輯任務與專案內容；不能邀請別人、不能刪除專案</td></tr>
+            <tr><td>唯讀</td><td>被分享的那個專案</td><td>只能瀏覽與匯出</td></tr>
+          </tbody>
+        </table></div>
+        <p>多人同時編輯同一個專案時，系統會把雙方的修改合併，不會互相覆蓋；別人的修改會即時出現在你的畫面上，右下角會提示「其他用戶已更新資料」。在協作視窗按成員旁的 ✕ 可以隨時移除權限，對方畫面上的專案會立刻消失。</p>
+      </section>
+
+      <section id="export">
+        <h2><span class="no">10</span>匯出</h2>
+        <div class="tbl"><table>
+          <thead><tr><th>格式</th><th>內容</th><th>適合</th></tr></thead>
+          <tbody>
+            <tr><td>🖼 PNG</td><td>目前甘特圖或里程碑檢視的圖片</td><td>貼進簡報、通訊軟體</td></tr>
+            <tr><td>📄 PDF</td><td>開啟列印視窗，固定用淺色版面</td><td>正式文件、紙本</td></tr>
+            <tr><td>📊 CSV</td><td>編號、任務名稱、類型、負責人、起訖日、工作日、進度、前置任務、完成</td><td>用 Excel 再加工</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="sync">
+        <h2><span class="no">11</span>儲存與同步</h2>
+        <p class="sub">所有修改都會自動儲存，沒有「儲存」按鈕。</p>
+        <div class="tbl"><table>
+          <thead><tr><th>同步燈號</th><th>意思</th></tr></thead>
+          <tbody>
+            <tr><td><span class="dot" style="background:var(--ok)"></span>已同步</td><td>雲端與畫面一致</td></tr>
+            <tr><td><span class="dot" style="background:var(--warn)"></span>儲存中</td><td>正在寫入雲端，通常不到一秒</td></tr>
+            <tr><td><span class="dot" style="background:var(--err)"></span>同步失敗</td><td>暫時寫不進雲端，系統會每 15 秒自動重試</td></tr>
+            <tr><td><span class="dot" style="background:var(--ink-3)"></span>唯讀模式／本地模式</td><td>正在看唯讀專案，或使用訪客模式（只存在本機）</td></tr>
+          </tbody>
+        </table></div>
+        <p>網路中斷時，畫面頂端會出現黃色提示，並暫時以<b>唯讀</b>顯示這台電腦上的最後一份資料，避免用舊資料蓋掉雲端；連線恢復後會自動回到可編輯狀態，也可以按提示上的「重試」。</p>
+      </section>
+
+      <section id="keys">
+        <h2><span class="no">12</span>快捷鍵</h2>
+        <p class="sub">在輸入框裡打字時快捷鍵不會作用。</p>
+        <div class="tbl"><table>
+          <thead><tr><th>按鍵</th><th>動作</th></tr></thead>
+          <tbody>
+            <tr><td><kbd>N</kbd></td><td>新增任務</td></tr>
+            <tr><td><kbd>T</kbd></td><td>跳到今天</td></tr>
+            <tr><td><kbd>D</kbd> <kbd>W</kbd> <kbd>M</kbd></td><td>時間刻度切換為日、週、月</td></tr>
+            <tr><td><kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td>復原</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>關閉目前的視窗或選單</td></tr>
+            <tr><td><kbd>Enter</kbd></td><td>確認表格內的編輯</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="faq">
+        <h2><span class="no">13</span>常見問題</h2>
+        <h3>為什麼任務日期改不動？</h3>
+        <p>有前置任務的任務，開始日由前置任務決定，手動改的日期會被重新推算。請改前置任務或加延遲天數（例如 <code>2FS+3</code>）。沒有前置任務的任務可以直接改日期，或在甘特圖上拖拉橫條。</p>
+        <h3>同事說看不到我分享的專案？</h3>
+        <p>確認輸入的 Gmail 和對方登入用的帳號完全相同，且對方已完成暱稱註冊。對方重新整理頁面後就會出現。</p>
+        <h3>訪客模式的資料能搬到帳號裡嗎？</h3>
+        <p>目前不會自動搬移。可以先匯出 CSV 留存，登入後再重建。</p>
+        <h3>換了一台電腦，資料還在嗎？</h3>
+        <p>用同一個 Google 帳號登入就在。訪客模式的資料只存在原本那台電腦的瀏覽器。</p>
+        <h3>不小心刪錯任務？</h3>
+        <p>馬上按 <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Z</kbd> 復原。刪除整個專案則無法復原，請先建立版本或匯出備份。</p>
+      </section>
+
+      <footer>
+        <span>GanttPro 產品說明書 · 2026-10</span>
+        <span>原始碼：<a href="https://github.com/s19800430-tech/ganttpro" target="_blank" rel="noopener">github.com/s19800430-tech/ganttpro</a></span>
+      </footer>
+    </main>
+  </div>
+</div>
+
+<script>
+(function () {
+  const btn = document.getElementById('copyUrl');
+  const url = document.getElementById('appUrl');
+  btn.addEventListener('click', () => {
+    const text = url.textContent.trim();
+    const done = () => { btn.textContent = '已複製'; setTimeout(() => { btn.textContent = '複製網址'; }, 1600); };
+    try {
+      navigator.clipboard.writeText(text).then(done).catch(selectIt);
+    } catch (e) { selectIt(); }
+    function selectIt() {
+      const r = document.createRange(); r.selectNodeContents(url);
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      btn.textContent = '已選取，請按 ⌘C';
+    }
+  });
+})();
+</script>
+</body>
+</html>
