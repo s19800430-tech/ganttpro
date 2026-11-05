@@ -1,0 +1,4 @@
+node_modules/
+*.corrupt
+firebase-debug.log
+firestore-debug.log
