@@ -4535,9 +4535,33 @@ function snapToWorkday(dateStr, dir) {
 
 let _unscheduledWarnKey = '';
 
+// 有子項目的一般任務或里程碑一律轉成群組：起訖日期改由子項目決定。
+// 原本的前置任務轉給底下沒有前置任務的直屬子項目，讓排程關係不會斷掉。
+const DEP_KEYS = ['deps', 'sdeps', 'ffdeps', 'sfdeps'];
+function promoteParentsToGroups() {
+  const parentIds = new Set(tasks.map(t => t.parent).filter(id => id !== null && id !== undefined));
+  let promoted = 0;
+  tasks.forEach(t => {
+    if (t.type === 'group' || !parentIds.has(t.id)) return;
+    const inherited = DEP_KEYS.filter(k => (t[k] || []).length);
+    if (inherited.length) {
+      tasks.filter(c => c.parent === t.id && c.type !== 'group').forEach(c => {
+        if (DEP_KEYS.some(k => (c[k] || []).length)) return;
+        inherited.forEach(k => { c[k] = [...t[k]]; });
+        if (t.lags) c.lags = { ...t.lags };
+      });
+    }
+    t.type = 'group';
+    ['wday', 'start', 'end', 'date', 'done', 'progress', 'pinStart', 'lags', ...DEP_KEYS].forEach(k => delete t[k]);
+    promoted++;
+  });
+  return promoted;
+}
+
 function scheduleTasks() {
   const projStart = curProj().startDate;
   if (!projStart) return;
+  if (promoteParentsToGroups()) showStatus('有子項目的任務已自動轉成群組，起訖日期改由子項目決定');
   // Ensure all tasks have wday
   tasks.forEach(t => {
     if (t.type === 'task' && !t.wday)
