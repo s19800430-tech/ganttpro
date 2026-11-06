@@ -202,7 +202,7 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
     <main>
       <section id="start">
         <h2><span class="no">01</span>開始使用</h2>
-        <p class="sub">支援 Chrome、Edge、Safari 最新版；手機可瀏覽，編輯建議用電腦。</p>
+        <p class="sub">支援 Chrome、Edge、Safari 最新版。建議用電腦操作；手機和窄螢幕可以瀏覽，但畫面空間有限。</p>
         <ol class="steps">
           <li>開啟 <a href="https://s19800430-tech.github.io/ganttpro/gantt.html" target="_blank" rel="noopener">GanttPro</a>，點「使用 Google 帳號登入」。</li>
           <li>第一次登入會請你填寫<b>暱稱</b>（最多 20 字），按「完成註冊」後進入主畫面。</li>
@@ -275,9 +275,10 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
         <h3>直接在表格裡編輯</h3>
         <ul>
           <li>點名稱、日期、工作日、前置任務儲存格即可修改，<kbd>Enter</kbd> 確認、<kbd>Esc</kbd> 取消。</li>
+          <li>要改<b>類型</b>（例如把一般任務改成里程碑）、父群組、負責人、進度等，點列尾的 <b>✎</b> 打開編輯視窗。</li>
           <li>點日期儲存格會直接跳出日曆。</li>
           <li>勾選「完成」欄，任務會加上刪除線，進度視為 100%。</li>
-          <li>列上的「降階」把任務縮進前一個同層任務底下；「升階」移回上一層。</li>
+          <li>列上的「→ 降階」把任務放到上一列底下；「← 升階」移回上一層。如果上一列是一般任務，它會<b>自動變成群組</b>，起訖日期改由底下的任務決定，原本的前置任務也會轉給底下的任務。</li>
           <li>按住列拖曳可以調整順序。</li>
         </ul>
         <h3>在甘特圖上拖拉</h3>
@@ -286,7 +287,7 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
           <li>拖曳橫條右端：調整結束日，工作日數跟著改。</li>
           <li>拖曳里程碑：移動日期。</li>
         </ul>
-        <div class="note">拖拉過、或在任務視窗指定過日期的任務會<b>固定開始日</b>（日期旁出現小圓點）。固定日期代表「不早於這天開始」：有前置任務時，前置任務決定最早可開始的日期，固定日期只能比它更晚，不能更早。</div>
+        <div class="note">拖拉過、或在任務視窗指定過日期的任務會<b>固定開始日</b>（日期旁出現小圓點）。固定日期代表「不早於這天開始」：有前置任務時，前置任務決定最早可開始的日期，固定日期只能比它更晚，不能更早。要恢復由排程決定，<b>點日期旁的小圓點</b>即可解除固定。</div>
       </section>
 
       <section id="deps">
@@ -356,7 +357,7 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
         <h2><span class="no">07</span>檢視方式</h2>
         <div class="grid2">
           <div class="tile"><h4>甘特圖</h4><p>預設檢視。可切換日、週、月刻度（快捷鍵 <kbd>D</kbd> <kbd>W</kbd> <kbd>M</kbd>）。</p></div>
-          <div class="tile"><h4>◆ 里程碑</h4><p>只看里程碑，排在同一條時間軸上，適合向主管報告。</p></div>
+          <div class="tile"><h4>◆ 里程碑</h4><p>只看里程碑（含已完成的），排在同一條時間軸上，適合向主管報告。</p></div>
           <div class="tile"><h4>工作量</h4><p>依負責人列出每天手上有幾項任務：1 項淺色、2 項較深、3 項以上標紅，用來找出誰被排太滿。</p></div>
           <div class="tile"><h4>◆ 關鍵路徑</h4><p>標示出任何一項延誤就會讓整個專案延後的任務。</p></div>
         </div>
@@ -373,7 +374,7 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
           <li>輸入版本名稱，例如 <code>v1.0 需求確認</code>，按「建立版本」。</li>
           <li>需要時點「還原此版本」回到當時的任務內容。共同編輯者可以建立版本，但只有擁有者可以刪除版本。</li>
         </ol>
-        <div class="note warn"><b>還原會覆蓋目前的任務內容。</b>還原前建議先建立一個目前狀態的版本。</div>
+        <div class="note warn"><b>還原會取代目前的任務內容。</b>還原後馬上按 ⌘Z／Ctrl+Z 可以復原；保險起見，還原前先建立一個目前狀態的版本。</div>
       </section>
 
       <section id="share">
