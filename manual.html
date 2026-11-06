@@ -189,6 +189,7 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
         <li><a href="#tasks">任務</a></li>
         <li><a href="#deps">相依關係</a></li>
         <li><a href="#schedule">排程規則</a></li>
+        <li><a href="#overtime">加班日</a></li>
         <li><a href="#views">檢視方式</a></li>
         <li><a href="#baseline">基準線與版本</a></li>
         <li><a href="#share">分享與協作</a></li>
@@ -233,7 +234,7 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
             <tr><td>⬇ 匯出</td><td>PNG、PDF、CSV。</td></tr>
             <tr><td>👥 協作</td><td>管理誰能看、誰能編輯你的專案。</td></tr>
             <tr><td>🌙</td><td>深色模式。</td></tr>
-            <tr><td>⚙ 設定</td><td>顯示 Bar 日期、顯示基準線、設定基準線、版本紀錄。</td></tr>
+            <tr><td>⚙ 設定</td><td>顯示 Bar 日期、顯示基準線、設定基準線、加班日、版本紀錄。</td></tr>
             <tr><td>同步燈號</td><td>雲端儲存狀態，見〈儲存與同步〉。</td></tr>
           </tbody>
         </table></div>
@@ -343,7 +344,7 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
       <section id="schedule">
         <h2><span class="no">06</span>排程規則</h2>
         <ul>
-          <li>工期一律用<b>工作日</b>計算，自動跳過週六、週日。</li>
+          <li>工期一律用<b>工作日</b>計算，自動跳過週六、週日；設為<b>加班日</b>的假日例外（見下方）。</li>
           <li>內建<b>台灣國定假日</b>（依行政院人事行政總處辦公日曆表，2025–2027 年），含補假與補班調整。</li>
           <li>有前置任務的任務，開始日依相依關係推算。</li>
           <li>沒有前置任務的任務：有固定日期就用固定日期，否則從專案開始日起算。有前置任務又有固定日期時，取兩者中較晚的。</li>
@@ -353,8 +354,20 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
         </ul>
       </section>
 
+      <section id="overtime">
+        <h2><span class="no">07</span>加班日</h2>
+        <p class="sub">整個專案在某個週末或國定假日照常上工時使用。只影響目前這個專案。</p>
+        <ol class="steps">
+          <li>⚙ 設定 →「🗓 加班日」，選日期、填原因（選填），按「加入」。</li>
+          <li>或在日刻度（快捷鍵 <kbd>D</kbd>）上<b>雙擊灰色的假日格</b>，直接設為加班日；再雙擊一次可以取消。</li>
+        </ol>
+        <p>加班日在甘特圖上以<b>橘色斜線</b>標示，日刻度顯示「加」，滑鼠移上去可看到原因。設定後，橫跨那天的任務會提早完成，後續任務跟著提前；畫面下方會告訴你有幾個任務的日期改變。</p>
+        <div class="note warn"><b>加班日會改動既有時程。</b>要跟原計畫比較，請先設定基準線再加入加班日。加錯了可以按 ↩ 復原，或在加班日清單按 ✕ 移除。</div>
+        <p>只有某幾個任務要假日施工、其他任務照常休假的情況，目前請以調整那幾個任務的工作日數處理。</p>
+      </section>
+
       <section id="views">
-        <h2><span class="no">07</span>檢視方式</h2>
+        <h2><span class="no">08</span>檢視方式</h2>
         <div class="grid2">
           <div class="tile"><h4>甘特圖</h4><p>預設檢視。可切換日、週、月刻度（快捷鍵 <kbd>D</kbd> <kbd>W</kbd> <kbd>M</kbd>）。</p></div>
           <div class="tile"><h4>◆ 里程碑</h4><p>只看里程碑（含已完成的），排在同一條時間軸上，適合向主管報告。</p></div>
@@ -365,7 +378,7 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
       </section>
 
       <section id="baseline">
-        <h2><span class="no">08</span>基準線與版本紀錄</h2>
+        <h2><span class="no">09</span>基準線與版本紀錄</h2>
         <h3>基準線</h3>
         <p>計畫核定時，到 ⚙ 設定按「📐 設定基準線」，系統會記下當下每個任務的日期。之後勾選「顯示基準線」，每條橫條下方會多一條灰線代表原計畫；滑鼠提示會顯示「基準偏差 +3 工作日」這類資訊，一眼看出哪些任務延誤。重新設定基準線會覆蓋舊的。</p>
         <h3>版本紀錄</h3>
@@ -378,7 +391,7 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
       </section>
 
       <section id="share">
-        <h2><span class="no">09</span>分享與協作</h2>
+        <h2><span class="no">10</span>分享與協作</h2>
         <p class="sub">兩種方式：給外部看的唯讀連結，以及給同事的帳號權限。</p>
         <h3>唯讀分享連結</h3>
         <ol class="steps">
@@ -404,7 +417,7 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
       </section>
 
       <section id="export">
-        <h2><span class="no">10</span>匯出</h2>
+        <h2><span class="no">11</span>匯出</h2>
         <div class="tbl"><table>
           <thead><tr><th>格式</th><th>內容</th><th>適合</th></tr></thead>
           <tbody>
@@ -416,7 +429,7 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
       </section>
 
       <section id="sync">
-        <h2><span class="no">11</span>儲存與同步</h2>
+        <h2><span class="no">12</span>儲存與同步</h2>
         <p class="sub">所有修改都會自動儲存，沒有「儲存」按鈕。</p>
         <div class="tbl"><table>
           <thead><tr><th>同步燈號</th><th>意思</th></tr></thead>
@@ -431,7 +444,7 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
       </section>
 
       <section id="keys">
-        <h2><span class="no">12</span>快捷鍵</h2>
+        <h2><span class="no">13</span>快捷鍵</h2>
         <p class="sub">在輸入框裡打字時快捷鍵不會作用。</p>
         <div class="tbl"><table>
           <thead><tr><th>按鍵</th><th>動作</th></tr></thead>
@@ -447,7 +460,7 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
       </section>
 
       <section id="faq">
-        <h2><span class="no">13</span>常見問題</h2>
+        <h2><span class="no">14</span>常見問題</h2>
         <h3>為什麼任務日期改不動？</h3>
         <p>有前置任務的任務，開始日不能早於前置任務允許的日期；改成更早的日期會被推回去。要提前請改前置任務或延遲天數（例如 <code>2FS-1</code>）；要延後可以直接改日期或拖拉橫條。</p>
         <h3>同事說看不到我分享的專案？</h3>
