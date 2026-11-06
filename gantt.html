@@ -966,6 +966,17 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 
 /* ── PRINT / PDF EXPORT ── */
 #printHeader{display:none}
+/* ── 窄螢幕：工具列換行，左側任務表格縮窄，讓甘特圖至少看得到一部分 ── */
+@media (max-width: 1100px){
+  .toolbar{height:auto;min-height:var(--toolbar);flex-wrap:wrap;row-gap:6px;padding-top:6px;padding-bottom:6px}
+}
+@media (max-width: 760px){
+  /* 表格欄位比面板寬：整個面板一起橫向捲動，標題列和內容才會對齊，也不會蓋到甘特圖 */
+  .task-panel{width:58vw !important;min-width:58vw !important;overflow-x:auto;overflow-y:hidden}
+  .task-panel > *{min-width:max-content}
+  .chart-panel{min-width:0;flex:1}
+  .toolbar .btn{padding-left:8px;padding-right:8px}
+}
 @media print{
   @page{size:A4 landscape;margin:1.2cm 1cm}
   body{background:#fff!important;color:#000!important}
@@ -1021,7 +1032,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
         <hr style="flex:1;border:none;border-top:1px solid var(--border)">
       </div>
       <button onclick="signInAsGuest()" style="width:100%;padding:10px 0;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--t2);font-size:13px;font-family:inherit;cursor:pointer;transition:background .15s" onmouseover="this.style.background='var(--s-hover)'" onmouseout="this.style.background='transparent'">
-        本地模式（不同步雲端）
+        訪客模式（資料只存在這台電腦，不同步雲端）
       </button>
     </div>
 
@@ -1051,9 +1062,9 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
     <span class="proj-sel-arrow">▾</span>
     <div class="proj-menu" id="projMenu" onclick="event.stopPropagation()"></div>
   </div>
-  <button class="btn btn-owner-only proj-share-btn" onclick="openCollabModal()" title="共享此專案">🔗</button>
+  <button class="btn btn-owner-only proj-share-btn" onclick="openShareModal()" title="產生唯讀分享連結">🔗</button>
   <div class="sep"></div>
-  <button class="btn btn-primary" onclick="openModal()" style="display:none">＋ 新增任務</button>
+  <button class="btn btn-primary" onclick="openModal()">＋ 新增任務</button>
   <button class="btn" id="undoBtn" onclick="undo()" title="復原 (⌘Z)" disabled>↩ 復原</button>
   <button class="btn" onclick="scrollToToday()" title="跳至今日">📍 今日</button>
   <button class="btn" onclick="expandAll()">⊞ 全展開</button>
@@ -1234,14 +1245,14 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
   <div class="stat"><div class="stat-dot" style="background:#5E6AD2"></div>里程碑 <b id="sMilestone">0</b></div>
   <div class="spacer"></div>
   <div class="stat">今日：<b id="sTodayDisplay"></b></div>
-  <div class="stat">專案期間：<b id="sPeriod">2026-04-01 — 2026-07-31</b></div>
+  <div class="stat">專案期間：<b id="sPeriod">—</b></div>
 </div>
 
 <!-- DELETE CONFIRM MODAL -->
 <div class="overlay" id="deleteOverlay" onclick="closeDeleteModal(event)">
   <div class="modal" onclick="event.stopPropagation()" style="width:320px;padding:20px 20px 16px">
     <div class="modal-title" style="font-size:14px;margin-bottom:6px">刪除任務</div>
-    <p id="deleteModalMsg" style="font-size:12px;color:var(--t3);margin:0 0 18px;line-height:1.5">此操作無法復原。</p>
+    <p id="deleteModalMsg" style="font-size:12px;color:var(--t3);margin:0 0 18px;line-height:1.5">刪錯了可以按「↩ 復原」或 ⌘Z／Ctrl+Z 救回。</p>
     <div style="display:flex;justify-content:flex-end;gap:8px">
       <button onclick="closeDeleteModal()" style="height:28px;padding:0 12px;border-radius:5px;font-size:12px;border:1px solid var(--border);background:var(--surface);color:var(--t2);cursor:pointer">取消</button>
       <button id="deleteConfirmBtn" style="height:28px;padding:0 12px;border-radius:5px;font-size:12px;border:none;background:var(--red);color:#fff;cursor:pointer">刪除</button>
@@ -1742,21 +1753,35 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+// 列號固定依「全展開的甘特圖順序」計算，不受收合群組或里程碑檢視影響，
+// 否則收合後前置任務的列號會變，存檔時相依關係會被弄丟或連錯任務
+function getAllRows() {
+  const rows = [];
+  const seen = new Set();
+  (function add(parentId, depth) {
+    tasks.forEach(t => {
+      if (t.parent !== parentId || seen.has(t.id)) return;
+      seen.add(t.id);
+      rows.push({ task: t, depth });
+      add(t.id, depth + 1);
+    });
+  })(null, 0);
+  return rows;
+}
+
 function getRowNum(taskId) {
-  const rows = getVisibleRows();
-  const idx = rows.findIndex(r => r.task.id === taskId);
+  const idx = getAllRows().findIndex(r => r.task.id === taskId);
   return idx >= 0 ? idx + 1 : null;
 }
 
 function getTaskByRowNum(num) {
-  const rows = getVisibleRows();
-  return rows[num - 1]?.task ?? null;
+  return getAllRows()[num - 1]?.task ?? null;
 }
 
 function getVisibleRows() {
   if (milestoneView) {
     return tasks
-      .filter(t => t.type === 'milestone' && !t.done)
+      .filter(t => t.type === 'milestone')
       .sort((a, b) => (a.date || '') < (b.date || '') ? -1 : 1)
       .map(t => ({ task: t, depth: 0 }));
   }
@@ -1809,6 +1834,7 @@ function groupProgress(id) {
 ═══════════════════════════════════════════ */
 function renderTaskPanel() {
   const rows = getVisibleRows();
+  const rowNumOf = new Map(getAllRows().map((r, i) => [r.task.id, i + 1]));
   const body = document.getElementById('taskBody');
   body.innerHTML = '';
   document.getElementById('taskCount').textContent = tasks.filter(t => t.type === 'task').length;
@@ -1907,7 +1933,7 @@ function renderTaskPanel() {
 
     const numSpan = document.createElement('span');
     numSpan.className = 'row-num';
-    numSpan.textContent = rowIndex + 1;
+    numSpan.textContent = rowNumOf.get(task.id) ?? rowIndex + 1;
     nc.appendChild(numSpan);
 
     const nm = document.createElement('span');
@@ -1949,18 +1975,16 @@ function renderTaskPanel() {
     } else {
       const sv = task.start || task.date || '';
       if (task.pinStart && sv) {
-        sc.innerHTML = '<span class="pin-dot"></span>' + escHtml(sv);
-        sc.title = '固定日期，不隨排程自動移動';
+        sc.innerHTML = '<span class="pin-dot" title="已固定：不早於這天開始。點小圓點解除固定"></span>' + escHtml(sv);
+        sc.title = '已固定：不早於這天開始（點左邊小圓點可解除）';
+        sc.querySelector('.pin-dot').addEventListener('click', e => { e.stopPropagation(); unpinTask(task.id); });
       } else {
         sc.textContent = sv;
       }
     }
     if (task.type === 'task') {
-      const hasDeps = (task.deps||[]).length || (task.sdeps||[]).length || (task.ffdeps||[]).length || (task.sfdeps||[]).length;
-      if (!hasDeps) {
-        sc.style.cursor = 'text';
-        sc.addEventListener('click', e => { e.stopPropagation(); if (!isReadOnly) openStartEditor(task, sc); });
-      }
+      sc.style.cursor = 'text';
+      sc.addEventListener('click', e => { e.stopPropagation(); if (!isReadOnly) openStartEditor(task, sc); });
     }
     row.appendChild(sc);
 
@@ -2057,7 +2081,7 @@ function renderTaskPanel() {
     for (let i = _myIdx - 1; i >= 0; i--) {
       if (tasks[i].parent === task.parent) { _prevSib = tasks[i]; break; }
     }
-    const canIndent = _prevSib !== null && getTaskDepth(_prevSib.id) + 1 < 5;
+    const canIndent = _prevSib !== null && !exceedsDepthLimit(task.id, _prevSib.id);
 
     const outBtn = document.createElement('div');
     outBtn.className = 'row-action-btn';
@@ -2070,7 +2094,7 @@ function renderTaskPanel() {
     const inBtn = document.createElement('div');
     inBtn.className = 'row-action-btn';
     inBtn.textContent = '→';
-    inBtn.title = '降階（縮入前一個兄弟）';
+    inBtn.title = '降階：放到上一列底下';
     if (canIndent) inBtn.onclick = e => { e.stopPropagation(); indentTask(task.id); };
     else inBtn.style.visibility = 'hidden';
     ac.appendChild(inBtn);
@@ -2081,6 +2105,13 @@ function renderTaskPanel() {
     addBtn.title = '在此節點下新增任務';
     addBtn.onclick = e => { e.stopPropagation(); openAddTypeMenu(task.id, addBtn); };
     ac.appendChild(addBtn);
+
+    const editBtn = document.createElement('div');
+    editBtn.className = 'row-action-btn';
+    editBtn.textContent = '✎';
+    editBtn.title = '編輯（可改類型、日期、前置任務等）';
+    editBtn.onclick = e => { e.stopPropagation(); openEditModal(task.id); };
+    ac.appendChild(editBtn);
 
     const delBtn = document.createElement('div');
     delBtn.className = 'row-action-btn del';
@@ -3751,14 +3782,15 @@ function renderDepsDropdown(excludeId) {
   const selMap = {};
   parsed.filter(p => !p.err).forEach(p => { selMap[p.rowNum] = p.type; });
 
-  const rows = getVisibleRows().filter(({task}) =>
+  const rows = getAllRows().filter(({task}) =>
     task.type !== 'group' && task.id !== excludeId
   );
+  const rowNumOf = new Map(getAllRows().map((r, i) => [r.task.id, i + 1]));
 
   if (!rows.length) { list.innerHTML = '<div style="padding:10px;font-size:12px;color:var(--t4);text-align:center">無可選任務</div>'; return; }
 
-  list.innerHTML = rows.map(({task}, i) => {
-    const rowNum = i + 1;
+  list.innerHTML = rows.map(({task}) => {
+    const rowNum = rowNumOf.get(task.id);
     const selType = selMap[rowNum] || '';
     const isSel = !!selType;
     const typeBtns = ['FS','SS','FF','SF'].map(t =>
@@ -3842,7 +3874,10 @@ function openNameEditor(task, cell, isNew = false) {
     if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
     if (e.key === 'Escape') {
       committed = true;
-      if (isNew) { tasks = tasks.filter(t => t.id !== task.id); curProj().tasks = tasks; }
+      if (isNew) {
+        tasks = tasks.filter(t => t.id !== task.id); curProj().tasks = tasks;
+        _history.pop(); // 取消新增：連同那一筆復原紀錄一起移除
+      }
       render();
     }
   });
@@ -3888,11 +3923,32 @@ function closeAddTypeMenu() {
   if (menu) menu.remove();
 }
 
-function buildInlineTask(type, parentId, color) {
+function buildInlineTask(type, parentId, color, start) {
   const base = { id: nextId++, type, parent: parentId, color };
-  if (type === 'milestone') return { ...base, name: '新里程碑', date: TODAY_STR, deps: [] };
+  if (type === 'milestone') return { ...base, name: '新里程碑', date: start, pinStart: true, deps: [] };
   if (type === 'group') return { ...base, name: '新群組' };
-  return { ...base, name: '新任務', wday: 1, start: TODAY_STR, end: TODAY_STR, done: false, deps: [] };
+  return { ...base, name: '新任務', wday: 1, start, end: start, pinStart: true, done: false, deps: [] };
+}
+
+// 列上「+」新增項目的預設日期：加在群組裡就從群組開始日起，加在某列後面就接在那一列之後，
+// 並固定為「不早於這天」，避免之後重新排程時跳回專案開始日
+function inlineAddStart(ref) {
+  const projStart = curProj()?.startDate || TODAY_STR;
+  if (ref.type === 'group') return groupBounds(ref.id).s || projStart;
+  if (ref.type === 'milestone') return snapToWorkday(ref.date || projStart, 1);
+  return ref.end ? nextWorkingDay(ref.end) : projStart;
+}
+
+function unpinTask(id) {
+  const t = taskById(id);
+  if (!t || isReadOnly) return;
+  if (!confirm(`解除「${t.name}」的固定日期，改由排程決定？`)) return;
+  pushHistory();
+  delete t.pinStart;
+  scheduleTasks();
+  recalcProjEnd();
+  render();
+  showStatus('已解除固定，日期改由排程決定');
 }
 
 function addTaskInline(refTaskId, type = 'task') {
@@ -3902,7 +3958,7 @@ function addTaskInline(refTaskId, type = 'task') {
   // Group: new task goes inside (as child); leaf task: new task goes after (as sibling)
   const parentId = ref.type === 'group' ? ref.id : ref.parent;
   const parent = taskById(parentId);
-  const newTask = buildInlineTask(type, parentId, parent ? parent.color : ref.color || '#5E6AD2');
+  const newTask = buildInlineTask(type, parentId, parent ? parent.color : ref.color || '#5E6AD2', inlineAddStart(ref));
   // Insert: after last child of group, or after ref for leaf
   let insertIdx = tasks.indexOf(ref);
   if (ref.type === 'group') {
@@ -3918,6 +3974,8 @@ function addTaskInline(refTaskId, type = 'task') {
   }
   pushHistory();
   tasks.splice(insertIdx + 1, 0, newTask);
+  scheduleTasks();
+  recalcProjEnd();
   render();
   requestAnimationFrame(() => {
     const row = document.querySelector(`.task-row[data-id="${newTask.id}"]`);
@@ -3983,9 +4041,9 @@ function confirmDeleteTask(id) {
   const descendants = getAllDescendants(id);
   const msg = document.getElementById('deleteModalMsg');
   if (task.type === 'group' && descendants.length > 0) {
-    msg.textContent = `此群組及其 ${descendants.length} 個子任務將一併刪除，此操作無法復原。`;
+    msg.textContent = `此群組及其 ${descendants.length} 個子任務將一併刪除。刪錯了可以按「↩ 復原」或 ⌘Z／Ctrl+Z 救回。`;
   } else {
-    msg.textContent = '此操作無法復原。';
+    msg.textContent = '刪錯了可以按「↩ 復原」或 ⌘Z／Ctrl+Z 救回。';
   }
 
   document.getElementById('deleteConfirmBtn').onclick = () => { executeDeleteTask(_deleteTargetId); };
@@ -3997,6 +4055,18 @@ function closeDeleteModal(e) {
     document.getElementById('deleteOverlay').classList.remove('open');
     _deleteTargetId = null;
   }
+}
+
+const MAX_DEPTH = 5;
+
+// 把 taskId（連同它的整個子樹）放到 newParentId 底下後，最深的一層會不會超過上限
+function exceedsDepthLimit(taskId, newParentId) {
+  const parentDepth = newParentId === null || newParentId === undefined ? -1 : getTaskDepth(newParentId);
+  const subtreeHeight = (function height(id) {
+    const kids = tasks.filter(t => t.parent === id);
+    return kids.length ? 1 + Math.max(...kids.map(k => height(k.id))) : 0;
+  })(taskId);
+  return parentDepth + 1 + subtreeHeight >= MAX_DEPTH;
 }
 
 function getAllDescendants(id) {
@@ -4052,6 +4122,17 @@ function submitTask() {
   const newSdeps  = hasDepErr ? null : [...new Set(parsedDeps.filter(p=>p.type==='SS').map(p=>p.taskId))];
   const newFfdeps = hasDepErr ? null : [...new Set(parsedDeps.filter(p=>p.type==='FF').map(p=>p.taskId))];
   const newSfdeps = hasDepErr ? null : [...new Set(parsedDeps.filter(p=>p.type==='SF').map(p=>p.taskId))];
+  if (hasDepErr && type !== 'group') {
+    // 前置任務格式錯誤：不要存檔也不要默默丟掉輸入，讓使用者修正
+    const bad = parsedDeps.filter(p => p.err).map(p => `${p.raw}：${p.err}`).join('；');
+    const tip = document.getElementById('fDepsTip');
+    tip.textContent = '✕ 無法儲存，前置任務有誤：' + bad;
+    tip.style.color = 'var(--red)';
+    document.getElementById('fDeps').focus();
+    return;
+  }
+  const wdayInput = parseInt(document.getElementById('fWday').value);
+  const wday = Number.isFinite(wdayInput) && wdayInput >= 1 ? wdayInput : countWorkingDays(start, end);
 
   pushHistory();
   if (editingTaskId !== null) {
@@ -4069,12 +4150,19 @@ function submitTask() {
         const newLags = lagsFromParsed(parsedDeps);
         if (Object.keys(newLags).length) t.lags = newLags; else delete t.lags;
       }
+      // 只有使用者真的改了日期才固定；只改名稱等其他欄位時維持原本的排程方式
+      const prevStart = t.type === 'milestone' ? t.date : t.start;
+      const dateChanged = start !== prevStart || t.type !== type;
       if (type === 'task') {
-        t.start = start; t.end = end; t.done = done; t.pinStart = true; delete t.date;
+        t.start = start; t.wday = wday; t.end = addWorkingDays(start, wday); t.done = done; delete t.date;
+        if (dateChanged) t.pinStart = true;
         t.progress = done ? 100 : Math.max(0, Math.min(100, parseInt(document.getElementById('fProgress').value) || 0));
       }
-      else if (type === 'milestone') { t.date = start; t.pinStart = true; delete t.start; delete t.end; }
-      else { delete t.date; delete t.start; delete t.end; delete t.pinStart; }
+      else if (type === 'milestone') {
+        t.date = start; if (dateChanged) t.pinStart = true;
+        ['start', 'end', 'wday', 'done', 'progress'].forEach(k => delete t[k]);
+      }
+      else { ['date', 'start', 'end', 'pinStart', 'wday', 'done', 'progress'].forEach(k => delete t[k]); }
       const asg = document.getElementById('fAssignee').value.trim();
       if (type !== 'group' && asg) t.assignee = asg; else delete t.assignee;
     }
@@ -4090,7 +4178,7 @@ function submitTask() {
       if (Object.keys(newLags).length) t.lags = newLags;
     }
     if (type === 'task') {
-      t.start = start; t.end = end; t.done = done; t.pinStart = true;
+      t.start = start; t.wday = wday; t.end = addWorkingDays(start, wday); t.done = done; t.pinStart = true;
       t.progress = done ? 100 : Math.max(0, Math.min(100, parseInt(document.getElementById('fProgress').value) || 0));
     }
     else if (type === 'milestone') { t.date = start; t.pinStart = true; }
@@ -4244,7 +4332,10 @@ function openStartEditor(task, cell) {
   cell.appendChild(inp);
   inp.focus();
   try { inp.showPicker(); } catch(e) {}
+  // Esc 取消：render 會移除輸入框並觸發 blur，要避免 blur 又把值存進去
+  let cancelled = false;
   function commit() {
+    if (cancelled) return;
     const val = inp.value;
     if (val && val !== task.start) {
       pushHistory();
@@ -4254,13 +4345,14 @@ function openStartEditor(task, cell) {
       task.pinStart = true;
     }
     scheduleTasks();
+    if (val && task.start > val) showStatus(`有前置任務，最早只能從 ${task.start} 開始`);
     recalcProjEnd();
     render();
     saveToLS();
     if (currentUser) saveToCloud();
   }
   inp.addEventListener('blur', commit);
-  inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { render(); } });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { cancelled = true; render(); } });
 }
 
 function openEndEditor(task, cell) {
@@ -4272,14 +4364,17 @@ function openEndEditor(task, cell) {
   cell.appendChild(inp);
   inp.focus();
   try { inp.showPicker(); } catch(e) {}
+  // Esc 取消：render 會移除輸入框並觸發 blur，要避免 blur 又把值存進去
+  let cancelled = false;
   function commit() {
+    if (cancelled) return;
     const val = inp.value;
     if (val && val !== task.end) {
       pushHistory();
-      if (val < (task.start || '')) { task.start = val; task.wday = 1; }
+      // 只改結束日不固定開始日；結束日早於開始日時才連同開始日一起改
+      if (val < (task.start || '')) { task.start = val; task.wday = 1; task.pinStart = true; }
       else { task.wday = countWorkingDays(task.start, val); }
       task.end = val;
-      task.pinStart = true;
     }
     scheduleTasks();
     recalcProjEnd();
@@ -4288,7 +4383,7 @@ function openEndEditor(task, cell) {
     if (currentUser) saveToCloud();
   }
   inp.addEventListener('blur', commit);
-  inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') render(); });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { cancelled = true; render(); } });
 }
 
 function openWdayEditor(task, cell) {
@@ -4301,7 +4396,10 @@ function openWdayEditor(task, cell) {
   cell.innerHTML = '';
   cell.appendChild(inp);
   inp.focus(); inp.select();
+  // Esc 取消：render 會移除輸入框並觸發 blur，要避免 blur 又把值存進去
+  let cancelled = false;
   function commit() {
+    if (cancelled) return;
     const days = parseInt(inp.value);
     if (!isNaN(days) && days >= 1) {
       pushHistory();
@@ -4311,7 +4409,7 @@ function openWdayEditor(task, cell) {
     } else { render(); }
   }
   inp.addEventListener('blur', commit);
-  inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') render(); });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { cancelled = true; render(); } });
 }
 
 /* ── DEPS PICKER LOGIC ── */
@@ -4535,9 +4633,39 @@ function snapToWorkday(dateStr, dir) {
 
 let _unscheduledWarnKey = '';
 
+// 有子項目的一般任務或里程碑一律轉成群組：起訖日期改由子項目決定。
+// 原本的前置任務轉給底下沒有前置任務的直屬子項目，讓排程關係不會斷掉。
+const DEP_KEYS = ['deps', 'sdeps', 'ffdeps', 'sfdeps'];
+function promoteParentsToGroups() {
+  const parentIds = new Set(tasks.map(t => t.parent).filter(id => id !== null && id !== undefined));
+  let promoted = 0;
+  tasks.forEach(t => {
+    if (t.type === 'group' || !parentIds.has(t.id)) return;
+    // 子項目若原本以這個母任務為前置（例如把後續任務降階到前置任務底下），
+    // 轉成群組後會變成「依賴自己的母群組」而形成循環，所以先移除這條相依
+    tasks.filter(c => c.parent === t.id).forEach(c => {
+      DEP_KEYS.forEach(k => { if (c[k]) c[k] = c[k].filter(id => id !== t.id); });
+      if (c.lags) Object.keys(c.lags).forEach(k => { if (/^(FS|SS|FF|SF)(\d+)$/.exec(k)?.[2] == t.id) delete c.lags[k]; });
+    });
+    const inherited = DEP_KEYS.filter(k => (t[k] || []).length);
+    if (inherited.length) {
+      tasks.filter(c => c.parent === t.id && c.type !== 'group').forEach(c => {
+        if (DEP_KEYS.some(k => (c[k] || []).length)) return;
+        inherited.forEach(k => { c[k] = [...t[k]]; });
+        if (t.lags) c.lags = { ...t.lags };
+      });
+    }
+    t.type = 'group';
+    ['wday', 'start', 'end', 'date', 'done', 'progress', 'pinStart', 'lags', ...DEP_KEYS].forEach(k => delete t[k]);
+    promoted++;
+  });
+  return promoted;
+}
+
 function scheduleTasks() {
   const projStart = curProj().startDate;
   if (!projStart) return;
+  if (promoteParentsToGroups()) showStatus('有子項目的任務已自動轉成群組，起訖日期改由子項目決定');
   // Ensure all tasks have wday
   tasks.forEach(t => {
     if (t.type === 'task' && !t.wday)
@@ -4650,6 +4778,8 @@ function reorderTask(srcId, targetId, insertBefore) {
   const target = taskById(targetId);
   if (!src || !target) return;
   if (isDescendant(srcId, targetId)) return; // prevent cycle
+  const newParentId = (target.type === 'group' && !insertBefore) ? target.id : target.parent;
+  if (exceedsDepthLimit(srcId, newParentId)) { showStatus(`已達最大層數 ${MAX_DEPTH} 層`); render(); return; }
 
   pushHistory();
 
@@ -4752,8 +4882,8 @@ function indentTask(id) {
     if (tasks[i].parent === task.parent) { prevSibling = tasks[i]; break; }
   }
   if (!prevSibling) return;
-  if (getTaskDepth(prevSibling.id) + 1 >= 5) {
-    showStatus('已達最大層數 5 層'); return;
+  if (exceedsDepthLimit(task.id, prevSibling.id)) {
+    showStatus(`已達最大層數 ${MAX_DEPTH} 層`); return;
   }
   pushHistory();
   task.parent = prevSibling.id;
@@ -4825,6 +4955,7 @@ function updateProjUI() {
       // No projects at all — clear header and show create modal
       document.getElementById('projSelectorName').textContent = '— 無專案 —';
       document.getElementById('projDot').style.background = '#999';
+      document.getElementById('sPeriod').textContent = '—';
       renderProjMenu();
       updateReadOnly();
       return;
@@ -5087,6 +5218,7 @@ function submitProject() {
   CHART_START = new Date(start);
   CHART_END   = new Date(end);
   collapsed.clear();
+  _history = []; // 復原紀錄屬於前一個專案，不能套用到新專案
   scheduleTasks();
   recalcProjEnd();
   updateProjUI();
@@ -5212,10 +5344,13 @@ function updateReadOnly() {
   if (badge) badge.style.display = isReadOnly ? 'flex' : 'none';
   // shareBtn and collabBtn only for own projects
   const isOwnProj = !_isShareLinkMode && !(cp && cp._isShared);
+  // 訪客模式沒有雲端，分享與協作都用不了，直接隱藏
+  const canShare = isOwnProj && !_guestMode;
   ['shareBtn','collabBtn'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.style.display = isOwnProj ? '' : 'none';
+    if (el) el.style.display = canShare ? '' : 'none';
   });
+  document.querySelectorAll('.proj-share-btn').forEach(el => { el.style.display = canShare ? '' : 'none'; });
 }
 
 function randomToken(prefix) {
@@ -5549,7 +5684,8 @@ async function createVersion() {
 function restoreVersion(vId) {
   const v = curVersions().find(v => v.id === vId);
   if (!v) return;
-  if (!confirm(`還原至版本「${v.name}」？\n目前變更將被覆蓋，此操作無法復原。`)) return;
+  if (!confirm(`還原至版本「${v.name}」？\n目前的任務內容會被取代（還原後可按 ⌘Z／Ctrl+Z 復原）。`)) return;
+  pushHistory();
   curProj().tasks = sanitizeProject({ tasks: v.snapshot }).tasks;
   tasks = curProj().tasks;
   nextId = Math.max(nextId, ...tasks.map(t => t.id + 1));
@@ -5612,11 +5748,12 @@ document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'z') { if (inField) return; e.preventDefault(); if (!isReadOnly) undo(); return; }
   if (e.key !== 'Escape' && inField) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === 't' || e.key === 'T') scrollToToday();
-  if (e.key === 'd') setView('day');
-  if (e.key === 'w') setView('week');
-  if (e.key === 'm') setView('month');
-  if (e.key === 'n') openModal();
+  const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (key === 't') scrollToToday();
+  if (key === 'd') setView('day');
+  if (key === 'w') setView('week');
+  if (key === 'm') setView('month');
+  if (key === 'n') openModal();
   if (e.key === 'Escape') { closeAddTypeMenu(); closeModal(); closeProjModal(); closeProjMenuOnly(); closeDeleteModal(); }
 });
 
