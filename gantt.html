@@ -2123,7 +2123,7 @@ function renderTaskPanel() {
     const outBtn = document.createElement('div');
     outBtn.className = 'row-action-btn';
     outBtn.textContent = '←';
-    outBtn.title = '升階（移到上一層）';
+    outBtn.title = '升階：移到上一層，下面的同層任務會變成它的子任務';
     if (canOutdent) outBtn.onclick = e => { e.stopPropagation(); outdentTask(task.id); };
     else outBtn.style.visibility = 'hidden';
     ac.appendChild(outBtn);
@@ -4960,46 +4960,18 @@ function outdentTask(id) {
   if (!parent || parent.parent === null) return;
 
   pushHistory();
-
-  // Collect task + all its descendants (preserve order)
-  const subtreeIds = new Set();
-  function collectSubtree(tid) {
-    subtreeIds.add(tid);
-    tasks.filter(c => c.parent === tid).forEach(c => collectSubtree(c.id));
-  }
-  collectSubtree(id);
-  const subtree = tasks.filter(t => subtreeIds.has(t.id));
-
-  // Remove subtree from main array
-  tasks = tasks.filter(t => !subtreeIds.has(t.id));
-  curProj().tasks = tasks;
-
-  // Find insertion point: after last descendant of parent in remaining tasks
-  function isDescOf(checkId, ancestorId) {
-    let cur = taskById(checkId);
-    const seen = new Set();
-    while (cur && cur.parent !== null) {
-      if (seen.has(cur.id)) break;
-      seen.add(cur.id);
-      if (cur.parent === ancestorId) return true;
-      cur = taskById(cur.parent);
-    }
-    return false;
-  }
-  const parentIdx = tasks.findIndex(t => t.id === parent.id);
-  let insertIdx = parentIdx;
-  for (let i = parentIdx + 1; i < tasks.length; i++) {
-    if (isDescOf(tasks[i].id, parent.id)) insertIdx = i;
-  }
-
-  // Update parent and reinsert after parent's subtree
+  // 跟 Microsoft Project 一樣：升階後，排在它下面的同層任務改掛到它底下，
+  // 它因此有了子項目，排程時會自動轉成群組（起訖日期由這些子項目決定）。
+  // 陣列順序不變，所以畫面上每一列的位置都不會跳動。
+  const myIdx = tasks.indexOf(task);
+  tasks.forEach((t, i) => { if (i > myIdx && t.parent === parent.id) t.parent = task.id; });
   task.parent = parent.parent;
-  tasks.splice(insertIdx + 1, 0, ...subtree);
 
   scheduleTasks();
   recalcProjEnd();
   render();
 }
+
 
 function showStatus(msg) {
   let el = document.getElementById('statusToast');
