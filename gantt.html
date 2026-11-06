@@ -1450,6 +1450,55 @@ function getNextGroupColor() {
   return GROUP_PALETTE[total % GROUP_PALETTE.length];
 }
 
+// 群組自動配色：同一專案裡每個群組各用一個顏色，任務跟著所屬群組的顏色。
+// 起始色由群組 id 決定（看起來隨機，但每台電腦算出來都一樣，協作時不會互相改來改去），
+// 色盤 10 色用完後改用黃金角分散色相產生新顏色。
+const GOLDEN_ANGLE = 137.508;
+function idHash(id) {
+  let h = 2166136261;
+  for (const ch of String(id)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function hslToHex(h, s, l) {
+  const a = s * Math.min(l, 1 - l);
+  const f = n => { const k = (n + h / 30) % 12; return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))).toString(16).padStart(2, '0'); };
+  return `#${f(0)}${f(8)}${f(4)}`.toUpperCase();
+}
+function pickGroupColor(id, used) {
+  const start = idHash(id) % GROUP_PALETTE.length;
+  for (let i = 0; i < GROUP_PALETTE.length; i++) {
+    const c = GROUP_PALETTE[(start + i) % GROUP_PALETTE.length];
+    if (!used.has(c.toUpperCase())) return c;
+  }
+  for (let n = 0; n < 360; n++) {
+    const c = hslToHex((idHash(id) + n * GOLDEN_ANGLE) % 360, 0.62, 0.5);
+    if (!used.has(c)) return c;
+  }
+  return GROUP_PALETTE[start];
+}
+function nearestGroupColor(task) {
+  let p = taskById(task.parent);
+  for (let d = 0; p && d < 20; d++, p = taskById(p.parent)) if (p.type === 'group') return p.color;
+  return null;
+}
+// 回傳有沒有改到顏色；顏色重複或不合法的群組換一個沒用過的顏色，任務與里程碑套用所屬群組的顏色
+function assignGroupColors() {
+  const used = new Set();
+  let changed = false;
+  tasks.filter(t => t.type === 'group').forEach(g => {
+    const cur = safeColor(g.color, '').toUpperCase();
+    if (cur && !used.has(cur)) { used.add(cur); return; }
+    g.color = pickGroupColor(g.id, used);
+    used.add(g.color.toUpperCase());
+    changed = true;
+  });
+  tasks.filter(t => t.type !== 'group').forEach(t => {
+    const c = nearestGroupColor(t);
+    if (c && t.color !== c) { t.color = c; changed = true; }
+  });
+  return changed;
+}
+
 /* ═══════════════════════════════════════════
    PROJECT TEMPLATES
 ═══════════════════════════════════════════ */
@@ -4819,6 +4868,7 @@ function scheduleTasks() {
   const projStart = curProj().startDate;
   if (!projStart) return;
   if (promoteParentsToGroups()) showStatus('有子項目的任務已自動轉成群組，起訖日期改由子項目決定');
+  assignGroupColors();
   // Ensure all tasks have wday
   tasks.forEach(t => {
     if (t.type === 'task' && !t.wday)
