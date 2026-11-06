@@ -470,6 +470,11 @@ body.dark .chart-row.group-bg{background:rgba(255,255,255,.02)}
 .grid-month{background:var(--border2)}
 .grid-wknd{background:rgba(0,0,0,0.06);width:1px}
 .wknd-bg{position:absolute;top:0;bottom:0;background:rgba(147,197,253,0.18);pointer-events:none;z-index:0}
+/* 加班日：橘色斜線，和一般工作日、假日都分得出來 */
+.ot-bg{position:absolute;top:0;bottom:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(135deg,rgba(245,158,11,.16) 0 4px,transparent 4px 9px)}
+.day-cell.day-ot{color:#B45309;background:rgba(245,158,11,.14)}
+.day-cell.day-ot .day-dow{font-weight:700}
 
 .today-line{
   position:absolute;top:0;bottom:0;
@@ -966,14 +971,16 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 
 /* ── PRINT / PDF EXPORT ── */
 #printHeader{display:none}
+/* 表格欄位比面板寬時（窄螢幕或拖窄左欄）：整個面板一起橫向捲動，標題列和內容才會對齊，也不會蓋到甘特圖 */
+.task-panel{overflow-x:auto;overflow-y:hidden}
+.task-panel > *{min-width:max-content}
+
 /* ── 窄螢幕：工具列換行，左側任務表格縮窄，讓甘特圖至少看得到一部分 ── */
 @media (max-width: 1100px){
   .toolbar{height:auto;min-height:var(--toolbar);flex-wrap:wrap;row-gap:6px;padding-top:6px;padding-bottom:6px}
 }
 @media (max-width: 760px){
-  /* 表格欄位比面板寬：整個面板一起橫向捲動，標題列和內容才會對齊，也不會蓋到甘特圖 */
-  .task-panel{width:58vw !important;min-width:58vw !important;overflow-x:auto;overflow-y:hidden}
-  .task-panel > *{min-width:max-content}
+  .task-panel{width:58vw !important;min-width:58vw !important}
   .chart-panel{min-width:0;flex:1}
   .toolbar .btn{padding-left:8px;padding-right:8px}
 }
@@ -1109,6 +1116,7 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
       </label>
       <div class="settings-sep"></div>
       <button class="settings-action" onclick="setBaseline();closeSettings()">📐 設定基準線</button>
+      <button class="settings-action" onclick="openOvertimeModal();closeSettings()">🗓 加班日</button>
       <button class="settings-action btn-owner-only" id="settingVersionBtn" onclick="openVersionPanel();closeSettings()">🕐 版本紀錄</button>
     </div>
   </div>
@@ -1148,6 +1156,28 @@ body.dark .proj-item.active{background:rgba(94,106,210,.2)}
 </div>
 
 <!-- COLLAB MODAL -->
+<div class="collab-overlay" id="overtimeOverlay" onclick="closeOvertimeModal()">
+  <div class="collab-box" onclick="event.stopPropagation()">
+    <div class="collab-title">🗓 加班日</div>
+    <p style="font-size:12px;color:var(--t3);margin:0 0 10px;line-height:1.6">
+      把週末或國定假日設為<b>這個專案的加班日</b>，排程會把這天當作工作日，橫跨這天的任務會提早完成，後續任務跟著提前。只影響目前這個專案。
+    </p>
+    <div class="collab-share-list" id="overtimeList"></div>
+    <div class="collab-add-row">
+      <input id="overtimeDate" type="date" style="flex:0 0 150px">
+      <input id="overtimeNote" type="text" maxlength="50" placeholder="原因（選填），例如：週末進場佈展" onkeydown="if(event.key==='Enter')addOvertimeDay()">
+      <button class="btn btn-primary" onclick="addOvertimeDay()">加入</button>
+    </div>
+    <div id="overtimeMsg" style="font-size:12px;margin-top:8px;display:none"></div>
+    <div style="font-size:11px;color:var(--t4);margin-top:10px;line-height:1.6">
+      提示：要和原計畫比較，請先在 ⚙ 設定「📐 設定基準線」再加入加班日。加錯了可以按 ↩ 復原。
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px">
+      <button class="btn" onclick="closeOvertimeModal()">關閉</button>
+    </div>
+  </div>
+</div>
+
 <div class="collab-overlay" id="collabOverlay" onclick="closeCollabModal()">
   <div class="collab-box" onclick="event.stopPropagation()">
     <div class="collab-title">🔗 共享管理</div>
@@ -1562,7 +1592,7 @@ const MAX_HISTORY = 50;
 let _history = [];
 
 function pushHistory() {
-  _history.push({ tasks: JSON.parse(JSON.stringify(tasks)), nextId });
+  _history.push({ tasks: JSON.parse(JSON.stringify(tasks)), nextId, extraWorkdays: curProj()?.extraWorkdays });
   if (_history.length > MAX_HISTORY) _history.shift();
   const btn = document.getElementById('undoBtn');
   if (btn) btn.disabled = false;
@@ -1575,6 +1605,8 @@ function undo() {
   nextId = snap.nextId;
   curProj().tasks = tasks;
   curProj().nextId = nextId;
+  if (snap.extraWorkdays) curProj().extraWorkdays = snap.extraWorkdays;
+  else delete curProj().extraWorkdays;
   scheduleTasks();
   recalcProjEnd();
   render();
@@ -1635,6 +1667,11 @@ function sanitizeProject(p) {
     }),
   };
   out.tasks = breakParentCycles(out.tasks);
+  if (p.extraWorkdays && typeof p.extraWorkdays === 'object' && !Array.isArray(p.extraWorkdays)) {
+    const ew = {};
+    Object.entries(p.extraWorkdays).forEach(([k, v]) => { if (isDate(k)) ew[k] = String(v ?? '').slice(0, 50); });
+    if (Object.keys(ew).length) out.extraWorkdays = ew; else delete out.extraWorkdays;
+  } else delete out.extraWorkdays;
   const maxTaskId = out.tasks.reduce((m, t) => Math.max(m, t.id), 0);
   out.nextId = Math.max(num(p.nextId, 1), maxTaskId + 1);
   if (Array.isArray(out.versions)) out.versions = out.versions.map(sanitizeVersion).filter(Boolean);
@@ -2086,7 +2123,7 @@ function renderTaskPanel() {
     const outBtn = document.createElement('div');
     outBtn.className = 'row-action-btn';
     outBtn.textContent = '←';
-    outBtn.title = '升階（移到上一層）';
+    outBtn.title = '升階：移到上一層，下面的同層任務會變成它的子任務';
     if (canOutdent) outBtn.onclick = e => { e.stopPropagation(); outdentTask(task.id); };
     else outBtn.style.visibility = 'hidden';
     ac.appendChild(outBtn);
@@ -2196,13 +2233,19 @@ function renderChartHeader() {
       const dow = d.getUTCDay();
       const hol = getHoliday(ds);
       const off = isNonWorkday(ds);
+      const ot = isExtraWorkday(ds);
       const isTdy = ds === TODAY_STR;
       const el = document.createElement('div');
-      const dayColor = isTdy ? '' : hol ? ' day-sun' : dow === 6 ? ' day-sat' : dow === 0 ? ' day-sun' : ' day-weekday';
+      const dayColor = isTdy ? '' : ot ? ' day-ot' : hol ? ' day-sun' : dow === 6 ? ' day-sat' : dow === 0 ? ' day-sun' : ' day-weekday';
       el.className = 'week-cell day-cell' + dayColor + (isTdy ? ' today-wk' : '') + (off ? ' wknd-cell' : '');
       el.style.cssText = `left:${x}px;width:${PPD}px`;
-      if (hol) el.title = hol;
-      el.innerHTML = `<span>${d.getUTCDate()}</span><span class="day-dow">${dayNames[d.getUTCDay()]}</span>`;
+      if (ot) el.title = '加班日' + (curProj().extraWorkdays[ds] ? '：' + curProj().extraWorkdays[ds] : '') + (hol ? `（原為${hol}）` : '');
+      else if (hol) el.title = hol;
+      el.innerHTML = `<span>${d.getUTCDate()}</span><span class="day-dow">${ot ? '加' : dayNames[d.getUTCDay()]}</span>`;
+      if (!isReadOnly && isBaseNonWorkday(ds)) {
+        el.style.cursor = 'pointer';
+        el.addEventListener('dblclick', () => toggleOvertimeDay(ds));
+      }
       wRow.appendChild(el);
       d.setUTCDate(d.getUTCDate() + 1);
     }
@@ -2362,6 +2405,12 @@ function renderGrid(canvas, tw, th) {
       l.className = 'grid-line' + (off ? ' grid-wknd' : '');
       l.style.cssText = `left:${x}px;height:${th}px`;
       canvas.appendChild(l);
+      if (isExtraWorkday(d)) {
+        const ob = document.createElement('div');
+        ob.className = 'ot-bg';
+        ob.style.cssText = `left:${x}px;width:${PPD}px`;
+        canvas.appendChild(ob);
+      }
       if (off) {
         const bg = document.createElement('div');
         bg.className = 'wknd-bg';
@@ -3939,6 +3988,94 @@ function inlineAddStart(ref) {
   return ref.end ? nextWorkingDay(ref.end) : projStart;
 }
 
+/* ─── 加班日 ─── */
+const WEEKDAY_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
+function fmtDayLabel(ds) { return `${ds}（${WEEKDAY_NAMES[new Date(ds).getUTCDay()]}）`; }
+
+function openOvertimeModal() {
+  if (!curProj()) { showStatus('請先建立或選擇專案'); return; }
+  document.getElementById('overtimeMsg').style.display = 'none';
+  document.getElementById('overtimeNote').value = '';
+  renderOvertimeList();
+  document.getElementById('overtimeOverlay').classList.add('open');
+}
+
+function closeOvertimeModal() {
+  document.getElementById('overtimeOverlay').classList.remove('open');
+}
+
+function renderOvertimeList() {
+  const list = document.getElementById('overtimeList');
+  const ew = curProj()?.extraWorkdays || {};
+  const days = Object.keys(ew).sort();
+  const ro = isReadOnly;
+  ['overtimeDate', 'overtimeNote'].forEach(id => { document.getElementById(id).disabled = ro; });
+  if (!days.length) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--t3);text-align:center;padding:12px 0">這個專案還沒有加班日</div>';
+    return;
+  }
+  list.innerHTML = days.map((d, i) => `
+    <div class="collab-share-item">
+      <span class="ci-email">${escHtml(fmtDayLabel(d))}${ew[d] ? '　' + escHtml(ew[d]) : ''}${getHoliday(d) ? `<span style="color:var(--t4)">（原為${escHtml(getHoliday(d))}）</span>` : ''}</span>
+      ${ro ? '' : `<span class="ci-del" data-idx="${i}" title="移除這個加班日">✕</span>`}
+    </div>`).join('');
+  list.querySelectorAll('.ci-del').forEach(el => {
+    el.addEventListener('click', () => setOvertimeDay(days[+el.dataset.idx], null));
+  });
+}
+
+function showOvertimeMsg(text, ok) {
+  const el = document.getElementById('overtimeMsg');
+  el.textContent = text;
+  el.style.color = ok ? '#0a0' : 'var(--red)';
+  el.style.display = 'block';
+}
+
+function addOvertimeDay() {
+  if (isReadOnly) return;
+  const ds = document.getElementById('overtimeDate').value;
+  if (!ds) { showOvertimeMsg('請先選擇日期'); return; }
+  if (!isBaseNonWorkday(ds)) { showOvertimeMsg(`${fmtDayLabel(ds)} 本來就是工作日，不需要設成加班日`); return; }
+  if (isExtraWorkday(ds)) { showOvertimeMsg(`${fmtDayLabel(ds)} 已經是加班日`); return; }
+  setOvertimeDay(ds, document.getElementById('overtimeNote').value.trim());
+  document.getElementById('overtimeNote').value = '';
+}
+
+// 甘特圖日刻度上雙擊假日：設為／取消加班日
+function toggleOvertimeDay(ds) {
+  if (isReadOnly || !isBaseNonWorkday(ds)) return;
+  if (isExtraWorkday(ds)) {
+    if (!confirm(`取消 ${fmtDayLabel(ds)} 的加班日？`)) return;
+    setOvertimeDay(ds, null);
+  } else {
+    const note = prompt(`把 ${fmtDayLabel(ds)} 設為這個專案的加班日？\n可以填寫原因（選填）：`, '');
+    if (note === null) return;
+    setOvertimeDay(ds, note.trim());
+  }
+}
+
+// note 為 null 代表移除。加班日物件整個換新，並告訴使用者有幾個任務的日期因此改變
+function setOvertimeDay(ds, note) {
+  const p = curProj();
+  if (!p || isReadOnly) return;
+  const before = new Map(tasks.map(t => [t.id, `${t.start || ''}|${t.end || ''}|${t.date || ''}`]));
+  pushHistory();
+  const next = { ...(p.extraWorkdays || {}) };
+  if (note === null) delete next[ds]; else next[ds] = String(note).slice(0, 50);
+  if (Object.keys(next).length) p.extraWorkdays = next; else delete p.extraWorkdays;
+  scheduleTasks();
+  recalcProjEnd();
+  render();
+  const moved = tasks.filter(t => before.get(t.id) !== `${t.start || ''}|${t.end || ''}|${t.date || ''}`).length;
+  const what = note === null ? `已取消 ${fmtDayLabel(ds)} 的加班日` : `已將 ${fmtDayLabel(ds)} 設為加班日`;
+  const msg = `${what}，${moved ? moved + ' 個任務的日期因此改變' : '目前沒有任務受影響'}（可按 ↩ 復原）`;
+  showStatus(msg);
+  if (document.getElementById('overtimeOverlay').classList.contains('open')) {
+    renderOvertimeList();
+    showOvertimeMsg(msg, true);
+  }
+}
+
 function unpinTask(id) {
   const t = taskById(id);
   if (!t || isReadOnly) return;
@@ -4244,11 +4381,27 @@ const _holidayWarned = new Set();
 
 function dateKey(d) { return d instanceof Date ? d.toISOString().slice(0, 10) : String(d); }
 function getHoliday(d) { return TW_HOLIDAYS[dateKey(d)] || null; }
-function isNonWorkday(d) {
+// 專案加班日：這個專案在這些週末或國定假日照常施工，排程視為工作日。
+// 依目前專案的 extraWorkdays 建立查詢表；物件一律整個換新（不就地修改），所以比對參照就知道要不要重建
+let _ewProj = null, _ewRef = null, _ewSet = new Set();
+function extraWorkdaySet() {
+  const p = curProj();
+  const ref = p ? p.extraWorkdays : null;
+  if (p !== _ewProj || ref !== _ewRef) { _ewProj = p; _ewRef = ref; _ewSet = new Set(Object.keys(ref || {})); }
+  return _ewSet;
+}
+function isExtraWorkday(d) { return extraWorkdaySet().has(dateKey(d)); }
+
+// 不看加班日的原始規則：週末、國定假日、補班日
+function isBaseNonWorkday(d) {
   const s = dateKey(d);
   if (TW_HOLIDAYS[s]) return true;
   if (TW_MAKEUP_WORKDAYS.has(s)) return false;
   return isWeekend(d);
+}
+
+function isNonWorkday(d) {
+  return !isExtraWorkday(d) && isBaseNonWorkday(d);
 }
 
 function subtractWorkingDays(endStr, days) {
@@ -4807,46 +4960,18 @@ function outdentTask(id) {
   if (!parent || parent.parent === null) return;
 
   pushHistory();
-
-  // Collect task + all its descendants (preserve order)
-  const subtreeIds = new Set();
-  function collectSubtree(tid) {
-    subtreeIds.add(tid);
-    tasks.filter(c => c.parent === tid).forEach(c => collectSubtree(c.id));
-  }
-  collectSubtree(id);
-  const subtree = tasks.filter(t => subtreeIds.has(t.id));
-
-  // Remove subtree from main array
-  tasks = tasks.filter(t => !subtreeIds.has(t.id));
-  curProj().tasks = tasks;
-
-  // Find insertion point: after last descendant of parent in remaining tasks
-  function isDescOf(checkId, ancestorId) {
-    let cur = taskById(checkId);
-    const seen = new Set();
-    while (cur && cur.parent !== null) {
-      if (seen.has(cur.id)) break;
-      seen.add(cur.id);
-      if (cur.parent === ancestorId) return true;
-      cur = taskById(cur.parent);
-    }
-    return false;
-  }
-  const parentIdx = tasks.findIndex(t => t.id === parent.id);
-  let insertIdx = parentIdx;
-  for (let i = parentIdx + 1; i < tasks.length; i++) {
-    if (isDescOf(tasks[i].id, parent.id)) insertIdx = i;
-  }
-
-  // Update parent and reinsert after parent's subtree
+  // 跟 Microsoft Project 一樣：升階後，排在它下面的同層任務改掛到它底下，
+  // 它因此有了子項目，排程時會自動轉成群組（起訖日期由這些子項目決定）。
+  // 陣列順序不變，所以畫面上每一列的位置都不會跳動。
+  const myIdx = tasks.indexOf(task);
+  tasks.forEach((t, i) => { if (i > myIdx && t.parent === parent.id) t.parent = task.id; });
   task.parent = parent.parent;
-  tasks.splice(insertIdx + 1, 0, ...subtree);
 
   scheduleTasks();
   recalcProjEnd();
   render();
 }
+
 
 function showStatus(msg) {
   let el = document.getElementById('statusToast');
@@ -5754,7 +5879,7 @@ document.addEventListener('keydown', e => {
   if (key === 'w') setView('week');
   if (key === 'm') setView('month');
   if (key === 'n') openModal();
-  if (e.key === 'Escape') { closeAddTypeMenu(); closeModal(); closeProjModal(); closeProjMenuOnly(); closeDeleteModal(); }
+  if (e.key === 'Escape') { closeAddTypeMenu(); closeOvertimeModal(); closeModal(); closeProjModal(); closeProjMenuOnly(); closeDeleteModal(); }
 });
 
 /* ═══════════════════════════════════════════
@@ -5876,6 +6001,10 @@ function mergeProject(base, local, remote) {
   const out = {};
   const keys = new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)]);
   keys.delete('tasks');
+  // 加班日逐日合併：兩人各加一天時兩天都保留
+  keys.delete('extraWorkdays');
+  const ew = mergeMap(base.extraWorkdays || {}, local.extraWorkdays || {}, remote.extraWorkdays || {});
+  if (Object.keys(ew).length) out.extraWorkdays = ew;
   keys.forEach(k => {
     const v = sj(local[k]) !== sj(base[k]) ? local[k] : remote[k];
     if (v !== undefined) out[k] = v;
@@ -5884,6 +6013,15 @@ function mergeProject(base, local, remote) {
   const maxId = out.tasks.reduce((m, t) => Math.max(m, t.id), 0);
   out.nextId = Math.max(+local.nextId || 1, +remote.nextId || 1, maxId + 1);
   return JSON.parse(JSON.stringify(out));
+}
+
+function mergeMap(b, l, r) {
+  const out = {};
+  new Set([...Object.keys(b), ...Object.keys(l), ...Object.keys(r)]).forEach(k => {
+    const v = l[k] !== b[k] ? l[k] : r[k];
+    if (v !== undefined) out[k] = v;
+  });
+  return out;
 }
 
 function mergeTasks(b, l, r) {
