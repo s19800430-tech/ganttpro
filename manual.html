@@ -234,7 +234,7 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
             <tr><td>⬇ 匯出</td><td>PNG、PDF、CSV。</td></tr>
             <tr><td>👥 協作</td><td>管理誰能看、誰能編輯你的專案。</td></tr>
             <tr><td>🌙</td><td>深色模式。</td></tr>
-            <tr><td>⚙ 設定</td><td>顯示 Bar 日期、顯示基準線、設定基準線、加班日、版本紀錄。</td></tr>
+            <tr><td>⚙ 設定</td><td>顯示 Bar 日期、顯示基準線、設定基準線、加班日、群組重新配色、版本紀錄。</td></tr>
             <tr><td>同步燈號</td><td>雲端儲存狀態，見〈儲存與同步〉。</td></tr>
           </tbody>
         </table></div>
@@ -263,7 +263,7 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
           <tbody>
             <tr><td>一般任務</td><td>有工作日數，日期由排程自動算出</td><td>橫條</td></tr>
             <tr><td>里程碑</td><td>沒有工期的檢查點，例如「規格凍結」</td><td>菱形 ◆</td></tr>
-            <tr><td>群組</td><td>把任務分成階段的資料夾，例如「需求定義」「EVT 原型製作」。群組不用填工期，期間與進度由底下任務自動彙總，點 ▼ 可收合；群組裡還能再放群組</td><td>彙總條</td></tr>
+            <tr><td>群組</td><td>把任務分成階段的資料夾，例如「需求定義」「EVT 原型製作」。群組不用填工期，期間與進度由底下任務自動彙總，點 ▼ 可收合；群組裡還能再放群組。每個新群組會自動分到和上層不同的顏色，底下的任務跟著群組變色；舊專案的群組如果都同一色，可按 ⚙ 設定 →「🎨 群組重新配色」一次重新分配（可按復原還原）</td><td>彙總條</td></tr>
           </tbody>
         </table></div>
         <h3>新增任務</h3>
@@ -422,11 +422,12 @@ footer { margin-top: 28px; color: var(--ink-3); font-size: 13px; display: flex; 
         <div class="tbl"><table>
           <thead><tr><th>格式</th><th>內容</th><th>適合</th></tr></thead>
           <tbody>
-            <tr><td>🖼 PNG</td><td>目前甘特圖或里程碑檢視的圖片</td><td>貼進簡報、通訊軟體</td></tr>
-            <tr><td>📄 PDF</td><td>開啟列印視窗，固定用淺色版面</td><td>正式文件、紙本</td></tr>
+            <tr><td>🖼 PNG</td><td>整個專案期間的甘特圖或里程碑檢視圖片，含月份與日期表頭（依目前縮放顯示每天、每週或每月），開啟「顯示 Bar 日期」時每條 Bar 兩側會標起訖日</td><td>貼進簡報、通訊軟體</td></tr>
+            <tr><td>📄 PDF</td><td>和 PNG 相同的完整甘特圖，自動切成 A4 橫式頁面；時間太長往右分頁、任務太多往下分頁，每頁都重複任務表與日期表頭。在列印視窗選「另存為 PDF」</td><td>正式文件、紙本</td></tr>
             <tr><td>📊 CSV</td><td>編號、任務名稱、類型、負責人、起訖日、工作日、進度、前置任務、完成</td><td>用 Excel 再加工</td></tr>
           </tbody>
         </table></div>
+        <p>PDF 會開一個新視窗來列印；如果沒反應，請允許本網站開啟彈出式視窗。</p>
       </section>
 
       <section id="sync">
